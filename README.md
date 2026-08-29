@@ -30,3 +30,5 @@ Articles live in `lib/journal.ts`. Append to that array to publish another piece
 ## Deploy
 
 Pushes to `main` run GitHub Actions: `npm ci`, `npm run verify:pricing`, `next build`, then publish the static `out/` folder to GitHub Pages.
+
+The first publish needs GitHub Pages enabled with **GitHub Actions** as the source (Settings → Pages). After that, every push to `main` updates https://juliustanch.github.io/fomo-maintenance/

@@ -39,21 +39,10 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Enable GitHub Pages
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh api repos/${{ github.repository }}/pages -X POST -f build_type=workflow \
-            || gh api repos/${{ github.repository }}/pages -X PUT --input - <<< '{"build_type":"workflow"}' \
-            || true
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
