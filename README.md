@@ -1,6 +1,6 @@
 # Fomo Maintenance
 
-Public marketing site for **Fomo Maintenance**, an independent solar operations and maintenance company in Singapore. Sister brand to FOMO Energy (the installer).
+Public site for **Fomo Maintenance**, FOMO Energy’s annual solar operations and maintenance program in Singapore.
 
 ## Live site
 

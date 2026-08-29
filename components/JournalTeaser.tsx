@@ -12,7 +12,7 @@ export function JournalTeaser() {
               Journal
             </p>
             <h2 className="mt-3 max-w-xl text-3xl font-bold tracking-tight text-ink md:text-4xl">
-              Tropical O&amp;M notes from Singapore rooftops
+              Notes on solar maintenance in Singapore
             </h2>
           </div>
           <Link href="/journal/" className="cta-pill px-7 py-3 text-sm">

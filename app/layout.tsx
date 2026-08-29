@@ -2,7 +2,7 @@ import { Jost } from "next/font/google";
 import type { Metadata } from "next";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { SITE_NAME, SITE_URL } from "@/lib/site";
+import { SITE_NAME, SITE_TAGLINE, SITE_URL } from "@/lib/site";
 import "./globals.css";
 
 const jost = Jost({
@@ -14,15 +14,13 @@ const jost = Jost({
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: `${SITE_NAME} | Singapore solar operations and maintenance`,
+    default: `${SITE_NAME} | FOMO Energy O&M program`,
     template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "Independent solar operations and maintenance in Singapore. Sister brand to FOMO Energy. Get an annual Condition & Standard quote in SGD.",
+  description: SITE_TAGLINE,
   openGraph: {
-    title: `${SITE_NAME} | Singapore solar O&M`,
-    description:
-      "Independent operations and maintenance for Singapore solar systems. Sister brand to FOMO Energy.",
+    title: `${SITE_NAME} | FOMO Energy`,
+    description: SITE_TAGLINE,
     url: SITE_URL,
     siteName: SITE_NAME,
     locale: "en_SG",

@@ -5,7 +5,7 @@ import { journalArticles } from "@/lib/journal";
 export const metadata: Metadata = {
   title: "Journal",
   description:
-    "Notes on tropical solar operations and maintenance in Singapore — soiling, humidity, and inverter faults.",
+    "Notes on solar maintenance in Singapore: soiling, humidity, and inverter heat.",
 };
 
 export default function JournalPage() {
@@ -17,15 +17,11 @@ export default function JournalPage() {
             Journal
           </p>
           <h1 className="mt-3 text-4xl font-bold tracking-tight text-ink md:text-5xl">
-            Singapore solar O&amp;M notes
+            Notes on solar maintenance in Singapore
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-slate-600">
-            Short field notes on how tropical weather actually treats rooftop
-            arrays. Add further pieces in{" "}
-            <code className="rounded bg-white px-1.5 py-0.5 text-sm text-ink">
-              lib/journal.ts
-            </code>
-            .
+            Short notes on soiling, humidity, and inverter heat. Written by
+            FOMO Energy for owners on the Fomo Maintenance program.
           </p>
         </div>
       </header>

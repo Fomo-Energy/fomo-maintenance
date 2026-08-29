@@ -2,7 +2,7 @@
   "name": "fomo-maintenance",
   "version": "1.0.0",
   "private": true,
-  "description": "Fomo Maintenance public site — Singapore solar operations and maintenance",
+  "description": "Fomo Maintenance — FOMO Energy annual solar O&M program in Singapore",
   "scripts": {
     "dev": "next dev",
     "build": "next build",

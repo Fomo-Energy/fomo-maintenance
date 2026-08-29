@@ -36,7 +36,7 @@ export function QuoteForm({ result }: QuoteFormProps) {
       `Condition & Standard: ${formatSgd(result.baseSgd)} / year`,
       `Quoted total: ${formatSgd(result.totalSgd)} / year`,
       result.indicative
-        ? "Note: other-installer quote is indicative and needs a site check."
+        ? "Note: quote is indicative for a system FOMO Energy did not install. A site check is required."
         : "",
       "",
       `Scope: ${result.scope.join("; ")}`,
@@ -45,7 +45,7 @@ export function QuoteForm({ result }: QuoteFormProps) {
       .join("\n");
 
     const href = `mailto:${QUOTE_EMAIL}?subject=${encodeURIComponent(
-      `O&M quote request · ${result.kwp} kWp`,
+      `Fomo Maintenance quote request · ${result.kwp} kWp`,
     )}&body=${encodeURIComponent(body)}`;
     window.location.href = href;
   }
@@ -54,7 +54,7 @@ export function QuoteForm({ result }: QuoteFormProps) {
     <form className="mt-8 border-t border-orange-100 pt-8" onSubmit={onSubmit}>
       <h3 className="text-lg font-bold">Request this quote</h3>
       <p className="mt-1 text-sm text-slate-500">
-        Not checkout. Opens an email to {QUOTE_EMAIL}.
+        This emails FOMO Energy at {QUOTE_EMAIL}. It is not a checkout.
       </p>
       <div className="mt-5 grid gap-3">
         <label className="text-sm font-semibold">

@@ -39,12 +39,12 @@ export function PricingCalculator() {
           Singapore · annual · SGD
         </p>
         <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-          Operations and maintenance, priced on system size.
+          FOMO Energy looks after the system after it is installed.
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300">
-          Fomo Maintenance is the independent O&amp;M sister brand to FOMO
-          Energy. The figure below is Condition &amp; Standard. Add advanced
-          electrical tests or, on Fomo-installed outright systems, monitoring
+          Fomo Maintenance is the annual O&amp;M program, priced on system
+          size. The figure below is Condition &amp; Standard. Add advanced
+          electrical tests or, on FOMO-installed outright systems, monitoring
           and reporting.
         </p>
 
@@ -209,8 +209,8 @@ export function PricingCalculator() {
                 </p>
                 {result.indicative ? (
                   <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm leading-6 text-slate-700">
-                    Other-installer and walk-in quotes are indicative and need
-                    a site check before we confirm scope.
+                    Quotes for systems FOMO Energy did not install are
+                    indicative. A site check confirms scope before we proceed.
                   </p>
                 ) : null}
 
@@ -264,19 +264,18 @@ export function PricingCalculator() {
                   Rent-to-own
                 </p>
                 <h2 className="mt-3 text-2xl font-bold tracking-tight">
-                  Maintenance is already in your FOMO Energy agreement.
+                  Maintenance is already in your rent-to-own plan.
                 </h2>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  We do not sell a separate O&amp;M contract for FOMO
-                  rent-to-own systems. If something on the array needs
-                  attention, write to FOMO Energy support — they already cover
-                  maintenance under that plan.
+                  FOMO Energy rent-to-own already includes maintenance. There
+                  is no extra Fomo Maintenance contract to buy. If the system
+                  needs attention, contact FOMO Energy support.
                 </p>
                 <a
                   href={FOMO_ENERGY_CONTACT}
                   className="cta-pill mt-8 inline-flex px-7 py-3 text-sm"
                 >
-                  FOMO Energy support
+                  Contact FOMO Energy
                 </a>
               </div>
             )}

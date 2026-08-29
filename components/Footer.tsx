@@ -13,15 +13,15 @@ export function Footer() {
             Maintenance
           </p>
           <p className="mt-4 max-w-xs text-sm leading-6 text-slate-600">
-            Independent solar operations and maintenance in Singapore. Sister
-            brand to{" "}
+            A FOMO Energy program. Annual operations and maintenance for solar
+            systems in Singapore.{" "}
             <a
               className="font-semibold text-ink underline decoration-brand/50 underline-offset-4"
               href={FOMO_ENERGY_URL}
             >
               FOMO Energy
-            </a>
-            , the installer.
+            </a>{" "}
+            designs and installs. Fomo Maintenance is the aftercare.
           </p>
         </div>
         <div>
@@ -57,8 +57,7 @@ export function Footer() {
         </div>
       </div>
       <div className="border-t border-orange-100 px-6 py-4 text-center text-xs text-slate-500">
-        Fomo Maintenance. Independent O&amp;M — not a FOMO Energy installation
-        quote.
+        Fomo Maintenance is a FOMO Energy program, not an installation quote.
       </div>
     </footer>
   );
