@@ -11,6 +11,23 @@ export type JournalArticle = {
 
 export const journalArticles: JournalArticle[] = [
   {
+    slug: "condition-standard-visit",
+    title: "What a Condition & Standard visit actually covers",
+    dek: "What is in the annual visit, what drops out with no roof access, and what still sits with the installer.",
+    date: "2026-09-01",
+    image: "/journal/inverter.jpg",
+    imageAlt:
+      "Electrical distribution board during a maintenance check, used to illustrate a Condition & Standard visit",
+    imageCredit: "Photo: Pexels (freely licensed)",
+    body: [
+      "Fomo Maintenance is FOMO Energy’s annual aftercare program. Condition & Standard is the base visit, priced on system size: first 10 kWp at S$40/kWp, next 30 kWp at S$20/kWp, above 40 kWp at S$5/kWp. It is not a hardware replacement plan.",
+      "In scope: inverter checks, module checks, localised cleaning, site tests, and a written O&M report. FOMO-installed outright systems also include remote checks in that base figure.",
+      "If the roof cannot be walked, module checks and localised cleaning come out. The tariff does not change. The report states what was not done.",
+      "New modules or a new inverter are not part of this visit. Those still sit with FOMO Energy as the installer. Optional Advanced preventive (+25%) and Monitoring (+12.5%, FOMO-installed outright only) exist. This note is about the base visit only.",
+      "Quotes for systems FOMO Energy did not install are indicative until a site check. FOMO rent-to-own already includes maintenance; we do not sell this visit on top of that plan. Outright owners can request a quote from the calculator on this site.",
+    ],
+  },
+  {
     slug: "soiling-singapore-rooftops",
     title: "Soiling on Singapore rooftops",
     dek: "Haze, monsoon splash, and urban dust cut the light that reaches the cell.",

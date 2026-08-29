@@ -5,7 +5,7 @@ import { journalArticles } from "@/lib/journal";
 export const metadata: Metadata = {
   title: "Journal",
   description:
-    "Notes on solar maintenance in Singapore: soiling, humidity, and inverter heat.",
+    "Notes on solar maintenance in Singapore from FOMO Energy’s Fomo Maintenance program.",
 };
 
 export default function JournalPage() {
@@ -20,8 +20,9 @@ export default function JournalPage() {
             Notes on solar maintenance in Singapore
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-slate-600">
-            Short notes on soiling, humidity, and inverter heat. Written by
-            FOMO Energy for owners on the Fomo Maintenance program.
+            Short notes on the annual visit and how Singapore weather treats
+            rooftop arrays. Written by FOMO Energy for owners on the Fomo
+            Maintenance program.
           </p>
         </div>
       </header>
