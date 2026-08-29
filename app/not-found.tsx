@@ -13,7 +13,7 @@ export default function NotFound() {
           Home
         </Link>
         <Link
-          href="/journal/"
+          href="/journal"
           className="rounded-full border border-orange-200 px-6 py-3 text-sm font-bold uppercase tracking-wide text-ink"
         >
           Journal

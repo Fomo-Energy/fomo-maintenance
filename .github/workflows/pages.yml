@@ -1,21 +1,20 @@
-name: Deploy GitHub Pages
+# GitHub Pages cannot host the Stripe/Graph API routes.
+# This workflow only verifies pricing/slots and that `next build` succeeds.
+# Do not upload `out/` — the app is no longer a static export.
+name: CI
 
 on:
   push:
     branches: ["main"]
+  pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
-
 concurrency:
-  group: pages
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,20 +28,17 @@ jobs:
         run: npm ci
       - name: Verify pricing
         run: npm run verify:pricing
+      - name: Verify visit slots
+        run: npm run verify:slots
       - name: Build
-        run: npx next build
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: out
+        run: npm run build
 
-  deploy:
-    needs: build
+  # Left in place so a Pages-only misclick cannot break the Vercel app.
+  # Static export is gated behind GITHUB_PAGES=1 and is not used for booking.
+  pages:
+    if: false
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - run: echo "GitHub Pages deploy disabled; APIs run on Vercel."

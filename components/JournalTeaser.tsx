@@ -15,7 +15,7 @@ export function JournalTeaser() {
               Notes on solar maintenance in Singapore
             </h2>
           </div>
-          <Link href="/journal/" className="cta-pill px-7 py-3 text-sm">
+          <Link href="/journal" className="cta-pill px-7 py-3 text-sm">
             Read the journal
           </Link>
         </div>
@@ -23,7 +23,7 @@ export function JournalTeaser() {
           {journalArticles.map((article) => (
             <Link
               key={article.slug}
-              href={`/journal/#${article.slug}`}
+              href={`/journal#${article.slug}`}
               className="group overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-orange-100"
             >
               <Image

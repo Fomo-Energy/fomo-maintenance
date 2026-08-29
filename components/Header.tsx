@@ -15,7 +15,7 @@ export function Header() {
           <Link href="/#pricing" className="hover:text-brand">
             Pricing
           </Link>
-          <Link href="/journal/" className="hover:text-brand">
+          <Link href="/journal" className="hover:text-brand">
             Journal
           </Link>
           <Link href="/#book" className="btn-square px-5 py-2.5 text-xs">
@@ -55,7 +55,7 @@ export function Header() {
             Pricing
           </Link>
           <Link
-            href="/journal/"
+            href="/journal"
             className="font-semibold text-ink"
             onClick={() => setOpen(false)}
           >

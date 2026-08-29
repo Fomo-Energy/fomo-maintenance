@@ -6,16 +6,20 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "npx --yes serve out",
-    "verify:pricing": "tsx scripts/verify-pricing.ts"
+    "start": "next start",
+    "verify": "npm run verify:pricing && npm run verify:slots",
+    "verify:pricing": "tsx scripts/verify-pricing.ts",
+    "verify:slots": "tsx scripts/verify-slots.ts"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "next": "^15.5.24",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "stripe": "^22.6.0"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

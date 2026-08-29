@@ -33,7 +33,7 @@ export function Footer() {
               <Link href="/#pricing">Pricing</Link>
             </li>
             <li>
-              <Link href="/journal/">Journal</Link>
+              <Link href="/journal">Journal</Link>
             </li>
             <li>
               <Link href="/#book">Book now</Link>

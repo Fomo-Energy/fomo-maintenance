@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { VisitBooking } from "@/components/CalendlyEmbed";
+import { VisitBooking } from "@/components/VisitBooking";
 import { FOMO_ENERGY_CONTACT, QUOTE_EMAIL } from "@/lib/site";
 import {
   INSTALLERS,
@@ -210,7 +210,8 @@ export function PricingCalculator() {
                 {result.indicative ? (
                   <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm leading-6 text-slate-700">
                     Quotes for systems FOMO Energy did not install are
-                    indicative. A site check confirms scope before we proceed.
+                    indicative until a site check. You can still pay to book a
+                    two-hour site-check visit at this figure.
                   </p>
                 ) : null}
 
@@ -256,7 +257,16 @@ export function PricingCalculator() {
                   ) : null}
                 </div>
 
-                <VisitBooking />
+                <VisitBooking
+                  key={result.installer}
+                  kwp={Number.isFinite(kwp) ? kwp : 0}
+                  installer={result.installer}
+                  roofAccess={roofAccess}
+                  advancedPreventive={result.advancedApplied}
+                  monitoring={result.monitoringApplied}
+                  totalSgd={result.totalSgd}
+                  indicative={result.indicative}
+                />
                 <p className="mt-4 text-sm text-slate-500">
                   Prefer email? Write to{" "}
                   <a
