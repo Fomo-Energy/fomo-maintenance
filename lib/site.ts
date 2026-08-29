@@ -11,5 +11,7 @@ export const SITE_TAGLINE =
   "FOMO Energy’s annual operations and maintenance program in Singapore.";
 export const SITE_URL = "https://juliustanch.github.io/fomo-maintenance/";
 export const QUOTE_EMAIL = "hello@fomomaintenance.com";
+export const CALENDLY_EMBED_URL =
+  "https://calendly.com/jtan-fomo/new-meeting?hide_gdpr_banner=1";
 export const FOMO_ENERGY_URL = "https://fomo.energy/";
 export const FOMO_ENERGY_CONTACT = "https://fomo.energy/contact/";
