@@ -1,0 +1,30 @@
+{
+  "name": "fomo-maintenance",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fomo Maintenance public site — Singapore solar operations and maintenance",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "npx --yes serve out",
+    "verify:pricing": "tsx scripts/verify-pricing.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "next": "^15.5.24",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "autoprefixer": "^10.5.4",
+    "postcss": "^8.5.26",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.23.12",
+    "typescript": "5.9"
+  }
+}
