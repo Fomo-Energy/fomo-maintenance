@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CalendlyEmbed } from "@/components/CalendlyEmbed";
+import { VisitBooking } from "@/components/CalendlyEmbed";
 import { FOMO_ENERGY_CONTACT, QUOTE_EMAIL } from "@/lib/site";
 import {
   INSTALLERS,
@@ -256,26 +256,17 @@ export function PricingCalculator() {
                   ) : null}
                 </div>
 
-                <div className="mt-8 border-t border-orange-100 pt-8">
-                  <h3 className="text-lg font-bold">Pick a visit time</h3>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Choose a slot for a Fomo Maintenance visit. This is FOMO
-                    Energy aftercare, not a checkout.
-                  </p>
-                  <div className="mt-5">
-                    <CalendlyEmbed />
-                  </div>
-                  <p className="mt-4 text-sm text-slate-500">
-                    Prefer email? Write to{" "}
-                    <a
-                      className="font-semibold text-ink"
-                      href={`mailto:${QUOTE_EMAIL}`}
-                    >
-                      {QUOTE_EMAIL}
-                    </a>
-                    .
-                  </p>
-                </div>
+                <VisitBooking />
+                <p className="mt-4 text-sm text-slate-500">
+                  Prefer email? Write to{" "}
+                  <a
+                    className="font-semibold text-ink"
+                    href={`mailto:${QUOTE_EMAIL}`}
+                  >
+                    {QUOTE_EMAIL}
+                  </a>
+                  .
+                </p>
               </>
             ) : (
               <div>
