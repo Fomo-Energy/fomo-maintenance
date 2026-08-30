@@ -93,6 +93,7 @@ export async function POST(request: Request) {
     const session = await getStripe().checkout.sessions.create({
       mode: "payment",
       currency: "sgd",
+      adaptive_pricing: { enabled: false },
       customer_email: parsed.email,
       success_url: `${site}/book/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${site}/book/cancel`,
