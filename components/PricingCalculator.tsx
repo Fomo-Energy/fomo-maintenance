@@ -211,7 +211,7 @@ export function PricingCalculator() {
                   <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm leading-6 text-slate-700">
                     Quotes for systems FOMO Energy did not install are
                     indicative until a site check. You can still pay to book a
-                    two-hour site-check visit at this figure.
+                    four-hour site-check visit at this figure.
                   </p>
                 ) : null}
 

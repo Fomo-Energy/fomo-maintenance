@@ -1,10 +1,11 @@
 import { TIMEZONE } from "@/lib/site";
 
-export const SLOT_HOURS = 2;
+export const SLOT_HOURS = 4;
 export const DAY_START_HOUR = 9;
 export const DAY_END_HOUR = 17;
-export const WEEKDAY_HORIZON = 14;
-export const SLOT_START_HOURS = [9, 11, 13, 15] as const;
+export const BOOKING_MONTHS = 3;
+export const SLOT_START_HOURS = [9, 13] as const;
+export const WEEKDAY_HEADERS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 
 export type VisitSlot = {
   start: string;
@@ -17,6 +18,11 @@ export type VisitSlot = {
 export type BusyPeriod = {
   start: Date;
   end: Date;
+};
+
+export type MonthCell = {
+  dateKey: string;
+  inMonth: boolean;
 };
 
 function pad(value: number): string {
@@ -37,6 +43,19 @@ export function addCalendarDays(dateKey: string, days: number): string {
   const noon = new Date(`${dateKey}T12:00:00+08:00`);
   noon.setUTCDate(noon.getUTCDate() + days);
   return singaporeDateKey(noon);
+}
+
+export function addCalendarMonths(dateKey: string, months: number): string {
+  const [year, month, day] = dateKey.split("-").map((part) => Number(part));
+  const totalMonths = year * 12 + (month - 1) + months;
+  const nextYear = Math.floor(totalMonths / 12);
+  const nextMonth = (totalMonths % 12) + 1;
+  const lastDay = new Date(Date.UTC(nextYear, nextMonth, 0)).getUTCDate();
+  return `${nextYear}-${pad(nextMonth)}-${pad(Math.min(day, lastDay))}`;
+}
+
+export function bookingHorizonEnd(now = new Date()): string {
+  return addCalendarMonths(singaporeDateKey(now), BOOKING_MONTHS);
 }
 
 export function weekdayUtcIndex(dateKey: string): number {
@@ -90,17 +109,65 @@ export function formatSlotRange(startIso: string, endIso: string): string {
   return `${day}, ${startTime}–${endTime} SGT`;
 }
 
+export function yearMonthFromDateKey(dateKey: string): string {
+  return dateKey.slice(0, 7);
+}
+
+export function addYearMonths(yearMonth: string, delta: number): string {
+  return addCalendarMonths(`${yearMonth}-01`, delta).slice(0, 7);
+}
+
+export function formatYearMonthLabel(yearMonth: string): string {
+  return new Date(`${yearMonth}-01T12:00:00+08:00`).toLocaleDateString("en-SG", {
+    timeZone: TIMEZONE,
+    month: "long",
+    year: "numeric",
+  });
+}
+
+export function monthCells(yearMonth: string): MonthCell[] {
+  const first = `${yearMonth}-01`;
+  const mondayFirst = (weekdayUtcIndex(first) + 6) % 7;
+  const [year, month] = yearMonth.split("-").map((part) => Number(part));
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const cells: MonthCell[] = [];
+
+  for (let lead = 0; lead < mondayFirst; lead += 1) {
+    cells.push({
+      dateKey: addCalendarDays(first, lead - mondayFirst),
+      inMonth: false,
+    });
+  }
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    cells.push({
+      dateKey: `${yearMonth}-${pad(day)}`,
+      inMonth: true,
+    });
+  }
+  while (cells.length % 7 !== 0) {
+    const last = cells[cells.length - 1];
+    cells.push({
+      dateKey: addCalendarDays(last.dateKey, 1),
+      inMonth: false,
+    });
+  }
+
+  return cells;
+}
+
 export function generateCandidateSlots(now = new Date()): VisitSlot[] {
   const todayKey = singaporeDateKey(now);
+  const lastKey = bookingHorizonEnd(now);
   const slots: VisitSlot[] = [];
-  let weekdays = 0;
 
-  for (let offset = 0; offset < 32 && weekdays < WEEKDAY_HORIZON; offset += 1) {
+  for (let offset = 0; offset <= 100; offset += 1) {
     const dateKey = addCalendarDays(todayKey, offset);
+    if (dateKey > lastKey) {
+      break;
+    }
     if (!isWeekdayDate(dateKey)) {
       continue;
     }
-    weekdays += 1;
     for (const hour of SLOT_START_HOURS) {
       const start = isoSingapore(dateKey, hour);
       const end = isoSingapore(dateKey, hour + SLOT_HOURS);

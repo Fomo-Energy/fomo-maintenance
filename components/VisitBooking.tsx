@@ -1,9 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { VisitCalendar } from "@/components/VisitCalendar";
 import { QUOTE_EMAIL } from "@/lib/site";
 import { formatSgd, type InstallerId } from "@/lib/pricing";
-import type { VisitSlot } from "@/lib/slots";
+import {
+  singaporeDateKey,
+  yearMonthFromDateKey,
+  type VisitSlot,
+} from "@/lib/slots";
 
 type VisitBookingProps = {
   kwp: number;
@@ -43,6 +48,10 @@ export function VisitBooking({
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [slotsError, setSlotsError] = useState<string | null>(null);
   const [selectedStart, setSelectedStart] = useState<string | null>(null);
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
+  const [visibleMonth, setVisibleMonth] = useState(() =>
+    yearMonthFromDateKey(singaporeDateKey(new Date())),
+  );
   const [payError, setPayError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -62,7 +71,11 @@ export function VisitBooking({
       if (!response.ok) {
         throw new Error(data.error || "Visit times could not be loaded.");
       }
-      setSlots(data.slots ?? []);
+      const nextSlots = data.slots ?? [];
+      setSlots(nextSlots);
+      if (nextSlots[0]) {
+        setVisibleMonth(yearMonthFromDateKey(nextSlots[0].dateKey));
+      }
     } catch (error) {
       setSlots([]);
       setSlotsError(
@@ -79,17 +92,20 @@ export function VisitBooking({
     void loadSlots();
   }, [loadSlots]);
 
-  const grouped = useMemo(() => {
-    const map = new Map<string, VisitSlot[]>();
-    for (const slot of slots) {
-      const list = map.get(slot.dateKey) ?? [];
-      list.push(slot);
-      map.set(slot.dateKey, list);
-    }
-    return [...map.entries()];
-  }, [slots]);
+  const daySlots = useMemo(
+    () =>
+      selectedDateKey
+        ? slots.filter((slot) => slot.dateKey === selectedDateKey)
+        : [],
+    [selectedDateKey, slots],
+  );
 
   const selected = slots.find((slot) => slot.start === selectedStart) ?? null;
+
+  function chooseDate(dateKey: string) {
+    setSelectedDateKey(dateKey);
+    setSelectedStart(null);
+  }
   const formReady =
     fields.name.trim().length > 0 &&
     fields.phone.trim().length >= 8 &&
@@ -132,6 +148,7 @@ export function VisitBooking({
       if (!response.ok || !data.url) {
         if (response.status === 409) {
           setSelectedStart(null);
+          setSelectedDateKey(null);
           void loadSlots();
         }
         throw new Error(data.error || "Checkout could not start.");
@@ -150,8 +167,8 @@ export function VisitBooking({
       <h3 className="text-lg font-bold">Book a visit</h3>
       <p className="mt-1 text-sm text-slate-500">
         {indicative
-          ? "This figure is indicative until a site check. Paying books a two-hour site-check visit at the address below."
-          : "Name, phone, email, and the site address, then a two-hour weekday visit. Paying books that visit at the annual figure above."}
+          ? "This figure is indicative until a site check. Paying books a four-hour site-check visit at the address below."
+          : "Name, phone, email, and the site address, then a four-hour weekday visit. Paying books that visit at the annual figure above."}
       </p>
 
       <div className="mt-5 grid gap-3">
@@ -210,8 +227,8 @@ export function VisitBooking({
       <div className="mt-6">
         <p className="text-sm font-semibold">Visit time (Asia/Singapore)</p>
         <p className="mt-1 text-xs leading-5 text-slate-500">
-          Next 14 weekdays, 09:00–17:00, two-hour visits. Times already held on
-          the operations calendar are hidden.
+          Weekdays in the next three months, 09:00–17:00, four-hour visits.
+          Times already held on the operations calendar are hidden.
         </p>
 
         {slotsLoading ? (
@@ -231,7 +248,7 @@ export function VisitBooking({
         ) : null}
         {!slotsLoading && !slotsError && slots.length === 0 ? (
           <p className="mt-4 text-sm text-slate-600">
-            No weekday slots in the next 14 days. Email{" "}
+            No weekday slots in the next three months. Email{" "}
             <a className="font-semibold text-ink" href={`mailto:${QUOTE_EMAIL}`}>
               {QUOTE_EMAIL}
             </a>
@@ -239,35 +256,46 @@ export function VisitBooking({
           </p>
         ) : null}
 
-        <div className="mt-4 grid gap-4">
-          {grouped.map(([dateKey, daySlots]) => (
-            <div key={dateKey}>
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                {daySlots[0]?.dayLabel}
-              </p>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                {daySlots.map((slot) => {
-                  const active = selectedStart === slot.start;
-                  return (
-                    <button
-                      key={slot.start}
-                      type="button"
-                      aria-pressed={active}
-                      onClick={() => setSelectedStart(slot.start)}
-                      className={`rounded-xl border px-3 py-2 text-sm font-semibold ${
-                        active
-                          ? "border-brand bg-peach text-ink"
-                          : "border-slate-200 bg-white text-ink"
-                      }`}
-                    >
-                      {slot.timeLabel}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </div>
+        {!slotsLoading && !slotsError && slots.length > 0 ? (
+          <div className="mt-4 grid gap-3">
+            <VisitCalendar
+              slots={slots}
+              selectedDateKey={selectedDateKey}
+              onSelectDate={chooseDate}
+              visibleMonth={visibleMonth}
+              onVisibleMonthChange={(yearMonth) => {
+                setVisibleMonth(yearMonth);
+                if (
+                  selectedDateKey &&
+                  yearMonthFromDateKey(selectedDateKey) !== yearMonth
+                ) {
+                  setSelectedDateKey(null);
+                  setSelectedStart(null);
+                }
+              }}
+            />
+            <label className="text-sm font-semibold">
+              Time
+              <select
+                value={selectedStart ?? ""}
+                disabled={!selectedDateKey || daySlots.length === 0}
+                onChange={(event) =>
+                  setSelectedStart(event.target.value || null)
+                }
+                className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal outline-none ring-brand focus:ring-2 disabled:bg-slate-50 disabled:text-slate-400"
+              >
+                <option value="">
+                  {selectedDateKey ? "Choose a time" : "Choose a date first"}
+                </option>
+                {daySlots.map((slot) => (
+                  <option key={slot.start} value={slot.start}>
+                    {slot.timeLabel}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        ) : null}
       </div>
 
       {payError ? (

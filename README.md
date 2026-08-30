@@ -43,7 +43,7 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 
 1. Calculator on the homepage
 2. Name, phone, email, site address
-3. Slot picker: next 14 weekdays, 09:00–17:00 Asia/Singapore, two-hour visits, skipping busy times on the ops mailbox
+3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on the ops mailbox
 4. Pay → Stripe Checkout (hosted, SGD cents)
 5. Return URLs on this site: `/book/success?session_id=…` and `/book/cancel`
 
