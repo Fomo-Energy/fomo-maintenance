@@ -5,6 +5,7 @@ import {
   WEEKDAY_HEADERS,
   addYearMonths,
   formatYearMonthLabel,
+  isWeekdayDate,
   monthCells,
   yearMonthFromDateKey,
 } from "@/lib/slots";
@@ -68,7 +69,10 @@ export function VisitCalendar({
           </div>
         ))}
         {cells.map((cell) => {
-          const bookable = cell.inMonth && bookableDates.has(cell.dateKey);
+          const bookable =
+            cell.inMonth &&
+            isWeekdayDate(cell.dateKey) &&
+            bookableDates.has(cell.dateKey);
           const selected = selectedDateKey === cell.dateKey;
           return (
             <button
