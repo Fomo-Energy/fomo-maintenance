@@ -1,120 +1,191 @@
 export const INSTALLERS = [
-  { id: "fomo", label: "Fomo-installed" },
+  { id: "fomo", label: "FOMO-installed" },
   { id: "other", label: "Other installer" },
   { id: "rto", label: "FOMO rent-to-own" },
 ] as const;
 
+export const SERVICE_LEVELS = [
+  { id: "essential", label: "Essential Health Check" },
+  { id: "electrical_assurance", label: "Electrical Assurance" },
+] as const;
+
 export type InstallerId = (typeof INSTALLERS)[number]["id"];
+export type ServiceLevel = (typeof SERVICE_LEVELS)[number]["id"];
+export type ServiceCode =
+  | "ESSENTIAL"
+  | "ELECTRICAL_ASSURANCE"
+  | "ESSENTIAL_CLEAN"
+  | "ELECTRICAL_CLEAN";
 
 export type QuoteInput = {
   kwp: number;
   installer: InstallerId;
-  roofAccess: boolean;
-  advancedPreventive: boolean;
+  serviceLevel: ServiceLevel;
+  cleaning: boolean;
   monitoring: boolean;
 };
 
 export type QuoteResult = {
   kwp: number;
   installer: InstallerId;
-  roofAccess: boolean;
-  baseSgd: number;
-  advancedSgd: number;
+  serviceLevel: ServiceLevel;
+  serviceCode: ServiceCode;
+  packageName: string;
+  essentialSgd: number;
+  electricalUpgradeSgd: number;
+  servicePackageSgd: number;
+  cleaningSgd: number;
   monitoringSgd: number;
   totalSgd: number;
   monitoringEligible: boolean;
   sellable: boolean;
-  indicative: boolean;
-  advancedApplied: boolean;
+  cleaningApplied: boolean;
   monitoringApplied: boolean;
   scope: string[];
+  exclusions: string[];
 };
 
-const FIRST_BAND_KWP = 10;
-const SECOND_BAND_KWP = 30;
-const RATE_FIRST = 40;
-const RATE_SECOND = 20;
-const RATE_ABOVE = 5;
-const ADVANCED_RATE = 0.25;
-const MONITORING_RATE = 0.125;
+const ESSENTIAL_MINIMUM_SGD = 199;
+const ESSENTIAL_FIXED_SGD = 149;
+const ESSENTIAL_PER_KWP_SGD = 5;
+const ELECTRICAL_FIXED_SGD = 150;
+const ELECTRICAL_PER_KWP_SGD = 5;
+const CLEANING_MINIMUM_SGD = 450;
+const CLEANING_FIXED_SGD = 390;
+const CLEANING_PER_KWP_SGD = 6;
+export const MONITORING_SGD = 120;
 
+/** Every displayed and charged line item is rounded to the nearest whole SGD. */
 export function roundSgd(amount: number): number {
-  return Math.round(amount * 100) / 100;
+  return Math.round(amount);
 }
 
-/** Stepped Condition & Standard annual tariff in SGD. */
-export function baseTariffSgd(kwp: number): number {
-  const size = Number.isFinite(kwp) ? Math.max(0, kwp) : 0;
-  const first = Math.min(size, FIRST_BAND_KWP) * RATE_FIRST;
-  const second =
-    Math.min(Math.max(size - FIRST_BAND_KWP, 0), SECOND_BAND_KWP) * RATE_SECOND;
-  const rest = Math.max(size - (FIRST_BAND_KWP + SECOND_BAND_KWP), 0) * RATE_ABOVE;
-  return roundSgd(first + second + rest);
+function normalizedKwp(kwp: number): number {
+  return Number.isFinite(kwp) ? Math.max(0, kwp) : 0;
+}
+
+export function essentialPriceSgd(kwp: number): number {
+  const size = normalizedKwp(kwp);
+  return roundSgd(
+    Math.max(
+      ESSENTIAL_MINIMUM_SGD,
+      ESSENTIAL_FIXED_SGD + ESSENTIAL_PER_KWP_SGD * size,
+    ),
+  );
+}
+
+export function electricalUpgradePriceSgd(kwp: number): number {
+  const size = normalizedKwp(kwp);
+  return roundSgd(ELECTRICAL_FIXED_SGD + ELECTRICAL_PER_KWP_SGD * size);
+}
+
+export function cleaningPriceSgd(kwp: number): number {
+  const size = normalizedKwp(kwp);
+  return roundSgd(
+    Math.max(
+      CLEANING_MINIMUM_SGD,
+      CLEANING_FIXED_SGD + CLEANING_PER_KWP_SGD * size,
+    ),
+  );
+}
+
+function serviceCodeFor(
+  serviceLevel: ServiceLevel,
+  cleaning: boolean,
+): ServiceCode {
+  if (serviceLevel === "electrical_assurance") {
+    return cleaning ? "ELECTRICAL_CLEAN" : "ELECTRICAL_ASSURANCE";
+  }
+  return cleaning ? "ESSENTIAL_CLEAN" : "ESSENTIAL";
 }
 
 export function quote(input: QuoteInput): QuoteResult {
-  const baseSgd = baseTariffSgd(input.kwp);
+  const size = normalizedKwp(input.kwp);
   const sellable = input.installer !== "rto";
   const monitoringEligible = input.installer === "fomo";
-  const advancedApplied = sellable && input.advancedPreventive;
-  const monitoringApplied = monitoringEligible && input.monitoring;
-  const advancedSgd = advancedApplied ? roundSgd(baseSgd * ADVANCED_RATE) : 0;
-  const monitoringSgd = monitoringApplied
-    ? roundSgd(baseSgd * MONITORING_RATE)
+  const electricalApplied =
+    sellable && input.serviceLevel === "electrical_assurance";
+  const cleaningApplied = sellable && input.cleaning;
+  const monitoringApplied = sellable && monitoringEligible && input.monitoring;
+  const essentialSgd = essentialPriceSgd(size);
+  const electricalUpgradeSgd = electricalApplied
+    ? electricalUpgradePriceSgd(size)
     : 0;
+  const servicePackageSgd = essentialSgd + electricalUpgradeSgd;
+  const cleaningSgd = cleaningApplied ? cleaningPriceSgd(size) : 0;
+  const monitoringSgd = monitoringApplied ? MONITORING_SGD : 0;
+  const packageName = electricalApplied
+    ? "Electrical Assurance"
+    : "Essential Health Check";
 
-  const scope: string[] = ["Inverter checks"];
-  if (input.roofAccess) {
-    scope.push("Module checks", "Localised cleaning");
+  const scope = [
+    "Inverter and fault-log review",
+    "Accessible electrical checks",
+    "Generation sanity check",
+    "Remote pre-check when available",
+    "Digital maintenance report",
+  ];
+  if (electricalApplied) {
+    scope.push(
+      "Deeper DC-side safety and performance testing using professional solar testing equipment",
+    );
   }
-  scope.push("Site tests", "O&M report");
-  if (input.installer === "fomo") {
-    scope.push("Remote checks");
-  }
-  if (advancedApplied) {
-    scope.push("IR hotspot survey", "DC/AC insulation tests", "Cable thermal checks");
+  if (cleaningApplied) {
+    scope.push("Full panel cleaning, subject to confirmed safe roof access");
   }
   if (monitoringApplied) {
-    scope.push("Monitoring and reporting");
+    scope.push(
+      "Continuous monitoring for one year, subject to compatibility confirmation",
+    );
+  }
+
+  const exclusions = ["Repairs and replacement parts"];
+  if (!electricalApplied) {
+    exclusions.push("Deeper DC-side testing");
+  }
+  if (!cleaningApplied) {
+    exclusions.push("Roof access and panel cleaning");
+  } else {
+    exclusions.push("Roof work until safe access is confirmed");
   }
 
   return {
     kwp: input.kwp,
     installer: input.installer,
-    roofAccess: input.roofAccess,
-    baseSgd,
-    advancedSgd,
+    serviceLevel: input.serviceLevel,
+    serviceCode: serviceCodeFor(input.serviceLevel, cleaningApplied),
+    packageName,
+    essentialSgd,
+    electricalUpgradeSgd,
+    servicePackageSgd,
+    cleaningSgd,
     monitoringSgd,
-    totalSgd: roundSgd(baseSgd + advancedSgd + monitoringSgd),
+    totalSgd: servicePackageSgd + cleaningSgd + monitoringSgd,
     monitoringEligible,
     sellable,
-    indicative: input.installer === "other",
-    advancedApplied,
+    cleaningApplied,
     monitoringApplied,
     scope,
+    exclusions,
   };
 }
 
 export function formatSgd(amount: number): string {
-  const rounded = roundSgd(amount);
-  const isInt = Number.isInteger(rounded);
-  return `S$${rounded.toLocaleString("en-SG", {
-    minimumFractionDigits: isInt ? 0 : 2,
-    maximumFractionDigits: 2,
-  })}`;
+  return `S$${roundSgd(amount).toLocaleString("en-SG")}`;
 }
 
 export function quoteTotalSgd(options: {
   kwp: number;
-  advancedPreventive?: boolean;
+  serviceLevel?: ServiceLevel;
+  cleaning?: boolean;
   monitoring?: boolean;
   installer?: InstallerId;
 }): number {
   return quote({
     kwp: options.kwp,
     installer: options.installer ?? "fomo",
-    roofAccess: true,
-    advancedPreventive: Boolean(options.advancedPreventive),
+    serviceLevel: options.serviceLevel ?? "essential",
+    cleaning: Boolean(options.cleaning),
     monitoring: Boolean(options.monitoring),
   }).totalSgd;
 }

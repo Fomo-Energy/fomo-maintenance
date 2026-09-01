@@ -5,9 +5,13 @@ import { VisitBooking } from "@/components/VisitBooking";
 import { FOMO_ENERGY_CONTACT, QUOTE_EMAIL } from "@/lib/site";
 import {
   INSTALLERS,
+  cleaningPriceSgd,
+  electricalUpgradePriceSgd,
+  essentialPriceSgd,
   formatSgd,
   quote,
   type InstallerId,
+  type ServiceLevel,
 } from "@/lib/pricing";
 
 const DEFAULT_KWP = 10;
@@ -15,21 +19,27 @@ const DEFAULT_KWP = 10;
 export function PricingCalculator() {
   const [kwpInput, setKwpInput] = useState(String(DEFAULT_KWP));
   const [installer, setInstaller] = useState<InstallerId>("fomo");
-  const [roofAccess, setRoofAccess] = useState(true);
-  const [advancedPreventive, setAdvancedPreventive] = useState(false);
+  const [serviceLevel, setServiceLevel] =
+    useState<ServiceLevel>("essential");
+  const [cleaning, setCleaning] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
 
-  const kwp = Number.parseFloat(kwpInput);
+  const parsedKwp = Number.parseFloat(kwpInput);
+  const kwp = Number.isFinite(parsedKwp) ? parsedKwp : 0;
+  const essentialPrice = essentialPriceSgd(kwp);
+  const electricalPackagePrice =
+    essentialPrice + electricalUpgradePriceSgd(kwp);
+  const cleaningPrice = cleaningPriceSgd(kwp);
   const result = useMemo(
     () =>
       quote({
-        kwp: Number.isFinite(kwp) ? kwp : 0,
+        kwp,
         installer,
-        roofAccess,
-        advancedPreventive,
+        serviceLevel,
+        cleaning,
         monitoring: installer === "fomo" ? monitoring : false,
       }),
-    [advancedPreventive, installer, kwp, monitoring, roofAccess],
+    [cleaning, installer, kwp, monitoring, serviceLevel],
   );
 
   return (
@@ -38,28 +48,25 @@ export function PricingCalculator() {
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-brand">
           Singapore · annual · SGD
         </p>
-        <h1 className="mt-4 max-w-3xl text-4xl font-bold tracking-tight md:text-5xl">
-          FOMO Energy looks after the system after it is installed.
+        <h1 className="mt-4 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
+          Solar maintenance priced around what you actually need.
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300">
-          Fomo Maintenance is the annual O&amp;M program, priced on system
-          size. The figure below is Condition &amp; Standard. Add advanced
-          electrical tests or, on FOMO-installed outright systems, monitoring
-          and reporting.
+          Enter your system size, choose a testing level, optionally add
+          cleaning, see the final price, then choose an appointment and pay
+          online.
         </p>
 
         <div className="mt-12 grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <div className="rounded-3xl bg-white p-6 text-ink shadow-xl md:p-8">
-            <h2 className="text-xl font-bold">Quote calculator</h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Annual Condition &amp; Standard tariff, then optional add-ons.
-            </p>
+            <h2 className="text-xl font-bold">Build your maintenance package</h2>
 
             <label className="mt-8 block text-sm font-semibold">
               System size (kWp)
               <input
                 type="number"
-                min={0}
+                min={0.1}
+                max={10000}
                 step="0.1"
                 inputMode="decimal"
                 value={kwpInput}
@@ -87,6 +94,9 @@ export function PricingCalculator() {
                       checked={installer === option.id}
                       onChange={() => {
                         setInstaller(option.id);
+                        if (option.id === "rto") {
+                          setCleaning(false);
+                        }
                         if (option.id !== "fomo") {
                           setMonitoring(false);
                         }
@@ -98,55 +108,112 @@ export function PricingCalculator() {
               </div>
             </fieldset>
 
+            {installer === "rto" ? (
+              <div className="mt-8 rounded-2xl bg-peach p-5 text-sm leading-6 text-slate-700">
+                <p className="font-semibold text-ink">
+                  Maintenance is included in your rent-to-own plan.
+                </p>
+                <p className="mt-1">
+                  There is no package or add-on to select here. Contact FOMO
+                  Energy support whenever the system needs attention.
+                </p>
+                <a
+                  href={FOMO_ENERGY_CONTACT}
+                  className="cta-pill mt-5 inline-flex min-h-11 px-6 py-3 text-sm"
+                >
+                  Contact FOMO Energy
+                </a>
+              </div>
+            ) : (
+              <>
             <fieldset className="mt-6">
-              <legend className="text-sm font-semibold">Roof access</legend>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {[
-                  { value: true, label: "Yes" },
-                  { value: false, label: "No" },
-                ].map((option) => (
-                  <label
-                    key={String(option.value)}
-                    className={`flex cursor-pointer items-center justify-center rounded-xl border px-4 py-3 text-sm font-semibold ${
-                      roofAccess === option.value
-                        ? "border-brand bg-peach"
-                        : "border-slate-200 bg-white"
-                    }`}
-                  >
+              <legend className="text-sm font-semibold">Service level</legend>
+              <div className="mt-3 grid gap-3">
+                <label
+                  className={`cursor-pointer rounded-2xl border p-4 ${
+                    serviceLevel === "essential"
+                      ? "border-brand bg-peach"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <span className="flex items-start gap-3">
                     <input
                       type="radio"
-                      name="roofAccess"
-                      className="sr-only"
-                      checked={roofAccess === option.value}
-                      onChange={() => setRoofAccess(option.value)}
+                      name="serviceLevel"
+                      value="essential"
+                      checked={serviceLevel === "essential"}
+                      onChange={() => setServiceLevel("essential")}
+                      className="mt-1"
                     />
-                    {option.label}
-                  </label>
-                ))}
+                    <span>
+                      <span className="block font-bold">
+                        Essential Health Check · {formatSgd(essentialPrice)}
+                      </span>
+                      <span className="text-brand-on-light mt-1 block text-xs font-semibold">
+                        From S$199 · No roof access required
+                      </span>
+                      <span className="mt-2 block text-xs leading-5 text-slate-600">
+                        Inverter and fault-log review, accessible electrical
+                        checks, generation sanity check, remote pre-check when
+                        available, and a digital report.
+                      </span>
+                    </span>
+                  </span>
+                </label>
+
+                <label
+                  className={`cursor-pointer rounded-2xl border p-4 ${
+                    serviceLevel === "electrical_assurance"
+                      ? "border-brand bg-peach"
+                      : "border-slate-200"
+                  }`}
+                >
+                  <span className="flex items-start gap-3">
+                    <input
+                      type="radio"
+                      name="serviceLevel"
+                      value="electrical_assurance"
+                      checked={serviceLevel === "electrical_assurance"}
+                      onChange={() =>
+                        setServiceLevel("electrical_assurance")
+                      }
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="block font-bold">
+                        Electrical Assurance · {formatSgd(electricalPackagePrice)}
+                      </span>
+                      <span className="mt-2 block text-xs leading-5 text-slate-600">
+                        Everything in Essential, plus deeper DC-side safety and
+                        performance testing using professional solar testing
+                        equipment.
+                      </span>
+                    </span>
+                  </span>
+                </label>
               </div>
-              <p className="mt-2 text-xs leading-5 text-slate-500">
-                No roof access skips module checks and localised cleaning in
-                the scope. The tariff does not change.
-              </p>
             </fieldset>
 
             <fieldset className="mt-6">
-              <legend className="text-sm font-semibold">Extras</legend>
+              <legend className="text-sm font-semibold">Optional services</legend>
               <label className="mt-3 flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
                 <input
                   type="checkbox"
                   className="mt-1"
-                  checked={advancedPreventive}
+                  checked={cleaning}
                   disabled={!result.sellable}
-                  onChange={(event) =>
-                    setAdvancedPreventive(event.target.checked)
-                  }
+                  onChange={(event) => setCleaning(event.target.checked)}
                 />
                 <span>
-                  <span className="font-semibold">Advanced preventive</span>
+                  <span className="font-semibold">
+                    Full panel cleaning · {formatSgd(cleaningPrice)}
+                  </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    +25% of Condition &amp; Standard. IR hotspot, DC/AC
-                    insulation, cable thermal.
+                    From S$450. S$450 up to 10 kWp, then S$6 for each
+                    additional kWp. Cleaning is performed only after safe roof
+                    access has been confirmed. Checkout collects the cleaning
+                    charge; if access cannot be confirmed, the team will
+                    contact you to resolve that charge.
                   </span>
                 </span>
               </label>
@@ -156,40 +223,39 @@ export function PricingCalculator() {
                     type="checkbox"
                     className="mt-1"
                     checked={monitoring}
+                    disabled={!result.sellable}
                     onChange={(event) => setMonitoring(event.target.checked)}
                   />
                   <span>
                     <span className="font-semibold">
-                      Monitoring and reporting
+                      Continuous monitoring · S$120/year
                     </span>
                     <span className="mt-1 block text-xs leading-5 text-slate-500">
-                      +12.5% of Condition &amp; Standard. Fomo-installed
-                      outright only.
+                      For compatible FOMO-installed systems only. Compatibility
+                      is confirmed after booking.
                     </span>
                   </span>
                 </label>
-              ) : null}
+              ) : (
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Continuous monitoring is available only for compatible
+                  FOMO-installed systems.
+                </p>
+              )}
             </fieldset>
 
-            <div className="mt-8 rounded-2xl bg-peach p-5">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                Condition &amp; Standard bands
+            <div className="mt-8 rounded-2xl bg-peach p-5 text-sm leading-6 text-slate-700">
+              <p className="font-semibold text-ink">Before any roof work</p>
+              <p className="mt-1">
+                This site does not determine roof eligibility automatically.
+                If cleaning is selected, the team will confirm safe access
+                before it is performed. Checkout includes the cleaning charge;
+                if access cannot be confirmed, the team will contact you to
+                resolve it.
               </p>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li className="flex justify-between gap-4">
-                  <span>First 10 kWp</span>
-                  <span className="font-semibold">S$40 / kWp</span>
-                </li>
-                <li className="flex justify-between gap-4">
-                  <span>Next 30 kWp (10–40)</span>
-                  <span className="font-semibold">S$20 / kWp</span>
-                </li>
-                <li className="flex justify-between gap-4">
-                  <span>Above 40 kWp</span>
-                  <span className="font-semibold">S$5 / kWp</span>
-                </li>
-              </ul>
             </div>
+              </>
+            )}
           </div>
 
           <div
@@ -198,41 +264,46 @@ export function PricingCalculator() {
           >
             {result.sellable ? (
               <>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">
-                  {result.indicative ? "Indicative annual figure" : "Annual figure"}
+                <p className="text-brand-on-light text-xs font-bold uppercase tracking-[0.16em]">
+                  {result.packageName}
                 </p>
                 <p className="mt-2 text-5xl font-bold tracking-tight">
                   {formatSgd(result.totalSgd)}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
-                  per year, SGD, for {Number.isFinite(kwp) ? kwp : 0} kWp
+                  {result.installer === "other"
+                    ? "online package total"
+                    : "final annual price"}
+                  , SGD, for {kwp} kWp
                 </p>
-                {result.indicative ? (
-                  <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm leading-6 text-slate-700">
-                    Quotes for systems FOMO Energy did not install are
-                    indicative until a site check. You can still pay to book a
-                    four-hour site-check visit at this figure.
+
+                {result.installer === "other" ? (
+                  <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-xs leading-5 text-slate-700">
+                    A S$120 first-visit onboarding fee may apply. It is not
+                    included in this online total because this site cannot yet
+                    verify prior visit history; the team will confirm it with
+                    you.
                   </p>
                 ) : null}
 
                 <dl className="mt-6 space-y-2 text-sm">
                   <div className="flex justify-between gap-4">
-                    <dt>Condition &amp; Standard</dt>
+                    <dt>{result.packageName}</dt>
                     <dd className="font-semibold">
-                      {formatSgd(result.baseSgd)}
+                      {formatSgd(result.servicePackageSgd)}
                     </dd>
                   </div>
-                  {result.advancedApplied ? (
+                  {result.cleaningSgd ? (
                     <div className="flex justify-between gap-4">
-                      <dt>Advanced preventive</dt>
+                      <dt>Full panel cleaning</dt>
                       <dd className="font-semibold">
-                        {formatSgd(result.advancedSgd)}
+                        {formatSgd(result.cleaningSgd)}
                       </dd>
                     </div>
                   ) : null}
-                  {result.monitoringApplied ? (
+                  {result.monitoringSgd ? (
                     <div className="flex justify-between gap-4">
-                      <dt>Monitoring and reporting</dt>
+                      <dt>Continuous monitoring</dt>
                       <dd className="font-semibold">
                         {formatSgd(result.monitoringSgd)}
                       </dd>
@@ -249,23 +320,24 @@ export function PricingCalculator() {
                       <li key={item}>{item}</li>
                     ))}
                   </ul>
-                  {result.installer === "fomo" ? (
-                    <p className="mt-3 text-xs leading-5 text-slate-500">
-                      Fomo-installed outright systems include remote checks in
-                      Condition &amp; Standard.
-                    </p>
-                  ) : null}
+                  <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                    Not included
+                  </p>
+                  <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                    {result.exclusions.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
                 </div>
 
                 <VisitBooking
-                  key={result.installer}
-                  kwp={Number.isFinite(kwp) ? kwp : 0}
-                  installer={result.installer}
-                  roofAccess={roofAccess}
-                  advancedPreventive={result.advancedApplied}
+                  key={installer}
+                  kwp={kwp}
+                  installer={installer}
+                  serviceLevel={result.serviceLevel}
+                  cleaning={result.cleaningApplied}
                   monitoring={result.monitoringApplied}
                   totalSgd={result.totalSgd}
-                  indicative={result.indicative}
                 />
                 <p className="mt-4 text-sm text-slate-500">
                   Prefer email? Write to{" "}
@@ -280,15 +352,14 @@ export function PricingCalculator() {
               </>
             ) : (
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-brand">
+                <p className="text-brand-on-light text-xs font-bold uppercase tracking-[0.16em]">
                   Rent-to-own
                 </p>
                 <h2 className="mt-3 text-2xl font-bold tracking-tight">
                   Maintenance is already in your rent-to-own plan.
                 </h2>
                 <p className="mt-4 text-sm leading-6 text-slate-600">
-                  FOMO Energy rent-to-own already includes maintenance. There
-                  is no extra Fomo Maintenance contract to buy. If the system
+                  There is no extra maintenance package to buy. If the system
                   needs attention, contact FOMO Energy support.
                 </p>
                 <a

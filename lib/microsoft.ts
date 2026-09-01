@@ -77,9 +77,15 @@ export type MaintenanceVisitInput = {
   slotEnd: string;
   kwp: string;
   installer: string;
+  serviceCode: string;
+  packageName: string;
+  breakdown: string;
   extras: string;
   amountPaidSgd: string;
   scope: string;
+  exclusions: string;
+  cleaningAccessStatus: string;
+  monitoringCompatibilityStatus: string;
   indicative: boolean;
 };
 
@@ -425,17 +431,32 @@ async function findEventBySessionId(
 }
 
 function visitBody(input: MaintenanceVisitInput): string {
-  const visitType = input.indicative
-    ? "Site-check visit (indicative quote until confirmed on site)"
-    : "First Fomo Maintenance visit";
+  // Older paid Stripe sessions do not have package metadata, so retain their
+  // original visit label while enriching all newly created package bookings.
+  const visitType = input.packageName
+    ? `Fomo Maintenance package: ${input.packageName}`
+    : input.indicative
+      ? "Site-check visit (indicative quote until confirmed on site)"
+      : "First Fomo Maintenance visit";
   return [
     visitType,
     "",
     `kWp: ${input.kwp}`,
     `Installer: ${input.installer}`,
+    ...(input.serviceCode ? [`Service code: ${input.serviceCode}`] : []),
+    ...(input.breakdown ? [`Price breakdown: ${input.breakdown}`] : []),
     `Scope: ${input.scope || "—"}`,
+    ...(input.exclusions ? [`Exclusions: ${input.exclusions}`] : []),
     `Amount paid: ${input.amountPaidSgd}`,
     `Extras: ${input.extras}`,
+    ...(input.cleaningAccessStatus === "pending_confirmation"
+      ? [
+          "Cleaning access: Pending confirmation — do not perform roof work until safe access is confirmed.",
+        ]
+      : []),
+    ...(input.monitoringCompatibilityStatus === "pending_confirmation"
+      ? ["Monitoring compatibility: Pending confirmation."]
+      : []),
     "",
     `Name: ${input.name}`,
     `Phone: ${input.phone}`,
@@ -474,10 +495,12 @@ export async function createMaintenanceVisit(
       ? `${input.address.slice(0, 157)}...`
       : input.address;
 
+  const subjectPrefix = input.serviceCode || "Fomo Maintenance visit";
+
   await client
     .api(`${maintenanceCalendarPath(mailbox, maintenanceCalendarId)}/events`)
     .post({
-      subject: `Fomo Maintenance visit — ${subjectAddress}`,
+      subject: `${subjectPrefix} — ${subjectAddress}`,
       body: {
         contentType: "Text",
         content: visitBody(input),
@@ -491,6 +514,7 @@ export async function createMaintenanceVisit(
           type: "required",
         },
       ],
+      transactionId: input.sessionId,
       singleValueExtendedProperties: [
         { id: STRIPE_SESSION_PROPERTY, value: input.sessionId },
       ],

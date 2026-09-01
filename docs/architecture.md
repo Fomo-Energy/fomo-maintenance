@@ -12,6 +12,41 @@ Status: Current
 | Payments | Stripe Checkout and `app/api/stripe/webhook/route.ts` | Stripe metadata carries the booking record; signed webhook is the booking trigger |
 | Calendar integration | `lib/microsoft.ts` | Microsoft Graph application authentication, conflict checks, and event creation |
 
+## Pricing and package model
+
+Customers provide kWp, installer, service level, optional cleaning and
+monitoring selections, contact/site details, and a visit slot. The application
+does not ask about PV strings or equipment models.
+
+The two service levels are Essential Health Check and Electrical Assurance.
+Cleaning is independent. Four service codes describe the service/cleaning
+combination: `ESSENTIAL`, `ELECTRICAL_ASSURANCE`, `ESSENTIAL_CLEAN`, and
+`ELECTRICAL_CLEAN`. Monitoring remains a separate annual line item.
+
+Each line item is rounded to whole SGD before summation. The browser uses the
+shared quote function for display, but `/api/checkout` parses the selection and
+recomputes every price, service code, scope, and Stripe line item. Browser totals
+and breakdowns are not trusted.
+
+Stripe metadata is versioned and carries bounded package, breakdown, scope, and
+manual-confirmation statuses. The webhook accepts both the new metadata and
+legacy sessions created before the package migration so an already-paid booking
+is not stranded.
+
+Calendar creation uses the Stripe Checkout Session ID as the Microsoft Graph
+transaction ID and as an extended property. The webhook performs an existing
+event lookup before creation and returns a retryable error to Stripe when Graph
+fulfillment still fails after the immediate retry.
+
+## Eligibility and state boundary
+
+There is no authoritative property-access, monitoring-compatibility, customer,
+site, or prior-visit datastore. Cleaning access and monitoring compatibility
+are therefore explicit pending operational checks, not automated eligibility
+claims. Other-installer first-visit onboarding is not charged because the app
+cannot reliably identify a first visit. These temporary boundaries are tracked
+in `docs/operations/rollback-register.md`.
+
 ## Calendar ownership and data flow
 
 The mailbox is selected by `MICROSOFT_CALENDAR_USER`. The application reads
@@ -39,7 +74,8 @@ methods.
 Microsoft Graph uses OAuth client credentials and the application permission
 `Calendars.ReadWrite`. Stripe uses a secret API key and a webhook signing
 secret. No application database exists: Stripe is the payment/booking record,
-and Microsoft Calendar is the visit schedule. Secrets belong only in Vercel or
+and Microsoft Calendar is the visit schedule. This is not sufficient for
+durable customer/site eligibility state. Secrets belong only in Vercel or
 `.env.local` and must not be committed.
 
 ## Deployment

@@ -15,11 +15,13 @@ export function About() {
         <div className="text-base leading-7 text-slate-600">
           <p>
             FOMO Energy designs and installs solar in Singapore. Fomo
-            Maintenance is how owners get Condition &amp; Standard cover each
-            year, with optional advanced tests and, on FOMO-installed outright
-            systems, monitoring. Quotes for systems we did not install are
-            indicative until a site check. Rent-to-own already includes
-            maintenance. Hardware questions stay with{" "}
+            Maintenance gives owners a choice between an Essential Health
+            Check and deeper Electrical Assurance testing. Full panel cleaning
+            is a separate service performed only where safe roof access is
+            confirmed. Compatible FOMO-installed systems can also add
+            continuous monitoring. Rent-to-own already includes maintenance,
+            while repairs and replacement parts remain separate. Hardware
+            questions stay with{" "}
             <a
               className="font-semibold text-ink underline decoration-brand/50 underline-offset-4"
               href={FOMO_ENERGY_URL}
