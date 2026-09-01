@@ -43,7 +43,7 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 
 1. Calculator on the homepage
 2. Name, phone, email, site address
-3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on the ops mailbox
+3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
 4. Pay → Stripe Checkout (hosted, SGD cents)
 5. Return URLs on this site: `/book/success?session_id=…` and `/book/cancel`
 
@@ -51,7 +51,7 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 
 | Method | Route | Role |
 | --- | --- | --- |
-| `POST` | `/api/availability` | Microsoft Graph `getSchedule` and `calendarView` for `MICROSOFT_CALENDAR_USER`. Returns free slots. |
+| `POST` | `/api/availability` | Microsoft Graph checks the primary calendar for `MICROSOFT_CALENDAR_USER` and the dedicated maintenance calendar. Returns free slots. |
 | `POST` | `/api/checkout` | Recomputes the quote, checks the slot is still free, creates a Stripe Checkout Session in SGD. |
 | `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`. On `checkout.session.completed`, creates the Graph event. Idempotent on the Stripe session id. |
 
@@ -59,7 +59,7 @@ Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@micro
 
 Checkout metadata: `kwp`, `installer`, `extras`, `name`, `phone`, `email`, `address`, `slotStart`, `slotEnd`, `amount` (SGD cents).
 
-Calendar event (webhook only):
+Calendar event (webhook only, written to the dedicated maintenance calendar):
 
 - Subject: `Fomo Maintenance visit — {address}`
 - Location: site address
@@ -81,13 +81,21 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `MICROSOFT_TENANT_ID` | Azure AD tenant for client-credentials |
 | `MICROSOFT_CLIENT_ID` | App registration id |
 | `MICROSOFT_CLIENT_SECRET` | App registration secret |
-| `MICROSOFT_CALENDAR_USER` | Mailbox UPN/email whose calendar is read/written |
+| `MICROSOFT_CALENDAR_USER` | Mailbox UPN/email whose primary calendar is checked for conflicts |
+| `MICROSOFT_MAINTENANCE_CALENDAR_NAME` | Exact secondary-calendar name. Defaults to `Fomo Maintenance`; Graph resolves and caches its ID. |
+| `MICROSOFT_MAINTENANCE_CALENDAR_ID` | Optional Graph calendar ID. When set, skips name lookup and remains stable if the calendar is renamed. |
 
 Microsoft Graph app registration:
 
 1. Application permission `Calendars.ReadWrite`
 2. Admin consent
-3. Optionally restrict the app to `MICROSOFT_CALENDAR_USER` with an Exchange application access policy
+3. Create the `Fomo Maintenance` secondary calendar under `MICROSOFT_CALENDAR_USER`
+4. Optionally restrict the app to `MICROSOFT_CALENDAR_USER` with an Exchange application access policy
+
+The application checks primary-calendar conflicts and O&M-calendar conflicts,
+but creates paid visits only in the O&M calendar. If the named calendar cannot
+be resolved, availability and checkout fail closed instead of offering an
+unchecked slot.
 
 Stripe:
 

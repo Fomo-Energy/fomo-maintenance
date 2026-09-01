@@ -1,4 +1,8 @@
 import { Client } from "@microsoft/microsoft-graph-client";
+import {
+  calendarIdMatchingName,
+  type CalendarSummary,
+} from "@/lib/calendar";
 import { TIMEZONE } from "@/lib/site";
 import type { BusyPeriod } from "@/lib/slots";
 
@@ -12,6 +16,14 @@ type TokenCache = {
 };
 
 let tokenCache: TokenCache | null = null;
+
+type CalendarCache = {
+  mailbox: string;
+  selector: string;
+  id: string;
+};
+
+let maintenanceCalendarCache: CalendarCache | null = null;
 
 type GraphDateTime = {
   dateTime?: string;
@@ -48,6 +60,11 @@ type CalendarViewResponse = {
 
 type GraphEventListResponse = {
   value?: CalendarEvent[];
+};
+
+type CalendarListResponse = {
+  value?: CalendarSummary[];
+  "@odata.nextLink"?: string;
 };
 
 export type MaintenanceVisitInput = {
@@ -132,6 +149,50 @@ export async function getGraphClient(): Promise<Client> {
 
 function encodeUserPath(user: string): string {
   return `/users/${encodeURIComponent(user)}`;
+}
+
+function maintenanceCalendarName(): string {
+  return (
+    process.env.MICROSOFT_MAINTENANCE_CALENDAR_NAME?.trim() ||
+    "Fomo Maintenance"
+  );
+}
+
+function maintenanceCalendarPath(mailbox: string, calendarId: string): string {
+  return `${encodeUserPath(mailbox)}/calendars/${encodeURIComponent(calendarId)}`;
+}
+
+async function resolveMaintenanceCalendarId(
+  client: Client,
+  mailbox: string,
+): Promise<string> {
+  const explicitId = process.env.MICROSOFT_MAINTENANCE_CALENDAR_ID?.trim();
+  if (explicitId) {
+    return explicitId;
+  }
+
+  const name = maintenanceCalendarName();
+  const selector = `name:${name.toLocaleLowerCase("en-SG")}`;
+  if (
+    maintenanceCalendarCache?.mailbox === mailbox &&
+    maintenanceCalendarCache.selector === selector
+  ) {
+    return maintenanceCalendarCache.id;
+  }
+
+  const calendars: CalendarSummary[] = [];
+  let path: string | undefined =
+    `${encodeUserPath(mailbox)}/calendars?$select=id,name&$top=100`;
+  while (path) {
+    const page = (await client.api(path).get()) as CalendarListResponse;
+    calendars.push(...(page.value || []));
+    const next = page["@odata.nextLink"];
+    path = next ? next.replace("https://graph.microsoft.com/v1.0", "") : undefined;
+  }
+
+  const id = calendarIdMatchingName(calendars, name);
+  maintenanceCalendarCache = { mailbox, selector, id };
+  return id;
 }
 
 function graphDateTimeToDate(value?: GraphDateTime): Date | null {
@@ -228,10 +289,14 @@ async function busyFromCalendarView(
   mailbox: string,
   rangeStart: Date,
   rangeEnd: Date,
+  calendarId?: string,
 ): Promise<BusyPeriod[]> {
   const periods: BusyPeriod[] = [];
+  const calendarPath = calendarId
+    ? maintenanceCalendarPath(mailbox, calendarId)
+    : `${encodeUserPath(mailbox)}/calendar`;
   let path: string | undefined =
-    `${encodeUserPath(mailbox)}/calendar/calendarView?startDateTime=${encodeURIComponent(rangeStart.toISOString())}&endDateTime=${encodeURIComponent(rangeEnd.toISOString())}&$select=start,end,showAs,isCancelled&$top=100`;
+    `${calendarPath}/calendarView?startDateTime=${encodeURIComponent(rangeStart.toISOString())}&endDateTime=${encodeURIComponent(rangeEnd.toISOString())}&$select=start,end,showAs,isCancelled&$top=100`;
 
   while (path) {
     const page = (await client.api(path).get()) as CalendarViewResponse;
@@ -256,9 +321,14 @@ export async function listBusyPeriods(
 ): Promise<BusyPeriod[]> {
   const mailbox = calendarMailbox();
   const client = await getGraphClient();
+  const maintenanceCalendarId = await resolveMaintenanceCalendarId(
+    client,
+    mailbox,
+  );
   const merged: BusyPeriod[] = [];
   let scheduleOk = false;
   let viewOk = false;
+  let maintenanceViewOk = false;
 
   try {
     merged.push(
@@ -278,7 +348,25 @@ export async function listBusyPeriods(
     console.error("[fomo-maintenance] calendarView failed", error);
   }
 
-  if (!scheduleOk && !viewOk) {
+  try {
+    merged.push(
+      ...(await busyFromCalendarView(
+        client,
+        mailbox,
+        rangeStart,
+        rangeEnd,
+        maintenanceCalendarId,
+      )),
+    );
+    maintenanceViewOk = true;
+  } catch (error) {
+    console.error(
+      "[fomo-maintenance] maintenance calendarView failed",
+      error,
+    );
+  }
+
+  if ((!scheduleOk && !viewOk) || !maintenanceViewOk) {
     throw new Error("Microsoft Graph calendar lookup failed");
   }
 
@@ -288,14 +376,16 @@ export async function listBusyPeriods(
 async function findEventBySessionId(
   client: Client,
   mailbox: string,
+  calendarId: string,
   sessionId: string,
   slotStart: string,
   slotEnd: string,
 ): Promise<boolean> {
+  const calendarPath = maintenanceCalendarPath(mailbox, calendarId);
   const filter = `singleValueExtendedProperties/Any(ep: ep/id eq '${STRIPE_SESSION_PROPERTY}' and ep/value eq '${sessionId}')`;
   try {
     const found = (await client
-      .api(`${encodeUserPath(mailbox)}/events`)
+      .api(`${calendarPath}/events`)
       .filter(filter)
       .select("id")
       .top(1)
@@ -314,7 +404,7 @@ async function findEventBySessionId(
   const windowEnd = new Date(new Date(slotEnd).getTime() + 5 * 60_000);
   try {
     const view = (await client
-      .api(`${encodeUserPath(mailbox)}/calendar/calendarView`)
+      .api(`${calendarPath}/calendarView`)
       .query({
         startDateTime: windowStart.toISOString(),
         endDateTime: windowEnd.toISOString(),
@@ -361,11 +451,16 @@ export async function createMaintenanceVisit(
 ): Promise<"created" | "exists"> {
   const mailbox = calendarMailbox();
   const client = await getGraphClient();
+  const maintenanceCalendarId = await resolveMaintenanceCalendarId(
+    client,
+    mailbox,
+  );
 
   if (
     await findEventBySessionId(
       client,
       mailbox,
+      maintenanceCalendarId,
       input.sessionId,
       input.slotStart,
       input.slotEnd,
@@ -379,25 +474,27 @@ export async function createMaintenanceVisit(
       ? `${input.address.slice(0, 157)}...`
       : input.address;
 
-  await client.api(`${encodeUserPath(mailbox)}/events`).post({
-    subject: `Fomo Maintenance visit — ${subjectAddress}`,
-    body: {
-      contentType: "Text",
-      content: visitBody(input),
-    },
-    start: toGraphLocal(input.slotStart),
-    end: toGraphLocal(input.slotEnd),
-    location: { displayName: input.address },
-    attendees: [
-      {
-        emailAddress: { address: input.email, name: input.name },
-        type: "required",
+  await client
+    .api(`${maintenanceCalendarPath(mailbox, maintenanceCalendarId)}/events`)
+    .post({
+      subject: `Fomo Maintenance visit — ${subjectAddress}`,
+      body: {
+        contentType: "Text",
+        content: visitBody(input),
       },
-    ],
-    singleValueExtendedProperties: [
-      { id: STRIPE_SESSION_PROPERTY, value: input.sessionId },
-    ],
-  });
+      start: toGraphLocal(input.slotStart),
+      end: toGraphLocal(input.slotEnd),
+      location: { displayName: input.address },
+      attendees: [
+        {
+          emailAddress: { address: input.email, name: input.name },
+          type: "required",
+        },
+      ],
+      singleValueExtendedProperties: [
+        { id: STRIPE_SESSION_PROPERTY, value: input.sessionId },
+      ],
+    });
 
   return "created";
 }
