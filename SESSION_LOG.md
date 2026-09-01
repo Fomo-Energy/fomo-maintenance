@@ -4,19 +4,17 @@ Status: Current
 
 ## Current state
 
-The app is configured in code to resolve the `Fomo Maintenance` secondary
-calendar under `jtan@fomo.energy`, check it together with the primary calendar,
-and write paid visits only to the secondary calendar. The verification suite
-and Next.js production build pass on branch `juliustanch/om-calendar`. Pull
-request #4 is open for review, CI passes, and its Vercel preview successfully
-returns live availability using the configured Microsoft environment.
+Production resolves the `Fomo Maintenance` secondary calendar under
+`jtan@fomo.energy`, checks it together with the primary calendar, and writes
+paid visits only to the secondary calendar. Pull request #4 was merged and
+deployed to Vercel. Production CI passed, the live homepage returns HTTP 200,
+and `/api/availability` returns live Microsoft Graph slots.
 
 ## Next up
 
-1. Review and merge pull request #4 after CI passes.
-2. After deployment, run the calendar and Stripe test-mode smoke tests in
-   `docs/operations.md`.
-3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
+1. Run a Stripe test-mode paid booking and confirm the event appears only in
+   `Fomo Maintenance`, then replay the webhook to check idempotency.
+2. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
    advisories; do not combine that major upgrade with this calendar change.
 
 ## Session entries
@@ -38,3 +36,7 @@ returns live availability using the configured Microsoft environment.
   proving that the runtime Graph lookup resolved the secondary calendar.
 - `npm audit` reports inherited PostCSS advisories whose available remediation
   is a semver-major Next.js upgrade; deferred that migration from this feature.
+- Merged pull request #4 as commit `8b270d2` and completed the production Vercel
+  deployment.
+- Confirmed the live homepage and availability API both return HTTP 200; no
+  production payment was created during smoke testing.

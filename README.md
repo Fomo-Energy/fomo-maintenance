@@ -6,6 +6,8 @@ This is a FOMO Energy program, not a sister company.
 
 ## Hosting
 
+Live site: https://fomo-maintenance.vercel.app
+
 The booking APIs need a Node server. The live app should run on **Vercel** (Next.js, not `output: 'export'`).
 
 GitHub Pages cannot run `/api/*`. The GitHub Actions workflow on `main` only verifies pricing and that `next build` succeeds. It does not publish a static `out/` folder.
