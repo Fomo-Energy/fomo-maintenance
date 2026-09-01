@@ -8,15 +8,17 @@ Production still runs the original Condition & Standard pricing. Branch
 `juliustanch/pricing-packages` now contains the completed Essential Health
 Check, Electrical Assurance, independent cleaning, and fixed-price monitoring
 migration. Functional QA, desktop/mobile UX review, and feature security review
-all pass. The branch is not authorized for deployment and is not yet merged.
+all pass. Pull request #6 is open and its GitHub verification and Vercel preview
+checks pass. The branch is not authorized for production deployment and is not
+yet merged.
 
 ## Next up
 
-1. Commit, push, and open a pull request without deploying.
-2. Review the preview deployment and run a Stripe test-mode paid booking before
-   authorizing any production deployment.
+1. Review pull request #6 and run a Stripe test-mode paid booking against the
+   preview before authorizing any production deployment.
+2. After explicit approval, merge and verify production separately.
 3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
-   advisories; do not combine that major upgrade with this calendar change.
+   advisories; do not combine that major upgrade with this package change.
 
 ## Session entries
 
@@ -38,6 +40,9 @@ all pass. The branch is not authorized for deployment and is not yet merged.
   announcements, and RTO behavior.
 - Final `npm run verify`, `npm run build`, and `git diff --check` pass. QA, UX,
   and feature security reviewers approved the completed migration.
+- Committed and pushed the migration, opened pull request #6, and confirmed the
+  GitHub verification and non-production Vercel preview checks pass. No
+  production deployment was performed.
 - Confirmed the user created `Fomo Maintenance` as a secondary calendar under
   `jtan@fomo.energy`.
 - Browser-based Graph ID retrieval was unavailable because Computer Use timed
