@@ -30,6 +30,8 @@ jobs:
         run: npm run verify:pricing
       - name: Verify visit slots
         run: npm run verify:slots
+      - name: Verify maintenance calendar selection
+        run: npm run verify:calendar
       - name: Build
         run: npm run build
 
