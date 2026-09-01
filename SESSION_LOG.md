@@ -7,11 +7,12 @@ Status: Current
 The app is configured in code to resolve the `Fomo Maintenance` secondary
 calendar under `jtan@fomo.energy`, check it together with the primary calendar,
 and write paid visits only to the secondary calendar. The verification suite
-and Next.js production build pass on branch `juliustanch/om-calendar`.
+and Next.js production build pass on branch `juliustanch/om-calendar`. Pull
+request #4 is open for review.
 
 ## Next up
 
-1. Review the diff, commit, push, and open a pull request.
+1. Review and merge pull request #4 after CI passes.
 2. After deployment, run the calendar and Stripe test-mode smoke tests in
    `docs/operations.md`.
 3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
