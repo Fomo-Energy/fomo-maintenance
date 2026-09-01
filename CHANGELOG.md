@@ -10,3 +10,5 @@ Status: Current
   the maintenance calendar.
 - Paid Stripe bookings are created only in the maintenance calendar.
 - Added an optional calendar-ID setting and deterministic calendar-name tests.
+- Deployed the calendar separation to production on Vercel and verified live
+  Microsoft Graph availability.
