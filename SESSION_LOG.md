@@ -8,7 +8,8 @@ The app is configured in code to resolve the `Fomo Maintenance` secondary
 calendar under `jtan@fomo.energy`, check it together with the primary calendar,
 and write paid visits only to the secondary calendar. The verification suite
 and Next.js production build pass on branch `juliustanch/om-calendar`. Pull
-request #4 is open for review.
+request #4 is open for review, CI passes, and its Vercel preview successfully
+returns live availability using the configured Microsoft environment.
 
 ## Next up
 
@@ -33,5 +34,7 @@ request #4 is open for review.
   desired.
 - Pricing, slot, and calendar verification scripts pass; the Next.js production
   build also passes.
+- The Vercel preview's `/api/availability` returned HTTP 200 with live slots,
+  proving that the runtime Graph lookup resolved the secondary calendar.
 - `npm audit` reports inherited PostCSS advisories whose available remediation
   is a semver-major Next.js upgrade; deferred that migration from this feature.
