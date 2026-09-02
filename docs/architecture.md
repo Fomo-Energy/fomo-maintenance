@@ -11,6 +11,7 @@ Status: Current
 | Booking slots | `lib/slots.ts` | Asia/Singapore weekday candidates; two four-hour windows per day |
 | Payments | Stripe Checkout and `app/api/stripe/webhook/route.ts` | Stripe metadata carries the booking record; signed webhook is the booking trigger |
 | Calendar integration | `lib/microsoft.ts` | Microsoft Graph application authentication, conflict checks, and event creation |
+| Portal data foundation | `db/schema.ts`, `db/migrations/`, and `lib/database.ts` | Additive Neon/Drizzle schema for durable bookings, access tokens, documents, reschedules, reservations, webhook receipts, and fulfilment state; not connected to production Checkout yet |
 
 ## Pricing and package model
 
@@ -85,18 +86,41 @@ Availability fails closed when the application cannot read the maintenance
 calendar or cannot read the primary mailbox through either of its Graph lookup
 methods.
 
+## Customer booking portal delivery boundary
+
+The portal is being delivered in the reviewed parts described in
+`docs/booking-portal-plan.md`. Part 1 adds a dormant relational foundation:
+
+- `bookings` stores the paid service, customer/site details, money in integer
+  cents, current slot, and external identifiers.
+- `booking_access_tokens` stores only fixed-length token digests plus expiry and
+  revocation state.
+- `documents` stores private object metadata, never file content or a public
+  download URL.
+- `reschedule_requests` preserves old/new times and completion status.
+- `slot_reservations` prevents two active claims on the same standard slot.
+- `webhook_events` and `fulfillment_steps` provide idempotency and recovery
+  state without storing raw webhook payloads.
+
+The database client is initialized lazily so builds remain safe before
+`DATABASE_URL` is provisioned. No current page, checkout route, or webhook
+imports the repository layer, so Part 1 does not change production behavior.
+Part 2 will make Postgres the durable application record only after a signed
+Stripe event has been verified and payment has been confirmed server-side.
+
 ## Authentication and storage
 
 Microsoft Graph uses OAuth client credentials and the application permission
 `Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
-the ID of a manually configured exclusive 9% GST tax rate. No application
-database exists: Stripe is the payment/booking record, and Microsoft Calendar
-is the visit schedule. This is not sufficient for durable customer/site
-eligibility state. Name, phone, email, and site address are cached only in
-versioned `localStorage` in the customer's browser, with a form control to clear
-them; that cache is not an authoritative customer record. Secrets and
-environment-specific resource IDs belong only in Vercel or `.env.local` and
-must not be committed.
+the ID of a manually configured exclusive 9% GST tax rate. The active
+production flow still treats Stripe as the payment/booking record and Microsoft
+Calendar as the visit schedule. A Neon/Drizzle database schema now exists in
+source but remains dormant until the post-payment workflow is connected and the
+environment migration is explicitly applied. Name, phone, email, and site
+address are cached in versioned `localStorage` in the customer's browser, with
+a form control to clear them; that cache is not an authoritative customer
+record. Database credentials, secrets, token material, and environment-specific
+resource IDs belong only in Vercel or `.env.local` and must not be committed.
 
 ## Deployment
 

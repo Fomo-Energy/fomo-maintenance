@@ -27,6 +27,25 @@ npm run dev
 
 Open http://localhost:3000. `npm start` serves `next start` after `npm run build`.
 
+### Booking portal database foundation
+
+The future customer Manage Booking portal uses Neon Postgres through Drizzle.
+Its additive schema and delivery plan are present, but the live Checkout and
+webhook do not write to the database until the post-payment workflow is
+implemented in the next delivery part.
+
+```bash
+npm run verify:database
+npm run db:generate
+npm run db:migrate
+```
+
+`verify:database` checks the migration history and applies the complete schema
+to an isolated in-memory PostgreSQL-compatible database. `db:migrate` reads
+`DATABASE_URL` from `.env.local`; review generated SQL before applying it to a
+shared environment. See [`docs/booking-portal-plan.md`](docs/booking-portal-plan.md)
+for the phased implementation and pending product/security decisions.
+
 ## Pricing checks
 
 The package pricing (SGD) lives in `lib/pricing.ts`. The formulas below are
@@ -150,6 +169,7 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `MICROSOFT_CALENDAR_USER` | Mailbox UPN/email whose primary calendar is checked for conflicts |
 | `MICROSOFT_MAINTENANCE_CALENDAR_NAME` | Exact secondary-calendar name. Defaults to `Fomo Maintenance`; Graph resolves and caches its ID. |
 | `MICROSOFT_MAINTENANCE_CALENDAR_ID` | Optional Graph calendar ID. When set, skips name lookup and remains stable if the calendar is renamed. |
+| `DATABASE_URL` | Neon Postgres connection string for the future customer booking portal. The current production flow does not require it until the post-payment workflow is enabled. |
 
 Microsoft Graph app registration:
 

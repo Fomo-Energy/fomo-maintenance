@@ -24,6 +24,10 @@ npm run verify
 npm run build
 ```
 
+`npm run verify` includes the portal schema check and an isolated application
+of the migration with constraint tests. It does not connect to any configured
+Neon database.
+
 The canonical repository is `Fomo-Energy/fomo-maintenance`. Pull requests and
 pushes should run the repository's `CI` workflow and create Vercel deployments
 in the `fomo-energy/fomo-maintenance` project. Production follows `main` and is
@@ -83,6 +87,29 @@ Use unmistakably synthetic contact/site details. After payment, confirm the
 success page reports the TESTING calendar event, verify
 `calendarStatus=created` in Stripe, and delete the event so it does not block a
 real appointment slot. The payment creates no service entitlement.
+
+## Booking portal database rollout
+
+The initial Drizzle schema is additive and dormant. Do not set
+`DATABASE_URL`, run its migration against Production, or connect it to the
+Stripe webhook merely because the schema exists in source. The live flow
+remains Stripe to Microsoft Calendar until the next delivery part is complete.
+
+For a future Preview rollout:
+
+1. Provision a separate Neon Preview database through the Vercel Marketplace.
+2. Pull its environment variables into `.env.local` without committing them.
+3. Review `db/migrations/0000_booking_portal_foundation.sql`.
+4. Run `npm run verify:database` locally.
+5. Run `npm run db:migrate` with the intended Preview `DATABASE_URL`.
+6. Verify all seven tables and the `__drizzle_migrations` journal exist.
+7. Exercise the Part 2 webhook workflow in Stripe test mode before considering
+   a Production migration.
+
+Database rollback for Part 1 is a code rollback only because no application
+route reads or writes the new tables. Do not drop populated portal tables as an
+application rollback; preserve paid-booking and document audit data and disable
+the feature at the application boundary instead.
 
 ## Manual package checks
 

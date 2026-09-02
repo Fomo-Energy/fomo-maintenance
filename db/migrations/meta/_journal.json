@@ -1,0 +1,13 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1788345268976,
+      "tag": "0000_booking_portal_foundation",
+      "breakpoints": true
+    }
+  ]
+}
