@@ -150,9 +150,9 @@ Microsoft Graph uses OAuth client credentials and the application permission
 `Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
 the ID of a manually configured exclusive 9% GST tax rate. The active
 production flow still treats Stripe as the payment/booking record and Microsoft
-Calendar as the visit schedule. Neon remains dormant until its migration,
-secret, and server feature flag are deliberately applied. Name, phone, email,
-and site
+Calendar as the visit schedule. Neon is active only in the isolated `e2e`
+Preview; Production remains dormant until its migration, secret, and server
+feature flag are deliberately applied. Name, phone, email, and site
 address are cached in versioned `localStorage` in the customer's browser, with
 a form control to clear them; that cache is not an authoritative customer
 record. Database credentials, secrets, token material, and environment-specific

@@ -123,6 +123,12 @@ Prepare the environment in this order:
    sandbox cards. `4242 4242 4242 4242`, any future expiry, and any CVC succeeds
    only in the sandbox; it is never valid for Production testing.
 
+Execution record (2026-09-02): by explicit owner instruction, the first
+controlled run used the current maintenance calendar instead of a separate test
+calendar. The exact synthetic event was verified, rescheduled, and then deleted;
+the booking/database audit fixture remains. A distinct dedicated calendar is
+still required before Production portal activation.
+
 Verify the complete chain, not only Stripe's success page:
 
 1. Checkout shows S$0.50 before GST, S$0.05 GST, and S$0.55 total.
@@ -148,7 +154,10 @@ enable the flag merely because the code exists. The live flow remains the
 original Stripe-to-Microsoft path until Preview has passed the controlled
 rollout below.
 
-For a future Preview rollout:
+The isolated `e2e` Preview has completed the basic provisioning, payment,
+credential, private-JPEG, and supervised-reschedule path. The full boundary,
+content-type, concurrency, failure-recovery, notification, and Production
+checklist still applies:
 
 1. Provision a separate Neon Preview database through the Vercel Marketplace.
 2. Pull its environment variables into `.env.local` without committing them.
