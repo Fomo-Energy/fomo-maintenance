@@ -16,7 +16,6 @@ import {
 } from "@/lib/pricing";
 
 const DEFAULT_KWP = 10;
-const CLEANING_MINIMUM_PRICE = cleaningPriceSgd(0);
 
 export function PricingCalculator() {
   const [kwpInput, setKwpInput] = useState(String(DEFAULT_KWP));
@@ -223,11 +222,8 @@ export function PricingCalculator() {
                     to GST)
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    From {formatSgd(CLEANING_MINIMUM_PRICE)} before GST. The
-                    pre-GST price is S$450 up to 10 kWp, then S$6 for each
-                    additional kWp. Cleaning is performed only after safe roof
-                    access has been confirmed. Checkout collects the cleaning
-                    charge; if access cannot be confirmed, the team will
+                    Cleaning is performed only after safe roof access has been
+                    confirmed. If access cannot be confirmed, the team will
                     contact you to resolve that charge.
                   </span>
                 </span>

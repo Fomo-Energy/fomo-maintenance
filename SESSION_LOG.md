@@ -26,7 +26,8 @@ site address persist in the same browser until `Clear saved details` is used.
 Branch `juliustanch/booking-confirmation-copy` contains the requested shorter
 payment note, consistent shared no-roof-access presentation, service cadence
 recommendations, and expanded Electrical Assurance safety copy. It is pending
-verification and review.
+verification and review. The cleaning card now omits its repeated minimum-price
+formula and checkout-charge wording while retaining the safe-access condition.
 
 ## Next up
 
@@ -52,6 +53,8 @@ verification and review.
 - Pricing, slot, calendar, production-build, rendered-copy, and visual layout
   checks pass for the expanded pull request; no framework error overlay was
   present.
+- Simplified the cleaning-card description without changing its calculated
+  price, checkout behavior, or safe-access requirement.
 - Started `juliustanch/pre-gst-left-and-saved-details` after confirming the
   controlled form always initialized empty and relied only on browser
   autocomplete; no application-level cache previously existed.
