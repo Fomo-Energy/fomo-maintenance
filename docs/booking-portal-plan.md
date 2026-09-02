@@ -18,7 +18,8 @@ payment states are never trusted.
 
 ### Part 1 — Durable data foundation
 
-Status: Complete and merged in pull request #22; not provisioned remotely.
+Status: Complete and merged in pull request #22. Migrated in the isolated
+`e2e` Preview; Production is not provisioned.
 
 Add Neon Postgres and Drizzle without connecting it to the live checkout yet.
 Define bookings, hashed access tokens, document metadata, reschedule history,
@@ -37,7 +38,7 @@ Exit criteria:
 ### Part 2 — Post-payment fulfilment state machine
 
 Status: Complete and merged in pull request #23 behind a server-side feature
-flag; not provisioned or enabled.
+flag. Enabled and payment/replay tested in `e2e`; Production remains disabled.
 
 Refactor the signed Stripe webhook so it verifies the raw event, records the
 event idempotently, and advances a durable database-backed state machine.
@@ -55,8 +56,9 @@ Exit criteria:
 
 ### Part 3 — Secure Manage Booking portal
 
-Status: Complete and merged in pull request #23 behind the same feature flag;
-not provisioned or enabled.
+Status: Complete and merged in pull request #23 behind the same feature flag.
+The `e2e` portal passed credential exchange and booking-isolation checks;
+Production remains disabled.
 
 Add `/manage#access=…` as the customer entrypoint. The URL fragment is not sent
 in HTTP request paths; the page exchanges it for a same-origin HttpOnly cookie
@@ -76,7 +78,9 @@ Recommended initial policy:
 ### Part 4 — Private document upload
 
 Status: Complete and merged in pull request #24 behind
-`DOCUMENT_UPLOADS_ENABLED=1`; not provisioned or enabled.
+`DOCUMENT_UPLOADS_ENABLED=1`. A private Singapore-region Preview Blob store
+passed authenticated upload/download and unauthenticated rejection checks;
+Production remains disabled.
 
 Authorize direct uploads to a private Vercel Blob store after validating the
 manage token. Store only opaque Blob pathnames plus reviewed metadata in
@@ -98,7 +102,9 @@ a substitute for malware scanning.
 ### Part 5 — Customer rescheduling
 
 Status: Complete and merged in pull request #25 behind
-`RESCHEDULING_ENABLED=1`; not migrated remotely or enabled.
+`RESCHEDULING_ENABLED=1`. One supervised `e2e` change passed across Postgres and
+Microsoft Graph; the Preview flag was returned to disabled and Production has
+never enabled it.
 
 Show the current visit and available replacements in the portal. On submission,
 the server revalidates the token and policy, locks the booking record, reserves

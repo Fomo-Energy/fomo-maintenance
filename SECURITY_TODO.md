@@ -6,8 +6,9 @@ Status: Current
 
 ### Protect customer manage links as credentials
 
-**Status:** In progress; the route and read-only view are implemented behind a
-disabled server feature flag and have not been provisioned remotely.
+**Status:** In progress; Preview credential exchange and the read-only view are
+validated, including a single root-path HttpOnly cookie. Production remains
+disabled.
 
 **Why it matters:** Anyone possessing a bearer-style manage URL could otherwise
 view booking details, upload files, or request an appointment change.
@@ -28,9 +29,9 @@ view booking details, upload files, or request an appointment change.
 
 ### Keep uploaded PV documents private
 
-**Status:** In progress; private upload/download code is implemented behind a
-disabled flag, but no Blob store is provisioned and scanning/retention policy is
-not complete.
+**Status:** In progress; a private Preview Blob store passed authenticated
+upload/download and unauthenticated-access checks. Production remains disabled,
+and scanning/retention policy is not complete.
 
 **Why it matters:** SLDs and PV documents may contain addresses, equipment
 details, personal data, and security-sensitive electrical information.
@@ -53,9 +54,9 @@ details, personal data, and security-sensitive electrical information.
 
 ### Harden customer rescheduling before activation
 
-**Status:** In progress; the authenticated, feature-gated flow is implemented,
-but Preview integration, rate limiting, notifications, and recovery operations
-are not complete.
+**Status:** In progress; one supervised Preview reschedule passed across Graph
+and Postgres, then the flag was disabled again. Rate limiting, notifications,
+concurrency/failure-recovery exercises, and recovery operations remain open.
 
 **Why it matters:** A stolen manage credential or concurrent request could move
 an appointment, consume scarce visit capacity, or leave Graph and Postgres out

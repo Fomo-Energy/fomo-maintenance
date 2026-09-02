@@ -120,8 +120,11 @@ an expiry 30 days after the visit. Postgres stores only the full credential's
 SHA-256 digest. The emailed URL will carry the credential in a fragment, which
 does not reach Vercel request logs; `/api/manage/session` exchanges it for a
 same-origin HttpOnly cookie and `/manage` removes the fragment before reload.
-The same credential is scoped into separate `/manage` and `/api/manage`
-HttpOnly cookies so it is not sent to unrelated application routes.
+The exchange sets one root-path HttpOnly cookie so both `/manage` and
+`/api/manage` receive the same credential. A single cookie is required because
+multiple `Set-Cookie` values with the same name were collapsed by the deployed
+response path during Preview E2E testing. The application does not serve
+unrelated authenticated features from this origin.
 
 Part 4 keeps file bytes out of Vercel Function request bodies. The browser
 uploads directly to a private Blob store using a ten-minute, pathname-bound
@@ -147,9 +150,9 @@ Microsoft Graph uses OAuth client credentials and the application permission
 `Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
 the ID of a manually configured exclusive 9% GST tax rate. The active
 production flow still treats Stripe as the payment/booking record and Microsoft
-Calendar as the visit schedule. Neon remains dormant until its migration,
-secret, and server feature flag are deliberately applied. Name, phone, email,
-and site
+Calendar as the visit schedule. Neon is active only in the isolated `e2e`
+Preview; Production remains dormant until its migration, secret, and server
+feature flag are deliberately applied. Name, phone, email, and site
 address are cached in versioned `localStorage` in the customer's browser, with
 a form control to clear them; that cache is not an authoritative customer
 record. Database credentials, secrets, token material, and environment-specific
