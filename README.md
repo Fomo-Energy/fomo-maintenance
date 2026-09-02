@@ -58,7 +58,10 @@ Essential plus thorough DC-side safety and performance testing with
 professional solar testing equipment. It helps identify deteriorated cabling
 and insulation that may lead to DC-related electrical faults and fires. Neither
 service level requires roof access. Cleaning is an independent add-on and is
-performed only after FOMO confirms safe roof access.
+performed only after FOMO confirms safe roof access. If only part of the roof
+is safely accessible, only the accessible panels are cleaned. The cleaning fee
+does not include third-party access costs such as scaffolding or specialist
+access equipment.
 
 The left-side package selector shows pre-GST prices marked `subject to GST`.
 The booking summary shows the pre-GST subtotal, 9% GST, and final amount. For

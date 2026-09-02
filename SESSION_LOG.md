@@ -36,6 +36,10 @@ active CI workflow. The local `origin` and Vercel project's Git link both point
 to the organisation-owned repository; production still follows `main`.
 Organisation-owned pull requests now trigger both GitHub CI and Vercel preview
 deployments after refreshing the Vercel Git connection.
+Branch `juliustanch/roof-safety-copy` removes the redundant public
+`Other installer` choice and clarifies partial roof access and excluded
+third-party access costs. Local verification and visual checks pass; it is
+pending pull-request review.
 
 ## Next up
 
@@ -52,6 +56,12 @@ deployments after refreshing the Vercel Git connection.
 
 ### 2026-09-02
 
+- Started `juliustanch/roof-safety-copy` to remove the redundant public
+  `Other installer` option and replace the roof notice with clearer safety,
+  partial-access, and third-party access-cost guidance.
+- Pricing, slot, calendar, production-build, rendered-copy, and visual checks
+  pass. The page has no framework overlay or browser console errors, and the
+  public installer controls contain only FOMO-installed and rent-to-own.
 - Started `juliustanch/booking-confirmation-copy` to replace the long payment
   note with the requested concise GST and post-payment confirmation message;
   corrected the supplied `You booking` typo to `Your booking`.

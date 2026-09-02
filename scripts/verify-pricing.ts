@@ -7,6 +7,7 @@ import {
   sgdToCents,
 } from "../lib/booking";
 import {
+  INSTALLERS,
   cleaningPriceSgd,
   electricalUpgradePriceSgd,
   essentialPriceSgd,
@@ -17,6 +18,12 @@ import {
   totalIncludingGstSgd,
   type ServiceLevel,
 } from "../lib/pricing";
+
+assert.deepEqual(
+  INSTALLERS.map((installer) => installer.id),
+  ["fomo", "rto"],
+  "The public calculator must not offer a redundant other-installer option",
+);
 
 const matrix = [
   { kwp: 5, essential: 199, electrical: 374, cleaning: 450, essentialClean: 649, electricalClean: 824 },

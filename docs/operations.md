@@ -88,7 +88,9 @@ real appointment slot. The payment creates no service entitlement.
 
 For bookings that request cleaning, confirm safe roof access before any roof
 work. The booking and calendar event mark this as pending; the application does
-not determine access eligibility. If access cannot be confirmed after payment,
+not determine access eligibility. Clean only panels that can be accessed safely;
+the online cleaning fee excludes third-party access costs such as scaffolding
+or specialist access equipment. If access cannot be confirmed after payment,
 contact the customer and resolve the cleaning line item manually under the
 current operations policy.
 

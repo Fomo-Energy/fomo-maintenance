@@ -268,13 +268,16 @@ export function PricingCalculator() {
               </div>
             ) : (
               <div className="mt-8 rounded-2xl bg-peach p-5 text-sm leading-6 text-slate-700">
-                <p className="font-semibold text-ink">Before any roof work</p>
+                <p className="font-semibold text-ink">
+                  Roof access and safety
+                </p>
                 <p className="mt-1">
-                  This site does not determine roof eligibility automatically.
-                  If cleaning is selected, the team will confirm safe access
-                  before it is performed. Checkout includes the cleaning charge;
-                  if access cannot be confirmed, the team will contact you to
-                  resolve it.
+                  This online tool does not determine roof eligibility. If you
+                  select cleaning, our team will confirm safe access before work
+                  begins. If only part of the roof is safely accessible, we will
+                  clean only the accessible panels. The cleaning fee does not
+                  include third-party access costs, such as scaffolding or
+                  specialist access equipment.
                 </p>
               </div>
             )}
