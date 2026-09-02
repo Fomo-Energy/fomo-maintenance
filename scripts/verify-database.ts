@@ -1,0 +1,190 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { PGlite } from "@electric-sql/pglite";
+
+async function expectConstraintFailure(
+  operation: () => Promise<unknown>,
+  message: string,
+): Promise<void> {
+  await assert.rejects(operation, message);
+}
+
+async function main() {
+  const database = new PGlite();
+  const migrationPath = path.join(
+    process.cwd(),
+    "db/migrations/0000_booking_portal_foundation.sql",
+  );
+  const migration = await readFile(migrationPath, "utf8");
+  await database.exec(migration);
+
+  const slotStart = "2026-10-05T01:00:00.000Z";
+  const slotEnd = "2026-10-05T05:00:00.000Z";
+  const inserted = await database.query<{ id: string }>(
+    `insert into bookings (
+      reference,
+      stripe_checkout_session_id,
+      stripe_payment_intent_id,
+      customer_name,
+      customer_email,
+      customer_phone,
+      site_address,
+      service_code,
+      package_name,
+      kwp,
+      subtotal_cents,
+      gst_cents,
+      total_cents,
+      slot_start,
+      slot_end,
+      paid_at
+    ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+    returning id`,
+    [
+      "FM-20260902-TEST01",
+      "cs_test_foundation",
+      "pi_test_foundation",
+      "Database Test",
+      "database-test@example.com",
+      "+6500000000",
+      "Test site",
+      "ESSENTIAL",
+      "Essential Health Check",
+      "10.000",
+      19900,
+      1791,
+      21691,
+      slotStart,
+      slotEnd,
+      "2026-09-02T10:00:00.000Z",
+    ],
+  );
+  const bookingId = inserted.rows[0]?.id;
+  assert.ok(bookingId, "valid paid booking should be inserted");
+
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into bookings (
+          reference, stripe_checkout_session_id, customer_name,
+          customer_email, customer_phone, site_address, service_code,
+          package_name, subtotal_cents, gst_cents, total_cents,
+          slot_start, slot_end, paid_at
+        ) values (
+          'FM-20260902-TEST02', 'cs_test_foundation', 'Duplicate',
+          'duplicate@example.com', '+6500000001', 'Test site', 'ESSENTIAL',
+          'Essential Health Check', 19900, 1791, 21691,
+          $1, $2, now()
+        )`,
+        [slotStart, slotEnd],
+      ),
+    "Stripe Checkout Session IDs must be unique",
+  );
+
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into bookings (
+          reference, stripe_checkout_session_id, customer_name,
+          customer_email, customer_phone, site_address, service_code,
+          package_name, subtotal_cents, gst_cents, total_cents,
+          slot_start, slot_end, paid_at
+        ) values (
+          'FM-20260902-TEST03', 'cs_test_wrong_total', 'Wrong total',
+          'wrong-total@example.com', '+6500000002', 'Test site', 'ESSENTIAL',
+          'Essential Health Check', 19900, 1791, 21690,
+          $1, $2, now()
+        )`,
+        [slotStart, slotEnd],
+      ),
+    "stored total must equal subtotal plus GST",
+  );
+
+  const firstTokenDigest = "a".repeat(64);
+  const secondTokenDigest = "b".repeat(64);
+  await database.query(
+    `insert into booking_access_tokens (booking_id, token_digest, expires_at)
+     values ($1, $2, now() + interval '120 days')`,
+    [bookingId, firstTokenDigest],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into booking_access_tokens (booking_id, token_digest, expires_at)
+         values ($1, $2, now() + interval '120 days')`,
+        [bookingId, secondTokenDigest],
+      ),
+    "a booking must not have two unrevoked manage links",
+  );
+  await database.query(
+    `update booking_access_tokens set revoked_at = now()
+     where booking_id = $1 and token_digest = $2`,
+    [bookingId, firstTokenDigest],
+  );
+  await database.query(
+    `insert into booking_access_tokens (booking_id, token_digest, expires_at)
+     values ($1, $2, now() + interval '120 days')`,
+    [bookingId, secondTokenDigest],
+  );
+
+  await database.query(
+    `insert into slot_reservations (
+      booking_id, slot_start, slot_end, status, hold_expires_at
+    ) values ($1, $2, $3, 'held', now() + interval '10 minutes')`,
+    [bookingId, slotStart, slotEnd],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into slot_reservations (
+          booking_id, slot_start, slot_end, status, hold_expires_at
+        ) values ($1, $2, $3, 'held', now() + interval '10 minutes')`,
+        [bookingId, slotStart, slotEnd],
+      ),
+    "an active standard slot must not be reserved twice",
+  );
+
+  await database.query(
+    `insert into reschedule_requests (
+      request_key, booking_id, previous_slot_start, previous_slot_end,
+      requested_slot_start, requested_slot_end
+    ) values ($1, $2, $3, $4, $5, $6)`,
+    [
+      "reschedule-test-01",
+      bookingId,
+      slotStart,
+      slotEnd,
+      "2026-10-06T01:00:00.000Z",
+      "2026-10-06T05:00:00.000Z",
+    ],
+  );
+
+  await database.query(
+    `insert into documents (
+      booking_id, original_filename, content_type, size_bytes, blob_pathname
+    ) values ($1, 'sample-sld.pdf', 'application/pdf', 1024, $2)`,
+    [bookingId, `bookings/${bookingId}/sample-sld.pdf`],
+  );
+
+  await database.query(
+    `insert into webhook_events (event_id, event_type)
+     values ('evt_test_foundation', 'checkout.session.completed')`,
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into webhook_events (event_id, event_type)
+         values ('evt_test_foundation', 'checkout.session.completed')`,
+      ),
+    "Stripe webhook event IDs must be idempotent",
+  );
+
+  await database.close();
+  console.log("Database foundation verification passed.");
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exitCode = 1;
+});

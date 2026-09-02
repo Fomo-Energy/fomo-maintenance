@@ -4,6 +4,11 @@ Status: Current
 
 ## 2026-09-02
 
+- Began the customer Manage Booking portal as a non-production foundation:
+  added the phased delivery plan, Neon/Drizzle schema, reviewed migration,
+  lazy server-only database client, idempotent booking/webhook repository
+  primitives, and isolated database constraint verification. No live route uses
+  the database yet.
 - Transferred the canonical repository from the maintainer's personal GitHub
   account to the `Fomo-Energy` organisation while preserving its history,
   repository ID, Actions workflow, and Vercel project linkage.

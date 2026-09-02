@@ -37,21 +37,48 @@ to the organisation-owned repository; production still follows `main`.
 Organisation-owned pull requests now trigger both GitHub CI and Vercel preview
 deployments after refreshing the Vercel Git connection.
 
+Branch `juliustanch/booking-portal-foundation` starts the approved phased
+customer Manage Booking portal. Part 1 defines and locally verifies the dormant
+Neon/Drizzle data model for paid bookings, hashed manage-link credentials,
+private-document metadata, reschedules, slot reservations, webhook receipts,
+and fulfilment state. No Neon resource has been provisioned, no migration has
+been applied remotely, and the current Stripe-to-calendar production flow is
+unchanged.
+
 ## Next up
 
-1. Reduce Microsoft Graph availability queries from 90 days to its 62-day
+1. Review Part 1 and provision a separate Neon Preview database when approved;
+   do not connect Production yet.
+2. Implement Part 2: idempotent Stripe event persistence and durable
+   post-payment fulfilment while preserving the existing calendar behavior.
+3. Reduce Microsoft Graph availability queries from 90 days to its 62-day
    free/busy limit, or split the requested period into bounded windows.
-2. Decide whether customer receipts remain Stripe receipts or whether the paid
+4. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create and email formal invoices through Xero.
-3. Before a Xero implementation, confirm the target Xero organisation, GST
+5. Before a Xero implementation, confirm the target Xero organisation, GST
    registration details, existing Stripe feed, and durable OAuth token storage.
-4. When desired, make one S$0.55 Testing payment, validate the TESTING
-   calendar event and webhook metadata, then delete the event.
 
 ## Session entries
 
 ### 2026-09-02
 
+- Planned the complete customer portal in seven independently reviewable parts:
+  data foundation, paid fulfilment, secure portal, private uploads,
+  rescheduling, transactional email, and staff/operational hardening.
+- Started Part 1 on `juliustanch/booking-portal-foundation` from current `main`;
+  the separate roof-safety copy remains in pull request #21.
+- Added the dormant booking-portal schema and migration with database-enforced
+  Stripe/webhook idempotency, monetary and time invariants, single active
+  manage-link state, and active standard-slot exclusion.
+- Added a lazy server-only Neon/Drizzle client and repository primitives without
+  importing them into Checkout or the webhook, keeping production behavior
+  unchanged until Part 2.
+- Added isolated PostgreSQL-compatible migration tests; no external database,
+  payment, calendar event, email, upload, or deployment was created.
+- Production dependency audit remains at the inherited one high and one
+  moderate Next.js/PostCSS advisories whose published fix is a major upgrade;
+  Drizzle Kit adds development-only moderate esbuild advisories. Both are
+  recorded in `SECURITY_TODO.md` rather than force-upgraded in this feature.
 - Started `juliustanch/booking-confirmation-copy` to replace the long payment
   note with the requested concise GST and post-payment confirmation message;
   corrected the supplied `You booking` typo to `Your booking`.
