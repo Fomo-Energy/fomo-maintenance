@@ -4,29 +4,37 @@ Status: Current
 
 ## Current state
 
-Production now runs the Essential Health Check, Electrical Assurance,
-independent cleaning, and fixed-price monitoring packages from pull request #6.
-The merge commit is `fa037f4`; main-branch CI and the Vercel production
-deployment passed. The live homepage serves the new package copy and the live
-availability API returns Microsoft Graph-backed slots.
-
-Production also includes the S$0.50 live Testing checkout from pull request #8,
-merged as `8186447`. Main-branch CI and the Vercel production deployment pass;
-the live page renders the requested no-service description.
+Production includes the Essential Health Check, Electrical Assurance,
+independent cleaning, and S$0.50 Testing checkout. Branch
+`juliustanch/essential-scope-copy` is verified and ready to merge: it applies
+the approved Essential scope wording, removes customer-facing onboarding
+notices, and removes Continuous monitoring from the UI and quote model while
+rejecting crafted monitoring checkout requests. Production remains unchanged
+until this branch is merged and deployed.
 
 ## Next up
 
-1. Make one S$0.50 Testing payment, validate the TESTING calendar event and
+1. Merge and deploy `juliustanch/essential-scope-copy`, then smoke-test the live
+   calculator and availability API.
+2. Make one S$0.50 Testing payment, validate the TESTING calendar event and
    webhook metadata, then delete the event.
-2. Remove the public Testing option after live validation is complete, or
+3. Remove the public Testing option after live validation is complete, or
    replace it with authenticated operational tooling.
-3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
+4. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
    advisories; do not combine that major upgrade with this package change.
 
 ## Session entries
 
 ### 2026-09-02
 
+- Started and verified branch `juliustanch/essential-scope-copy` for three
+  requested calculator changes: approved Essential scope wording, removal of
+  customer-facing onboarding notices, and removal of Continuous monitoring.
+- Removed monitoring from the quote model and added a server-side rejection for
+  crafted checkout requests so hiding the checkbox cannot leave a purchasable
+  path. Legacy webhook fields remain readable for already-paid sessions.
+- Pricing, slot, calendar, production-build, rendered-copy, and diff checks pass
+  locally. Production has not yet changed.
 - Started branch `juliustanch/testing-service` for a distinct S$0.50 live
   Testing checkout with the exact public description
   `for testing purposes, no service offered`.

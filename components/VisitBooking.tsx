@@ -20,7 +20,6 @@ type VisitBookingProps = {
   installer: InstallerId;
   serviceLevel: ServiceLevel;
   cleaning: boolean;
-  monitoring: boolean;
   testing: boolean;
   totalSgd: number;
 };
@@ -44,7 +43,6 @@ export function VisitBooking({
   installer,
   serviceLevel,
   cleaning,
-  monitoring,
   testing,
   totalSgd,
 }: VisitBookingProps) {
@@ -151,7 +149,7 @@ export function VisitBooking({
           installer,
           serviceLevel,
           cleaning,
-          monitoring,
+          monitoring: false,
           testing,
           name: fields.name,
           phone: fields.phone,
@@ -370,14 +368,6 @@ export function VisitBooking({
           Stripe checkout includes the cleaning charge. Cleaning proceeds only
           after safe roof access is confirmed; if it cannot be confirmed, the
           team will contact you to resolve that charge.
-        </p>
-      ) : null}
-
-      {installer === "other" && !testing ? (
-        <p className="mt-4 text-xs leading-5 text-slate-500">
-          The amount below is the online package total. Any applicable S$120
-          first-visit onboarding fee is confirmed separately because prior
-          visit history cannot yet be verified online.
         </p>
       ) : null}
 

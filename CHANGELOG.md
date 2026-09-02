@@ -4,6 +4,11 @@ Status: Current
 
 ## 2026-09-02
 
+- Updated the Essential Health Check scope to the approved inverter-area,
+  inverter/DB electrical-check, remote-pre-check, and reporting wording.
+- Removed customer-facing first-visit onboarding notices.
+- Removed Continuous monitoring from the calculator and quote model; crafted
+  checkout requests that try to add it are rejected server-side.
 - Added a mutually exclusive S$0.50 Testing checkout for live Stripe and
   calendar-flow validation, explicitly carrying no service entitlement.
 - Added `TESTING` service code, server-recomputed test pricing, Stripe metadata,

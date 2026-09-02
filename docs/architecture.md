@@ -14,16 +14,17 @@ Status: Current
 
 ## Pricing and package model
 
-Customers provide kWp, installer, service level, optional cleaning, monitoring
-or Testing selection, contact/site details, and a visit slot. The application
+Customers provide kWp, installer, service level, optional cleaning or Testing
+selection, contact/site details, and a visit slot. The application
 does not ask about PV strings or equipment models.
 
 The two service levels are Essential Health Check and Electrical Assurance.
 Cleaning is independent. Four service codes describe the service/cleaning
 combination: `ESSENTIAL`, `ELECTRICAL_ASSURANCE`, `ESSENTIAL_CLEAN`, and
-`ELECTRICAL_CLEAN`. Monitoring remains a separate annual line item. `TESTING`
-is a mutually exclusive S$0.50 live-payment package whose operational scope is
-explicitly "no service offered."
+`ELECTRICAL_CLEAN`. `TESTING` is a mutually exclusive S$0.50 live-payment
+package whose operational scope is explicitly "no service offered."
+Continuous monitoring is not exposed in the quote model and checkout rejects
+crafted requests that attempt to enable it.
 
 Maintenance line items are rounded to whole SGD before summation; Testing is the
 only S$0.50 exception. The browser uses the shared quote function for display,
@@ -42,12 +43,11 @@ fulfillment still fails after the immediate retry.
 
 ## Eligibility and state boundary
 
-There is no authoritative property-access, monitoring-compatibility, customer,
-site, or prior-visit datastore. Cleaning access and monitoring compatibility
-are therefore explicit pending operational checks, not automated eligibility
-claims. Other-installer first-visit onboarding is not charged because the app
-cannot reliably identify a first visit. These temporary boundaries are tracked
-in `docs/operations/rollback-register.md`.
+There is no authoritative property-access, customer, site, or prior-visit
+datastore. Cleaning access is therefore an explicit pending operational check,
+not an automated eligibility claim. Other-installer first-visit onboarding is
+not charged because the app cannot reliably identify a first visit. These
+temporary boundaries are tracked in `docs/operations/rollback-register.md`.
 
 ## Calendar ownership and data flow
 

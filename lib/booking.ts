@@ -10,7 +10,6 @@ export type CheckoutRequest = {
   installer: InstallerId;
   serviceLevel: ServiceLevel;
   cleaning: boolean;
-  monitoring: boolean;
   testing: boolean;
   name: string;
   phone: string;
@@ -56,13 +55,11 @@ function asNumber(value: unknown): number {
 export function extrasMetadata(input: {
   serviceLevel: ServiceLevel;
   cleaning: boolean;
-  monitoring: boolean;
   testing: boolean;
 }): string {
   return [
     `serviceLevel=${input.serviceLevel}`,
     `cleaning=${input.cleaning ? "1" : "0"}`,
-    `monitoring=${input.monitoring ? "1" : "0"}`,
     `testing=${input.testing ? "1" : "0"}`,
   ].join(";");
 }
@@ -77,9 +74,6 @@ export function priceBreakdown(result: QuoteResult): string {
   }
   if (result.cleaningSgd) {
     parts.push(`Cleaning=${result.cleaningSgd}`);
-  }
-  if (result.monitoringSgd) {
-    parts.push(`Monitoring=${result.monitoringSgd}`);
   }
   parts.push(`Total=${result.totalSgd}`);
   return parts.join("; ");
@@ -110,12 +104,6 @@ export function priceLineItems(result: QuoteResult): PriceLineItem[] {
   }
   if (result.cleaningSgd) {
     items.push({ name: "Full panel cleaning", amountSgd: result.cleaningSgd });
-  }
-  if (result.monitoringSgd) {
-    items.push({
-      name: "Continuous monitoring — one year",
-      amountSgd: result.monitoringSgd,
-    });
   }
   return items;
 }
@@ -152,15 +140,11 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   if (!Number.isFinite(kwp) || kwp <= 0 || kwp > 10000) {
     throw new Error("Enter a system size in kWp.");
   }
-  if (monitoring && installer !== "fomo") {
-    throw new Error(
-      "Continuous monitoring is only available for compatible FOMO-installed systems.",
-    );
+  if (monitoring) {
+    throw new Error("Continuous monitoring is not available for online booking.");
   }
-  if (testing && (cleaning || monitoring)) {
-    throw new Error(
-      "Testing cannot be combined with cleaning or continuous monitoring.",
-    );
+  if (testing && cleaning) {
+    throw new Error("Testing cannot be combined with cleaning.");
   }
   if (name.length < 1 || name.length > 120) {
     throw new Error("Enter a name.");
@@ -183,7 +167,6 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
     installer,
     serviceLevel,
     cleaning,
-    monitoring,
     testing,
     name,
     phone,
@@ -200,7 +183,6 @@ export function quoteForCheckout(input: CheckoutRequest): QuoteResult {
     installer: input.installer,
     serviceLevel: input.serviceLevel,
     cleaning: input.cleaning,
-    monitoring: input.monitoring,
     testing: input.testing,
   });
 }

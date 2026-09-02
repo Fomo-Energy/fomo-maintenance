@@ -22,7 +22,6 @@ export function PricingCalculator() {
   const [serviceLevel, setServiceLevel] =
     useState<ServiceLevel>("essential");
   const [cleaning, setCleaning] = useState(false);
-  const [monitoring, setMonitoring] = useState(false);
   const [testing, setTesting] = useState(false);
 
   const parsedKwp = Number.parseFloat(kwpInput);
@@ -38,10 +37,9 @@ export function PricingCalculator() {
         installer,
         serviceLevel,
         cleaning,
-        monitoring: installer === "fomo" ? monitoring : false,
         testing,
       }),
-    [cleaning, installer, kwp, monitoring, serviceLevel, testing],
+    [cleaning, installer, kwp, serviceLevel, testing],
   );
 
   return (
@@ -100,9 +98,6 @@ export function PricingCalculator() {
                           setCleaning(false);
                           setTesting(false);
                         }
-                        if (option.id !== "fomo") {
-                          setMonitoring(false);
-                        }
                       }}
                     />
                     {option.label}
@@ -157,9 +152,10 @@ export function PricingCalculator() {
                         From S$199 · No roof access required
                       </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
-                        Inverter and fault-log review, accessible electrical
-                        checks, generation sanity check, remote pre-check when
-                        available, and a digital report.
+                        Inverter area condition — physical integrity, switching
+                        and safety mechanisms; inverter and DB area electrical
+                        checks; remote pre-check when available; and report
+                        generation.
                       </span>
                     </span>
                   </span>
@@ -222,31 +218,6 @@ export function PricingCalculator() {
                   </span>
                 </span>
               </label>
-              {!testing && result.monitoringEligible ? (
-                <label className="mt-2 flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={monitoring}
-                    disabled={!result.sellable}
-                    onChange={(event) => setMonitoring(event.target.checked)}
-                  />
-                  <span>
-                    <span className="font-semibold">
-                      Continuous monitoring · S$120/year
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-slate-500">
-                      For compatible FOMO-installed systems only. Compatibility
-                      is confirmed after booking.
-                    </span>
-                  </span>
-                </label>
-              ) : !testing ? (
-                <p className="mt-2 text-xs leading-5 text-slate-500">
-                  Continuous monitoring is available only for compatible
-                  FOMO-installed systems.
-                </p>
-              ) : null}
               <label className="mt-2 flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
                 <input
                   type="checkbox"
@@ -258,7 +229,6 @@ export function PricingCalculator() {
                     setTesting(selected);
                     if (selected) {
                       setCleaning(false);
-                      setMonitoring(false);
                     }
                   }}
                 />
@@ -279,9 +249,9 @@ export function PricingCalculator() {
               <div className="mt-8 rounded-2xl border border-orange-200 bg-peach p-5 text-sm leading-6 text-slate-700">
                 <p className="font-semibold text-ink">Testing payment only</p>
                 <p className="mt-1">
-                  No inspection, maintenance, cleaning, monitoring, repair, or
-                  other service is included. Delete the TESTING calendar event
-                  after validation.
+                  No inspection, maintenance, cleaning, repair, or other service
+                  is included. Delete the TESTING calendar event after
+                  validation.
                 </p>
               </div>
             ) : (
@@ -321,15 +291,6 @@ export function PricingCalculator() {
                   , SGD, for {kwp} kWp
                 </p>
 
-                {result.installer === "other" && !result.testingApplied ? (
-                  <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-xs leading-5 text-slate-700">
-                    A S$120 first-visit onboarding fee may apply. It is not
-                    included in this online total because this site cannot yet
-                    verify prior visit history; the team will confirm it with
-                    you.
-                  </p>
-                ) : null}
-
                 <dl className="mt-6 space-y-2 text-sm">
                   <div className="flex justify-between gap-4">
                     <dt>{result.packageName}</dt>
@@ -346,14 +307,6 @@ export function PricingCalculator() {
                       <dt>Full panel cleaning</dt>
                       <dd className="font-semibold">
                         {formatSgd(result.cleaningSgd)}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {result.monitoringSgd ? (
-                    <div className="flex justify-between gap-4">
-                      <dt>Continuous monitoring</dt>
-                      <dd className="font-semibold">
-                        {formatSgd(result.monitoringSgd)}
                       </dd>
                     </div>
                   ) : null}
@@ -384,7 +337,6 @@ export function PricingCalculator() {
                   installer={installer}
                   serviceLevel={result.serviceLevel}
                   cleaning={result.cleaningApplied}
-                  monitoring={result.monitoringApplied}
                   testing={result.testingApplied}
                   totalSgd={result.totalSgd}
                 />
