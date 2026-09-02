@@ -75,15 +75,25 @@ Recommended initial policy:
 
 ### Part 4 — Private document upload
 
+Status: Implemented and locally verified behind
+`DOCUMENT_UPLOADS_ENABLED=1`; not merged, provisioned, or enabled.
+
 Authorize direct uploads to a private Vercel Blob store after validating the
 manage token. Store only opaque Blob pathnames plus reviewed metadata in
 Postgres. Files are never public and are downloaded through an authenticated
 server path.
 
-Before implementation, operations must confirm accepted file types, maximum
-size/count, retention, deletion, malware-scanning, and data-residency policy.
-Suggested starting types are PDF, PNG, and JPEG; do not enable arbitrary Office
-documents or archives by default.
+The safe interim limits are PDF, PNG, and JPEG; 20 MB per file; and 10 active
+documents per booking. Blob pathnames are opaque, content type and file
+signature are checked after upload, and the database enforces the concurrent
+ten-file limit. Abandoned upload intents release their quota slot after one
+hour. Downloads stream through an ownership-checked route and never expose the
+private Blob URL.
+
+Before production activation, operations must still confirm retention,
+customer deletion, malware-scanning, and data-residency policy. Do not enable
+arbitrary Office documents or archives. Basic file-signature validation is not
+a substitute for malware scanning.
 
 ### Part 5 — Customer rescheduling
 

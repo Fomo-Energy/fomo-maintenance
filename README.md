@@ -30,14 +30,16 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 ### Booking portal foundation and fulfilment
 
 The customer Manage Booking portal uses Neon Postgres through Drizzle. Parts 1
-through 3 are implemented behind `BOOKING_PORTAL_ENABLED=1`: durable paid
-booking fulfilment, an idempotent calendar step, and a secure read-only manage
-page. The flag remains off until a migrated database and manage-link secret are
-configured and the complete flow passes Preview testing.
+through 3 provide durable paid-booking fulfilment and secure manage access.
+Part 4 adds private Vercel Blob uploads and authenticated downloads behind a
+separate `DOCUMENT_UPLOADS_ENABLED=1` flag. Both flags remain off until the
+migrated database, manage-link secret, and private Blob store pass Preview
+testing.
 
 ```bash
 npm run verify:database
 npm run verify:portal
+npm run verify:documents
 npm run db:generate
 npm run db:migrate
 ```
@@ -105,6 +107,21 @@ are entered and restored on the next visit in the same browser. The form
 provides a `Clear saved details` control. These saved details are not sent to
 the server until the customer starts Checkout.
 
+### Private PV documents
+
+When both portal and upload flags are enabled, a customer with a valid manage
+session can upload PDF, PNG, or JPEG documents directly to a private Vercel Blob
+store. Each file is limited to 20 MB and each booking has ten database-enforced
+active document slots. Storage pathnames contain only generated UUIDs; the
+original filename remains in Postgres. A Blob completion callback verifies the
+active booking credential, object size/type, and basic file signature before
+the document is listed. Downloads are streamed through an ownership-checked,
+no-store route and never reveal the private Blob URL.
+
+The signature check is only a format guard. Keep uploads disabled in Production
+until malware scanning, retention, deletion, data-residency, and rate-limit
+requirements are approved and implemented.
+
 ### API routes
 
 | Method | Route | Role |
@@ -114,6 +131,8 @@ the server until the customer starts Checkout.
 | `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`. With the portal flag off, preserves the existing idempotent Graph flow. With the flag on, claims the event in Postgres, re-reads Checkout from Stripe, persists the booking, creates/finds the Graph event, and prepares one manage credential. |
 | `POST` | `/api/manage/session` | Same-origin exchange of the manage-link fragment credential for a secure HttpOnly cookie. |
 | `GET` | `/manage` | Private, non-indexed read-only view of the current paid booking. Requires the valid manage cookie. |
+| `POST` | `/api/manage/documents/upload` | Authenticates the manage session, reserves one of ten database quota slots, issues a short-lived private Blob client-upload token, and validates the completion callback. |
+| `GET` | `/api/manage/documents/[documentId]/download` | Authenticates booking ownership and streams the private Blob without exposing its storage URL. |
 
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
@@ -176,6 +195,8 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `DATABASE_URL` | Neon Postgres connection string for paid booking, event, fulfilment, and manage-link state. Required only when the portal flag is enabled. |
 | `MANAGE_LINK_SECRET` | At least 32 bytes of random server-only secret material used to authenticate manage credentials. Required only when the portal flag is enabled. |
 | `BOOKING_PORTAL_ENABLED` | Exact value `1` enables the database-backed webhook and `/manage` access. Omit or use another value to retain the existing Stripe-to-calendar flow. |
+| `BLOB_READ_WRITE_TOKEN` | Private Vercel Blob store credential. Connect the store through Vercel so this is injected; never expose it to browser code. |
+| `DOCUMENT_UPLOADS_ENABLED` | Exact value `1` permits new customer upload tokens. Keep `0` until private storage and callback verification pass. |
 
 Microsoft Graph app registration:
 
