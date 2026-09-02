@@ -8,6 +8,11 @@ This is a FOMO Energy program, not a sister company.
 
 Live site: https://fomo-maintenance.vercel.app
 
+Source repository: https://github.com/Fomo-Energy/fomo-maintenance
+
+The repository is owned by the `Fomo-Energy` GitHub organisation. Vercel's
+`fomo-energy/fomo-maintenance` project tracks its `main` branch.
+
 The booking APIs need a Node server. The live app should run on **Vercel** (Next.js, not `output: 'export'`).
 
 GitHub Pages cannot run `/api/*`. The GitHub Actions workflow on `main` only verifies pricing and that `next build` succeeds. It does not publish a static `out/` folder.
