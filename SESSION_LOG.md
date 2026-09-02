@@ -36,6 +36,9 @@ active CI workflow. The local `origin` and Vercel project's Git link both point
 to the organisation-owned repository; production still follows `main`.
 Organisation-owned pull requests now trigger both GitHub CI and Vercel preview
 deployments after refreshing the Vercel Git connection.
+Pull request #21 was merged as `9e17e1b`; `main` now removes the redundant
+public `Other installer` choice and clarifies partial roof access and excluded
+third-party access costs.
 
 Branch `juliustanch/booking-portal-foundation` starts the approved phased
 customer Manage Booking portal. Part 1 defines and locally verifies the dormant
@@ -65,8 +68,8 @@ unchanged.
 - Planned the complete customer portal in seven independently reviewable parts:
   data foundation, paid fulfilment, secure portal, private uploads,
   rescheduling, transactional email, and staff/operational hardening.
-- Started Part 1 on `juliustanch/booking-portal-foundation` from current `main`;
-  the separate roof-safety copy remains in pull request #21.
+- Started Part 1 on `juliustanch/booking-portal-foundation` and incorporated the
+  newly merged roof-safety work from pull request #21 before final verification.
 - Added the dormant booking-portal schema and migration with database-enforced
   Stripe/webhook idempotency, monetary and time invariants, single active
   manage-link state, and active standard-slot exclusion.
@@ -79,6 +82,12 @@ unchanged.
   moderate Next.js/PostCSS advisories whose published fix is a major upgrade;
   Drizzle Kit adds development-only moderate esbuild advisories. Both are
   recorded in `SECURITY_TODO.md` rather than force-upgraded in this feature.
+- Started `juliustanch/roof-safety-copy` to remove the redundant public
+  `Other installer` option and replace the roof notice with clearer safety,
+  partial-access, and third-party access-cost guidance.
+- Pricing, slot, calendar, production-build, rendered-copy, and visual checks
+  pass. The page has no framework overlay or browser console errors, and the
+  public installer controls contain only FOMO-installed and rent-to-own.
 - Started `juliustanch/booking-confirmation-copy` to replace the long payment
   note with the requested concise GST and post-payment confirmation message;
   corrected the supplied `You booking` typo to `Your booking`.

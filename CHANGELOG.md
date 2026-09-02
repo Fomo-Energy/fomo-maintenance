@@ -9,6 +9,9 @@ Status: Current
   lazy server-only database client, idempotent booking/webhook repository
   primitives, and isolated database constraint verification. No live route uses
   the database yet.
+- Removed the redundant `Other installer` choice from the public calculator and
+  expanded the roof-access notice to cover partial safe access and excluded
+  third-party access costs.
 - Transferred the canonical repository from the maintainer's personal GitHub
   account to the `Fomo-Energy` organisation while preserving its history,
   repository ID, Actions workflow, and Vercel project linkage.

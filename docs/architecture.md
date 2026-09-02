@@ -58,9 +58,11 @@ fulfillment still fails after the immediate retry.
 
 There is no authoritative property-access, customer, site, or prior-visit
 datastore. Cleaning access is therefore an explicit pending operational check,
-not an automated eligibility claim. Other-installer first-visit onboarding is
-not charged because the app cannot reliably identify a first visit. These
-temporary boundaries are tracked in `docs/operations/rollback-register.md`.
+not an automated eligibility claim. Cleaning is limited to safely accessible
+panels, and its online price excludes third-party roof-access costs.
+Other-installer first-visit onboarding is not charged because the app cannot
+reliably identify a first visit. These temporary boundaries are tracked in
+`docs/operations/rollback-register.md`.
 
 ## Calendar ownership and data flow
 
