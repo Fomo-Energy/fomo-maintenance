@@ -9,6 +9,7 @@ import type { BusyPeriod } from "@/lib/slots";
 const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
 const STRIPE_SESSION_PROPERTY =
   "String {66f5a359-4659-4830-9070-00047ec6ac6e} Name StripeSessionId";
+const MAX_SCHEDULE_WINDOW_DAYS = 60;
 
 type TokenCache = {
   accessToken: string;
@@ -290,24 +291,50 @@ async function busyFromSchedule(
   return periods;
 }
 
+export function splitScheduleRange(
+  rangeStart: Date,
+  rangeEnd: Date,
+  maximumDays = MAX_SCHEDULE_WINDOW_DAYS,
+): Array<{ start: Date; end: Date }> {
+  if (
+    !Number.isFinite(maximumDays) ||
+    maximumDays <= 0 ||
+    rangeEnd <= rangeStart
+  ) {
+    return [];
+  }
+  const windows: Array<{ start: Date; end: Date }> = [];
+  const maximumMs = maximumDays * 24 * 60 * 60 * 1_000;
+  let start = new Date(rangeStart);
+  while (start < rangeEnd) {
+    const end = new Date(
+      Math.min(start.getTime() + maximumMs, rangeEnd.getTime()),
+    );
+    windows.push({ start, end });
+    start = end;
+  }
+  return windows;
+}
+
 async function busyFromCalendarView(
   client: Client,
   mailbox: string,
   rangeStart: Date,
   rangeEnd: Date,
   calendarId?: string,
+  excludeEventId?: string,
 ): Promise<BusyPeriod[]> {
   const periods: BusyPeriod[] = [];
   const calendarPath = calendarId
     ? maintenanceCalendarPath(mailbox, calendarId)
     : `${encodeUserPath(mailbox)}/calendar`;
   let path: string | undefined =
-    `${calendarPath}/calendarView?startDateTime=${encodeURIComponent(rangeStart.toISOString())}&endDateTime=${encodeURIComponent(rangeEnd.toISOString())}&$select=start,end,showAs,isCancelled&$top=100`;
+    `${calendarPath}/calendarView?startDateTime=${encodeURIComponent(rangeStart.toISOString())}&endDateTime=${encodeURIComponent(rangeEnd.toISOString())}&$select=id,start,end,showAs,isCancelled&$top=100`;
 
   while (path) {
     const page = (await client.api(path).get()) as CalendarViewResponse;
     for (const event of page.value || []) {
-      if (event.isCancelled) {
+      if (event.isCancelled || (excludeEventId && event.id === excludeEventId)) {
         continue;
       }
       if (isBusyStatus(event.showAs) || !event.showAs) {
@@ -324,6 +351,7 @@ async function busyFromCalendarView(
 export async function listBusyPeriods(
   rangeStart: Date,
   rangeEnd: Date,
+  options: { excludeMaintenanceEventId?: string } = {},
 ): Promise<BusyPeriod[]> {
   const mailbox = calendarMailbox();
   const client = await getGraphClient();
@@ -337,9 +365,11 @@ export async function listBusyPeriods(
   let maintenanceViewOk = false;
 
   try {
-    merged.push(
-      ...(await busyFromSchedule(client, mailbox, rangeStart, rangeEnd)),
-    );
+    for (const window of splitScheduleRange(rangeStart, rangeEnd)) {
+      merged.push(
+        ...(await busyFromSchedule(client, mailbox, window.start, window.end)),
+      );
+    }
     scheduleOk = true;
   } catch (error) {
     console.error("[fomo-maintenance] getSchedule failed", error);
@@ -362,6 +392,7 @@ export async function listBusyPeriods(
         rangeStart,
         rangeEnd,
         maintenanceCalendarId,
+        options.excludeMaintenanceEventId,
       )),
     );
     maintenanceViewOk = true;
@@ -377,6 +408,84 @@ export async function listBusyPeriods(
   }
 
   return merged;
+}
+
+async function updateMaintenanceVisitTimeOnce(
+  eventId: string,
+  slotStart: string,
+  slotEnd: string,
+): Promise<void> {
+  const mailbox = calendarMailbox();
+  const client = await getGraphClient();
+  const maintenanceCalendarId = await resolveMaintenanceCalendarId(
+    client,
+    mailbox,
+  );
+  const eventPath = `${maintenanceCalendarPath(mailbox, maintenanceCalendarId)}/events/${encodeURIComponent(eventId)}`;
+  await client.api(eventPath).patch({
+    start: toGraphLocal(slotStart),
+    end: toGraphLocal(slotEnd),
+  });
+  const updated = (await client
+    .api(eventPath)
+    .select("id,start,end")
+    .get()) as CalendarEvent;
+  const actualStart = graphDateTimeToDate(updated.start);
+  const actualEnd = graphDateTimeToDate(updated.end);
+  if (
+    !actualStart ||
+    !actualEnd ||
+    actualStart.getTime() !== new Date(slotStart).getTime() ||
+    actualEnd.getTime() !== new Date(slotEnd).getTime()
+  ) {
+    throw new Error("Microsoft Graph did not confirm the requested event time.");
+  }
+}
+
+export async function maintenanceVisitTimeMatches(
+  eventId: string,
+  slotStart: string,
+  slotEnd: string,
+): Promise<boolean> {
+  const mailbox = calendarMailbox();
+  const client = await getGraphClient();
+  const maintenanceCalendarId = await resolveMaintenanceCalendarId(
+    client,
+    mailbox,
+  );
+  const eventPath = `${maintenanceCalendarPath(mailbox, maintenanceCalendarId)}/events/${encodeURIComponent(eventId)}`;
+  const event = (await client
+    .api(eventPath)
+    .select("id,start,end")
+    .get()) as CalendarEvent;
+  const actualStart = graphDateTimeToDate(event.start);
+  const actualEnd = graphDateTimeToDate(event.end);
+  return Boolean(
+    actualStart &&
+      actualEnd &&
+      actualStart.getTime() === new Date(slotStart).getTime() &&
+      actualEnd.getTime() === new Date(slotEnd).getTime(),
+  );
+}
+
+export async function updateMaintenanceVisitTimeWithRetry(
+  eventId: string,
+  slotStart: string,
+  slotEnd: string,
+): Promise<void> {
+  try {
+    await updateMaintenanceVisitTimeOnce(eventId, slotStart, slotEnd);
+  } catch (firstError) {
+    console.error(
+      "[fomo-maintenance] Graph event update failed, retrying once",
+      {
+        eventId,
+        error:
+          firstError instanceof Error ? firstError.message : "unknown_error",
+      },
+    );
+    await updateMaintenanceVisitTimeOnce(eventId, slotStart, slotEnd);
+  }
 }
 
 async function findEventBySessionId(

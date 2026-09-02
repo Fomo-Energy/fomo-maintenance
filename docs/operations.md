@@ -91,7 +91,7 @@ real appointment slot. The payment creates no service entitlement.
 
 ## Booking portal rollout
 
-The Drizzle schema and Parts 2–4 code are additive and dormant while
+The Drizzle schema and Parts 2–5 code are additive and dormant while
 `BOOKING_PORTAL_ENABLED` is not `1`. Do not apply the migration to Production or
 enable the flag merely because the code exists. The live flow remains the
 original Stripe-to-Microsoft path until Preview has passed the controlled
@@ -101,8 +101,8 @@ For a future Preview rollout:
 
 1. Provision a separate Neon Preview database through the Vercel Marketplace.
 2. Pull its environment variables into `.env.local` without committing them.
-3. Review both files in `db/migrations/`, including the Part 4 document-quota
-   migration.
+3. Review every file in `db/migrations/`, including the Part 4 document-quota
+   migration and Part 5 Checkout/reschedule reservation migration.
 4. Run `npm run verify:database` locally.
 5. Generate a random `MANAGE_LINK_SECRET` of at least 32 bytes and configure it
    only in Preview.
@@ -117,7 +117,14 @@ For a future Preview rollout:
 11. Verify an authenticated PDF, PNG, and JPEG upload; a rejected wrong file
     signature; a 20 MB boundary; the concurrent 10-document database limit;
     private Blob URLs; and ownership-checked application downloads.
-12. Disable the upload flag before Blob rollback and the portal flag before any
+12. Keep `RESCHEDULING_ENABLED=0` while exercising two simultaneous Checkout
+    attempts, two simultaneous customer changes, the 48-hour cutoff, two-change
+    limit, an interrupted Graph response, idempotent retry, and Graph/booking
+    reconciliation. Confirm a Checkout hold expires and a paid hold confirms.
+13. Verify customer and operations reschedule notifications and manage-link
+    renewal before enabling rescheduling outside Preview.
+14. Disable the upload and rescheduling flags before their dependent-service
+    rollback, and the portal flag before any
     database rollback. Consider Production only
     after the complete checklist passes.
 
@@ -133,6 +140,10 @@ Upload-only rollback is to remove `DOCUMENT_UPLOADS_ENABLED`; this stops new
 token issuance while preserving authenticated access to already accepted files.
 Do not delete the Blob store until every retained document is reconciled with
 its Postgres record and the approved retention policy.
+Rescheduling rollback is to remove `RESCHEDULING_ENABLED`; do not try to reverse
+already confirmed customer changes automatically. Reconcile any
+`reschedule_requests` row left in `processing` against the Graph event before
+releasing its held slot or changing the booking record.
 
 ## Manual package checks
 

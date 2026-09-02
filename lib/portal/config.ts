@@ -12,6 +12,10 @@ export function documentUploadsEnabled(): boolean {
   return process.env.DOCUMENT_UPLOADS_ENABLED?.trim() === "1";
 }
 
+export function reschedulingEnabled(): boolean {
+  return process.env.RESCHEDULING_ENABLED?.trim() === "1";
+}
+
 export function manageLinkSecret(): string {
   const secret = process.env.MANAGE_LINK_SECRET?.trim();
   if (!secret || Buffer.byteLength(secret, "utf8") < 32) {

@@ -15,6 +15,13 @@
       "when": 1788355796336,
       "tag": "0001_rare_hammerhead",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788357500443,
+      "tag": "0002_ancient_chronomancer",
+      "breakpoints": true
     }
   ]
 }

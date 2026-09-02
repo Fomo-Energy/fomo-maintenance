@@ -51,6 +51,31 @@ details, personal data, and security-sensitive electrical information.
 6. Protect future staff access with Microsoft Entra ID and retain an access
    audit trail.
 
+### Harden customer rescheduling before activation
+
+**Status:** In progress; the authenticated, feature-gated flow is implemented,
+but Preview integration, rate limiting, notifications, and recovery operations
+are not complete.
+
+**Why it matters:** A stolen manage credential or concurrent request could move
+an appointment, consume scarce visit capacity, or leave Graph and Postgres out
+of sync.
+
+**Required end state:**
+
+1. Completed in code: server-side 48-hour cutoff, two-change limit, strict
+   standard-slot validation, same-origin mutation, one active request per
+   booking, and database-unique active slot holds.
+2. Completed in code: Graph is rechecked, the existing event is PATCHed and
+   reread, and Postgres changes only after Graph confirms; retry keys recover an
+   interrupted response without applying a second change.
+3. Before activation: add per-booking/IP rate limits and exercise concurrent
+   Checkout/reschedule attempts against Preview Neon and Graph.
+4. Before activation: add customer/operations notifications and renew or reissue
+   the manage link when a later visit would outlive its current expiry.
+5. Document and test staff reconciliation for an active request whose Graph
+   outcome remains uncertain. Retain old/new times and failure state for audit.
+
 ## Medium Priority
 
 ### Upgrade vulnerable framework and migration-tool dependencies

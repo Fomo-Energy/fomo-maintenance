@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
+import { databaseIsConfigured } from "@/lib/database";
 import { listBusyPeriods } from "@/lib/microsoft";
+import { bookingPortalEnabled } from "@/lib/portal/config";
+import { listActiveReservedPeriods } from "@/lib/portal/rescheduling";
 import {
   filterFreeSlots,
   generateCandidateSlots,
@@ -19,7 +22,16 @@ export async function POST() {
     const last = candidates[candidates.length - 1];
     const rangeEnd = new Date(last.end);
 
-    const busy = await listBusyPeriods(rangeStart, rangeEnd);
+    if (bookingPortalEnabled() && !databaseIsConfigured()) {
+      throw new Error("Booking portal database is not configured.");
+    }
+    const [calendarBusy, reservationBusy] = await Promise.all([
+      listBusyPeriods(rangeStart, rangeEnd),
+      bookingPortalEnabled()
+        ? listActiveReservedPeriods(rangeStart, rangeEnd)
+        : Promise.resolve([]),
+    ]);
+    const busy = [...calendarBusy, ...reservationBusy];
     const slots = filterFreeSlots(candidates, busy);
     return NextResponse.json({ slots });
   } catch (error) {

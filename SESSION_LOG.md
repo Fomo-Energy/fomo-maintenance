@@ -49,6 +49,13 @@ and ownership-checked downloads. Pull request #24 passed GitHub CI and its
 Vercel Preview deployment. No Neon or Blob resource has been provisioned, no
 migration has been applied remotely, and production behavior remains unchanged.
 
+Branch `juliustanch/booking-portal-rescheduling` is stacked on pull request #24
+and implements Part 5 behind disabled `RESCHEDULING_ENABLED`. It adds shared
+Checkout/reschedule database holds, customer policy enforcement, authenticated
+replacement-slot selection, bounded Graph queries, idempotent event updates,
+and Graph-first/atomic database finalization. No remote migration, Graph write,
+or Production flag change has occurred.
+
 ## Next up
 
 1. Review the Part 4 pull request, then provision and migrate separate Preview
@@ -56,10 +63,13 @@ migration has been applied remotely, and production behavior remains unchanged.
 2. Configure Preview-only portal/upload flags and secrets, then exercise payment,
    replay, private upload/download, signature rejection, and concurrent quotas.
 3. Confirm malware scanning, retention, deletion, and data-residency policy.
-4. Build Part 5 customer rescheduling and reduce Microsoft Graph availability
-   queries from 90 days to its 62-day
-   free/busy limit, or split the requested period into bounded windows.
-5. Decide whether customer receipts remain Stripe receipts or whether the paid
+4. Review the stacked Part 5 pull request, then run its concurrent-slot and
+   interrupted-Graph matrix against Preview Neon and Microsoft Graph.
+5. Build Part 6 customer/operations confirmation and reschedule email, including
+   manage-link renewal for appointments moved beyond the original link expiry.
+6. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
+   retention/deletion jobs, and Graph/database reconciliation tooling.
+7. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create formal invoices through Xero; first confirm
    the target organisation, GST details, existing Stripe feed, and OAuth storage.
 
@@ -85,6 +95,20 @@ migration has been applied remotely, and production behavior remains unchanged.
   production aliases. Main CI passed at merge commit `6419bc3`.
 - Opened pull request #24 at `383b1ae`; GitHub CI and the automatic Vercel
   Preview deployment passed. The feature remains disabled and unmerged.
+- Started stacked branch `juliustanch/booking-portal-rescheduling` for Part 5.
+  Added 31-minute Checkout holds with webhook grace, shared unique slot
+  reservations, one active customer change per booking, a 48-hour cutoff, and
+  a maximum of two online changes.
+- Added authenticated replacement availability and a retry-safe Graph-first
+  update flow. Microsoft events are reread before Postgres atomically records
+  the new time and releases the previous slot. An uncertain result keeps the
+  same request available for authenticated retry rather than guessing.
+- Split `getSchedule` calls into 60-day windows so the three-month availability
+  horizon stays within Microsoft's 62-day limit.
+- The complete pricing, slot, calendar, database, portal, document, and
+  rescheduling suites plus `next build` pass. Browser checks found content and
+  no framework overlay on `/` or `/manage`; with all portal flags/resources
+  unset, both rescheduling routes returned generic private no-store 404s.
 
 - Merged Part 1 in pull request #22 as `9120067`; main CI passed and Vercel
   created the corresponding production deployment without changing live behavior.

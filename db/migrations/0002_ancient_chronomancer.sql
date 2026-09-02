@@ -1,0 +1,5 @@
+ALTER TABLE "slot_reservations" ALTER COLUMN "booking_id" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "slot_reservations" ADD COLUMN "stripe_checkout_session_id" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "reschedule_requests_one_active_per_booking" ON "reschedule_requests" USING btree ("booking_id") WHERE "reschedule_requests"."status" in ('requested', 'processing');--> statement-breakpoint
+CREATE UNIQUE INDEX "slot_reservations_checkout_session_unique" ON "slot_reservations" USING btree ("stripe_checkout_session_id") WHERE "slot_reservations"."stripe_checkout_session_id" is not null;--> statement-breakpoint
+ALTER TABLE "slot_reservations" ADD CONSTRAINT "slot_reservations_owner_check" CHECK ("slot_reservations"."booking_id" is not null or "slot_reservations"."stripe_checkout_session_id" is not null);

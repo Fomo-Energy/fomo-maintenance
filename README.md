@@ -32,14 +32,16 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 The customer Manage Booking portal uses Neon Postgres through Drizzle. Parts 1
 through 3 provide durable paid-booking fulfilment and secure manage access.
 Part 4 adds private Vercel Blob uploads and authenticated downloads behind a
-separate `DOCUMENT_UPLOADS_ENABLED=1` flag. Both flags remain off until the
-migrated database, manage-link secret, and private Blob store pass Preview
-testing.
+separate `DOCUMENT_UPLOADS_ENABLED=1` flag. Part 5 adds database-backed slot
+holds and customer date/time changes behind `RESCHEDULING_ENABLED=1`. The flags
+remain off until the migrated database, manage-link secret, private Blob store,
+calendar update, and notification flows pass Preview testing.
 
 ```bash
 npm run verify:database
 npm run verify:portal
 npm run verify:documents
+npm run verify:rescheduling
 npm run db:generate
 npm run db:migrate
 ```
@@ -122,6 +124,23 @@ The signature check is only a format guard. Keep uploads disabled in Production
 until malware scanning, retention, deletion, data-residency, and rate-limit
 requirements are approved and implemented.
 
+### Customer date/time changes
+
+When the portal and rescheduling flags are enabled, a paid booking with a
+confirmed Microsoft event can be moved to another standard weekday slot until
+48 hours before its current visit. Customers can make at most two online
+changes. Service, cleaning, address, and payment details cannot be edited.
+
+The server reserves the replacement slot in Postgres, rechecks Microsoft
+availability, updates and rereads the existing event, then atomically records
+the new booking time and releases the previous reservation. A retry uses the
+same request key and first detects whether Graph already moved the event. New
+Stripe Checkouts use the same reservation table: a 31-minute Checkout gets a
+short grace-period hold, which is confirmed only after the paid webhook.
+
+Microsoft `getSchedule` requests are split into 60-day windows so the public
+three-month calendar stays below Graph's 62-day request limit.
+
 ### API routes
 
 | Method | Route | Role |
@@ -133,6 +152,8 @@ requirements are approved and implemented.
 | `GET` | `/manage` | Private, non-indexed read-only view of the current paid booking. Requires the valid manage cookie. |
 | `POST` | `/api/manage/documents/upload` | Authenticates the manage session, reserves one of ten database quota slots, issues a short-lived private Blob client-upload token, and validates the completion callback. |
 | `GET` | `/api/manage/documents/[documentId]/download` | Authenticates booking ownership and streams the private Blob without exposing its storage URL. |
+| `GET` | `/api/manage/reschedule/availability` | Returns authenticated replacement slots after combining bounded Microsoft availability with active database reservations. |
+| `POST` | `/api/manage/reschedule` | Enforces the cutoff/count policy, holds the new slot, idempotently updates the existing Graph event, and commits the booking change. |
 
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
@@ -197,6 +218,7 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `BOOKING_PORTAL_ENABLED` | Exact value `1` enables the database-backed webhook and `/manage` access. Omit or use another value to retain the existing Stripe-to-calendar flow. |
 | `BLOB_READ_WRITE_TOKEN` | Private Vercel Blob store credential. Connect the store through Vercel so this is injected; never expose it to browser code. |
 | `DOCUMENT_UPLOADS_ENABLED` | Exact value `1` permits new customer upload tokens. Keep `0` until private storage and callback verification pass. |
+| `RESCHEDULING_ENABLED` | Exact value `1` enables customer date/time changes. Keep `0` until Preview contention, Graph-update recovery, notifications, and operational reconciliation pass. |
 
 Microsoft Graph app registration:
 

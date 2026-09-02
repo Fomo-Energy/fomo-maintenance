@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import ManageAccessBootstrap from "@/components/ManageAccessBootstrap";
 import DocumentUploadPanel from "@/components/DocumentUploadPanel";
+import ReschedulePanel from "@/components/ReschedulePanel";
 import { formatSgd } from "@/lib/pricing";
 import { findManageBooking } from "@/lib/portal/bookings";
 import {
@@ -9,11 +10,14 @@ import {
   bookingPortalEnabled,
   documentUploadsEnabled,
   MANAGE_COOKIE_NAME,
+  reschedulingEnabled,
 } from "@/lib/portal/config";
 import {
   documentCategoryLabel,
   listManageDocuments,
 } from "@/lib/portal/documents";
+import { rescheduleEligibility } from "@/lib/portal/reschedule-policy";
+import { findActiveCustomerReschedule } from "@/lib/portal/rescheduling";
 import { formatSlotRange } from "@/lib/slots";
 
 export const runtime = "nodejs";
@@ -37,6 +41,11 @@ export default async function ManageBookingPage() {
     : [];
   const storageReady = blobStorageIsConfigured();
   const uploadsReady = storageReady && documentUploadsEnabled();
+  const reschedulePolicy = booking ? rescheduleEligibility(booking) : null;
+  const activeReschedule =
+    booking && reschedulingEnabled()
+      ? await findActiveCustomerReschedule(booking.id).catch(() => null)
+      : null;
 
   return (
     <main className="min-h-screen bg-peach px-6 py-16">
@@ -127,10 +136,24 @@ export default async function ManageBookingPage() {
                 </ul>
               ) : null}
             </section>
-            <div className="mt-10 rounded-2xl bg-peach px-5 py-4 text-sm leading-6 text-slate-600">
-              Self-service date/time changes are the next delivery stage. For
-              now, contact the FOMO team if this booking needs attention.
-            </div>
+            {reschedulingEnabled() &&
+            (reschedulePolicy?.allowed || activeReschedule) ? (
+              <ReschedulePanel
+                bookingReference={booking.reference}
+                currentSlotStart={booking.slotStart.toISOString()}
+                currentSlotEnd={booking.slotEnd.toISOString()}
+                changesRemaining={reschedulePolicy?.changesRemaining ?? 0}
+              />
+            ) : (
+              <div className="mt-10 rounded-2xl bg-peach px-5 py-4 text-sm leading-6 text-slate-600">
+                {reschedulingEnabled() &&
+                reschedulePolicy &&
+                !reschedulePolicy.allowed
+                  ? reschedulePolicy.reason
+                  : "Online date/time changes are not available yet."}{" "}
+                Contact the FOMO team if this booking needs attention.
+              </div>
+            )}
           </>
         ) : (
           <div className="mt-6 rounded-2xl bg-peach px-5 py-4 text-slate-600">

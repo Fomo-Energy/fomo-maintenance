@@ -4,6 +4,12 @@ Status: Current
 
 ## 2026-09-02
 
+- Built Part 5 behind a separate disabled rescheduling flag: shared Checkout
+  and reschedule slot holds, a 48-hour cutoff, two-change limit, authenticated
+  replacement availability, idempotent Graph event updates, and atomic booking
+  finalization.
+- Split three-month Microsoft free/busy requests into 60-day windows to remain
+  below the Graph `getSchedule` 62-day limit.
 - Built Part 4 behind a separate disabled upload flag: private direct Vercel
   Blob uploads, opaque pathnames, short-lived scoped upload tokens, basic file
   signature checks, database-enforced ten-document quotas, and authenticated
