@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { formatSgd } from "@/lib/pricing";
+import { databaseIsConfigured } from "@/lib/database";
+import { findBookingByStripeSessionId } from "@/lib/portal/bookings";
+import { bookingPortalEnabled } from "@/lib/portal/config";
 import { QUOTE_EMAIL } from "@/lib/site";
 import { formatSlotRange } from "@/lib/slots";
 import { getStripe } from "@/lib/stripe";
@@ -33,12 +36,18 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
   }
 
   try {
-    const session = await getStripe().checkout.sessions.retrieve(sessionId);
+    const [session, portalBooking] = await Promise.all([
+      getStripe().checkout.sessions.retrieve(sessionId),
+      bookingPortalEnabled() && databaseIsConfigured()
+        ? findBookingByStripeSessionId(sessionId).catch(() => null)
+        : Promise.resolve(null),
+    ]);
     const paid = session.payment_status === "paid";
     const metadata = session.metadata ?? {};
     const address = metadata.address || "—";
     const packageName = metadata.package;
-    const calendarStatus = metadata.calendarStatus || "pending";
+    const calendarStatus =
+      portalBooking?.calendarStatus || metadata.calendarStatus || "pending";
     const testing = metadata.testing === "1";
     const slotStart = metadata.slotStart;
     const slotEnd = metadata.slotEnd;

@@ -40,30 +40,47 @@ Pull request #21 was merged as `9e17e1b`; `main` now removes the redundant
 public `Other installer` choice and clarifies partial roof access and excluded
 third-party access costs.
 
-Branch `juliustanch/booking-portal-foundation` starts the approved phased
-customer Manage Booking portal. Part 1 defines and locally verifies the dormant
-Neon/Drizzle data model for paid bookings, hashed manage-link credentials,
-private-document metadata, reschedules, slot reservations, webhook receipts,
-and fulfilment state. No Neon resource has been provisioned, no migration has
-been applied remotely, and the current Stripe-to-calendar production flow is
-unchanged.
+Pull request #22 was merged as `9120067`, completing Part 1 of the phased
+customer Manage Booking portal. Branch
+`juliustanch/booking-portal-fulfillment` now implements Parts 2–3 behind the
+disabled `BOOKING_PORTAL_ENABLED` flag: recoverable paid-webhook fulfilment,
+persisted Graph event identity, secure manage credentials, and a private
+read-only `/manage` page. Local verification and production build pass. No Neon
+resource has been provisioned, no migration has been applied remotely, and the
+current production Stripe-to-calendar behavior remains unchanged.
 
 ## Next up
 
-1. Review Part 1 and provision a separate Neon Preview database when approved;
-   do not connect Production yet.
-2. Implement Part 2: idempotent Stripe event persistence and durable
-   post-payment fulfilment while preserving the existing calendar behavior.
-3. Reduce Microsoft Graph availability queries from 90 days to its 62-day
+1. Review the Parts 2–3 pull request, then provision and migrate a separate Neon
+   Preview database; do not connect Production yet.
+2. Configure a Preview-only `MANAGE_LINK_SECRET`, enable the Preview flag, and
+   exercise Stripe replay, failure recovery, Graph idempotency, and portal access.
+3. Build Part 4 private uploads only after file/retention/scanning policy is set.
+4. Reduce Microsoft Graph availability queries from 90 days to its 62-day
    free/busy limit, or split the requested period into bounded windows.
-4. Decide whether customer receipts remain Stripe receipts or whether the paid
-   Checkout webhook should create and email formal invoices through Xero.
-5. Before a Xero implementation, confirm the target Xero organisation, GST
-   registration details, existing Stripe feed, and durable OAuth token storage.
+5. Decide whether customer receipts remain Stripe receipts or whether the paid
+   Checkout webhook should create formal invoices through Xero; first confirm
+   the target organisation, GST details, existing Stripe feed, and OAuth storage.
 
 ## Session entries
 
 ### 2026-09-02
+
+- Merged Part 1 in pull request #22 as `9120067`; main CI passed and Vercel
+  created the corresponding production deployment without changing live behavior.
+- Started `juliustanch/booking-portal-fulfillment` for Parts 2–3. The Vercel
+  Workflow SDK prototype was removed after its production tree added 15 high
+  audit findings; a database-backed state machine now uses Stripe webhook
+  retries with claim timeout and step-level idempotency.
+- Added authoritative Stripe Session reload, paid booking upsert, Graph event ID
+  persistence, retry-safe calendar/manage-link steps, and permanent/transient
+  failure separation behind `BOOKING_PORTAL_ENABLED=1`.
+- Added HMAC-authenticated, digest-only manage credentials and a fragment-based
+  exchange for an HttpOnly cookie, plus a private read-only booking page.
+- Pricing, slot, calendar, database, portal retry/token tests and `next build`
+  pass. Browser verification found content, no framework overlay, and the
+  expected disabled-portal message. Nothing was merged, deployed, paid, emailed,
+  uploaded, or written to an external database/calendar in Parts 2–3 testing.
 
 - Planned the complete customer portal in seven independently reviewable parts:
   data foundation, paid fulfilment, secure portal, private uploads,

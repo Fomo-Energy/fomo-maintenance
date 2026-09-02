@@ -7,11 +7,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database",
+    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database && npm run verify:portal",
     "verify:pricing": "tsx scripts/verify-pricing.ts",
     "verify:slots": "tsx scripts/verify-slots.ts",
     "verify:calendar": "tsx scripts/verify-calendar.ts",
     "verify:database": "drizzle-kit check && tsx scripts/verify-database.ts",
+    "verify:portal": "tsx scripts/verify-portal.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate"
   },

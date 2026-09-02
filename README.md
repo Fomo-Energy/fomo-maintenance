@@ -27,15 +27,17 @@ npm run dev
 
 Open http://localhost:3000. `npm start` serves `next start` after `npm run build`.
 
-### Booking portal database foundation
+### Booking portal foundation and fulfilment
 
-The future customer Manage Booking portal uses Neon Postgres through Drizzle.
-Its additive schema and delivery plan are present, but the live Checkout and
-webhook do not write to the database until the post-payment workflow is
-implemented in the next delivery part.
+The customer Manage Booking portal uses Neon Postgres through Drizzle. Parts 1
+through 3 are implemented behind `BOOKING_PORTAL_ENABLED=1`: durable paid
+booking fulfilment, an idempotent calendar step, and a secure read-only manage
+page. The flag remains off until a migrated database and manage-link secret are
+configured and the complete flow passes Preview testing.
 
 ```bash
 npm run verify:database
+npm run verify:portal
 npm run db:generate
 npm run db:migrate
 ```
@@ -109,7 +111,9 @@ the server until the customer starts Checkout.
 | --- | --- | --- |
 | `POST` | `/api/availability` | Microsoft Graph checks the primary calendar for `MICROSOFT_CALENDAR_USER` and the dedicated maintenance calendar. Returns free slots. |
 | `POST` | `/api/checkout` | Recomputes the pre-GST quote and GST, checks the slot is still free, applies the configured Stripe tax rate, creates a Stripe Checkout Session in SGD, and verifies Stripe's returned subtotal, tax, and total. |
-| `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`. On `checkout.session.completed`, creates the Graph event. Idempotent on the Stripe session id. |
+| `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`. With the portal flag off, preserves the existing idempotent Graph flow. With the flag on, claims the event in Postgres, re-reads Checkout from Stripe, persists the booking, creates/finds the Graph event, and prepares one manage credential. |
+| `POST` | `/api/manage/session` | Same-origin exchange of the manage-link fragment credential for a secure HttpOnly cookie. |
+| `GET` | `/manage` | Private, non-indexed read-only view of the current paid booking. Requires the valid manage cookie. |
 
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
@@ -169,7 +173,9 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `MICROSOFT_CALENDAR_USER` | Mailbox UPN/email whose primary calendar is checked for conflicts |
 | `MICROSOFT_MAINTENANCE_CALENDAR_NAME` | Exact secondary-calendar name. Defaults to `Fomo Maintenance`; Graph resolves and caches its ID. |
 | `MICROSOFT_MAINTENANCE_CALENDAR_ID` | Optional Graph calendar ID. When set, skips name lookup and remains stable if the calendar is renamed. |
-| `DATABASE_URL` | Neon Postgres connection string for the future customer booking portal. The current production flow does not require it until the post-payment workflow is enabled. |
+| `DATABASE_URL` | Neon Postgres connection string for paid booking, event, fulfilment, and manage-link state. Required only when the portal flag is enabled. |
+| `MANAGE_LINK_SECRET` | At least 32 bytes of random server-only secret material used to authenticate manage credentials. Required only when the portal flag is enabled. |
+| `BOOKING_PORTAL_ENABLED` | Exact value `1` enables the database-backed webhook and `/manage` access. Omit or use another value to retain the existing Stripe-to-calendar flow. |
 
 Microsoft Graph app registration:
 

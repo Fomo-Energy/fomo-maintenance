@@ -18,6 +18,8 @@ payment states are never trusted.
 
 ### Part 1 — Durable data foundation
 
+Status: Complete and merged in pull request #22; not provisioned remotely.
+
 Add Neon Postgres and Drizzle without connecting it to the live checkout yet.
 Define bookings, hashed access tokens, document metadata, reschedule history,
 slot reservations, webhook receipts, and fulfilment-step state. Add reviewed
@@ -32,27 +34,36 @@ Exit criteria:
   enforced in Postgres.
 - Production behavior is unchanged.
 
-### Part 2 — Post-payment fulfilment workflow
+### Part 2 — Post-payment fulfilment state machine
+
+Status: Implemented and locally verified behind a server-side feature flag;
+not merged, provisioned, or enabled.
 
 Refactor the signed Stripe webhook so it verifies the raw event, records the
-event idempotently, and starts a durable post-payment workflow. The workflow
-retrieves the Checkout Session from Stripe, confirms payment, upserts the
-booking, creates or finds the Microsoft event, prepares the manage link, and
-runs notification steps independently.
+event idempotently, and advances a durable database-backed state machine.
+Stripe's retryable webhook delivery is the retry driver. The handler retrieves
+the Checkout Session from Stripe, confirms payment, upserts the booking,
+creates or finds the Microsoft event, and prepares the manage link. This avoids
+a separate workflow runtime and its current vulnerable dependency chain.
 
 Exit criteria:
 
 - Replaying the same Stripe event creates one booking and one calendar event.
-- A temporary Graph, database, or mail failure is retryable without duplicating
-  completed work.
+- A temporary Graph or database failure is retryable without duplicating
+  completed work. Independent email recovery is added in Part 6.
 - Stripe metadata remains readable for legacy paid sessions during migration.
 
 ### Part 3 — Secure Manage Booking portal
 
-Add `/manage/[token]` as the customer entrypoint. Generate a high-entropy token,
-store only its SHA-256 digest, and reject expired or revoked credentials. The
-portal shows current booking information but does not expose Stripe identifiers
-or private storage URLs.
+Status: Read-only portal and credential exchange implemented and locally
+verified behind the same feature flag; not merged, provisioned, or enabled.
+
+Add `/manage#access=…` as the customer entrypoint. The URL fragment is not sent
+in HTTP request paths; the page exchanges it for a same-origin HttpOnly cookie
+and removes it from the address bar. Credentials are HMAC-authenticated, only
+their SHA-256 digest is stored, and expired or revoked credentials are rejected.
+The portal shows current booking information but does not expose Stripe
+identifiers or private storage URLs.
 
 Recommended initial policy:
 
@@ -139,4 +150,3 @@ stores calendar events, and Resend performs mail delivery.
 4. Operations and finance notification recipients.
 5. FOMO sending domain and reply-to address.
 6. Microsoft Entra group allowed into the staff portal.
-
