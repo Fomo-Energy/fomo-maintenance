@@ -13,21 +13,22 @@ live copy/API checks, and Microsoft Graph-backed availability all pass.
 
 Pull request #13 was merged as `64001b8`, and production displays the approved
 9% GST-inclusive prices. The live Stripe rate exists and
-`STRIPE_GST_TAX_RATE_ID` is configured in all Vercel environments. A production
-smoke test found that the restricted Stripe key cannot retrieve tax rates;
-branch `juliustanch/gst-restricted-key-fix` is removing that unnecessary read
-without expanding key permissions. Until that hotfix deploys, checkout returns
-a controlled error before payment.
+`STRIPE_GST_TAX_RATE_ID` is configured in all Vercel environments. Pull request
+#14 was merged as `acdfb63`, allowing the restricted Stripe key to apply the
+configured rate without broader tax-rate read permission. Production Checkout
+was verified without payment: a 10 kWp Essential booking shows S$199.00
+subtotal, S$17.91 GST, and S$216.91 total.
 
 ## Next up
 
-1. Complete, merge, and deploy the restricted-key checkout hotfix.
-2. Verify Stripe Checkout shows S$199.00 subtotal, S$17.91 GST, and S$216.91
-   total at 10 kWp without submitting a payment.
+1. Decide whether customer receipts remain Stripe receipts or whether the paid
+   Checkout webhook should create and email formal invoices through Xero.
+2. Before a Xero implementation, confirm the target Xero organisation, GST
+   registration details, existing Stripe feed, and durable OAuth token storage.
 3. When desired, make one S$0.55 Testing payment, validate the TESTING
    calendar event and webhook metadata, then delete the event.
-4. Design receipt/invoice delivery separately; do not couple it to this GST
-   pricing change.
+4. Separately reduce Microsoft Graph availability log noise by keeping
+   `getSchedule` queries within its 62-day interval limit.
 
 ## Session entries
 
@@ -54,6 +55,12 @@ a controlled error before payment.
   `juliustanch/gst-restricted-key-fix` to use the configured rate ID directly
   and preserve least-privilege permissions while retaining returned-total
   validation.
+- Merged the least-privilege hotfix in pull request #14 as `acdfb63`; main CI
+  and the Vercel production deployment passed without expanding the restricted
+  Stripe key's permissions.
+- Completed a production Checkout smoke test with synthetic customer details
+  and no payment. Stripe displayed S$199.00 subtotal, S$17.91 GST, and S$216.91
+  total exactly; no payment or calendar event was created.
 - Started and verified branch `juliustanch/essential-scope-copy` for three
   requested calculator changes: approved Essential scope wording, removal of
   customer-facing onboarding notices, and removal of Continuous monitoring.
