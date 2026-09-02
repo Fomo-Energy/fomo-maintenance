@@ -4,6 +4,12 @@ Status: Current
 
 ## 2026-09-02
 
+- Merged Parts 4 and 5 in pull requests #24 and #25. Their private-upload and
+  customer-rescheduling flags remain disabled, and no remote database or Blob
+  resource has been provisioned.
+- Added the isolated Stripe sandbox/Vercel Preview runbook for controlled
+  payment-to-webhook-to-database-to-calendar testing without changing live
+  Stripe credentials or Production behavior.
 - Built Part 5 behind a separate disabled rescheduling flag: shared Checkout
   and reschedule slot holds, a 48-hour cutoff, two-change limit, authenticated
   replacement availability, idempotent Graph event updates, and atomic booking

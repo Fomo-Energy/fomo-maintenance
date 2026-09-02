@@ -46,11 +46,10 @@ Create the tax rate in every Stripe mode used by a deployment:
    environment. The tax-rate mode must match the Stripe secret key's mode.
 4. Redeploy only after the environment variable is present.
 
-The current Vercel Development, Preview, and Production environments all use
-Stripe live mode by product decision, so they share the same live tax-rate ID
-and every payment is real. If Preview or Development later switches to Stripe
-test keys, create a separate test-mode tax rate and replace the ID in that
-environment before deploying.
+Production uses Stripe live mode. Preview must use a Stripe sandbox and its own
+test-mode tax rate before portal end-to-end testing begins. Never mix a sandbox
+key with a live tax-rate ID or webhook secret; Stripe objects and signing
+secrets are environment-specific.
 
 Checkout deliberately fails closed if the setting is absent, Stripe rejects the
 configured rate, or Stripe's returned subtotal, tax, and total do not match the
@@ -88,6 +87,58 @@ Use unmistakably synthetic contact/site details. After payment, confirm the
 success page reports the TESTING calendar event, verify
 `calendarStatus=created` in Stripe, and delete the event so it does not block a
 real appointment slot. The payment creates no service entitlement.
+
+## Stripe sandbox end-to-end environment
+
+Use the existing Vercel project with a long-lived `e2e` branch and its stable
+Preview alias. This is not a second Vercel app: it is an isolated Preview
+environment for the same codebase. Do not replace Production Stripe variables
+or point a sandbox webhook at the Production domain.
+
+Prepare the environment in this order:
+
+1. Create or select a Stripe sandbox for Fomo Maintenance. In that sandbox,
+   create a restricted API key with only the permissions required by Checkout
+   Session creation/retrieval/expiry and webhook fulfilment. Use the sandbox
+   secret key only if a required permission cannot be represented by a
+   restricted key.
+2. In the sandbox, create an active, exclusive Singapore `GST` tax rate at 9%.
+   Record its sandbox-only `txr_...` ID.
+3. Add a sandbox webhook endpoint at the stable `e2e` Preview alias plus
+   `/api/stripe/webhook`, subscribe to `checkout.session.completed`, and record
+   that endpoint's sandbox-only `whsec_...` signing secret.
+4. Configure branch-scoped Preview variables for `e2e`: sandbox
+   `STRIPE_SECRET_KEY`, matching `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, sandbox
+   `STRIPE_WEBHOOK_SECRET`, sandbox `STRIPE_GST_TAX_RATE_ID`, and the stable
+   Preview origin as `NEXT_PUBLIC_SITE_URL`. Mark every server secret as
+   sensitive. Production values must remain unchanged.
+5. Use a separate Preview `DATABASE_URL`, `MANAGE_LINK_SECRET`, private
+   `BLOB_READ_WRITE_TOKEN`, and a dedicated Microsoft test-calendar ID. Apply
+   all reviewed migrations only to the Preview database.
+6. Enable `BOOKING_PORTAL_ENABLED=1` on `e2e`. Enable
+   `DOCUMENT_UPLOADS_ENABLED=1` only after the private Blob store is connected.
+   Keep `RESCHEDULING_ENABLED=0` until Part 6 email/manage-link renewal exists,
+   except during supervised rescheduling tests.
+7. Redeploy the `e2e` branch and run the low-cost `TESTING` package with Stripe
+   sandbox cards. `4242 4242 4242 4242`, any future expiry, and any CVC succeeds
+   only in the sandbox; it is never valid for Production testing.
+
+Verify the complete chain, not only Stripe's success page:
+
+1. Checkout shows S$0.50 before GST, S$0.05 GST, and S$0.55 total.
+2. Stripe records a paid sandbox Session and sends a signed webhook that gets a
+   2xx response.
+3. One webhook record, one booking, one confirmed slot reservation, one manage
+   credential, and one Microsoft test-calendar event exist; webhook replay
+   creates no duplicates.
+4. A temporary Graph failure remains retryable and recovers without creating a
+   second booking or event.
+5. Once Part 6 provides the manage link, its fragment exchange creates scoped
+   HttpOnly cookies and reveals only that booking. Then verify private
+   upload/download and supervised rescheduling against the Preview resources.
+6. Remove the synthetic calendar event and reconcile any test objects after
+   the run. Sandbox payments never move real money and do not affect live tax
+   reporting.
 
 ## Booking portal rollout
 
