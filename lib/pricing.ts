@@ -15,7 +15,8 @@ export type ServiceCode =
   | "ESSENTIAL"
   | "ELECTRICAL_ASSURANCE"
   | "ESSENTIAL_CLEAN"
-  | "ELECTRICAL_CLEAN";
+  | "ELECTRICAL_CLEAN"
+  | "TESTING";
 
 export type QuoteInput = {
   kwp: number;
@@ -23,6 +24,7 @@ export type QuoteInput = {
   serviceLevel: ServiceLevel;
   cleaning: boolean;
   monitoring: boolean;
+  testing: boolean;
 };
 
 export type QuoteResult = {
@@ -36,11 +38,13 @@ export type QuoteResult = {
   servicePackageSgd: number;
   cleaningSgd: number;
   monitoringSgd: number;
+  testingSgd: number;
   totalSgd: number;
   monitoringEligible: boolean;
   sellable: boolean;
   cleaningApplied: boolean;
   monitoringApplied: boolean;
+  testingApplied: boolean;
   scope: string[];
   exclusions: string[];
 };
@@ -54,8 +58,9 @@ const CLEANING_MINIMUM_SGD = 450;
 const CLEANING_FIXED_SGD = 390;
 const CLEANING_PER_KWP_SGD = 6;
 export const MONITORING_SGD = 120;
+export const TESTING_SGD = 0.5;
 
-/** Every displayed and charged line item is rounded to the nearest whole SGD. */
+/** Maintenance line items round to whole SGD; Testing is the S$0.50 exception. */
 export function roundSgd(amount: number): number {
   return Math.round(amount);
 }
@@ -102,29 +107,35 @@ function serviceCodeFor(
 export function quote(input: QuoteInput): QuoteResult {
   const size = normalizedKwp(input.kwp);
   const sellable = input.installer !== "rto";
-  const monitoringEligible = input.installer === "fomo";
+  const testingApplied = sellable && input.testing;
+  const monitoringEligible = input.installer === "fomo" && !testingApplied;
   const electricalApplied =
-    sellable && input.serviceLevel === "electrical_assurance";
-  const cleaningApplied = sellable && input.cleaning;
+    sellable && !testingApplied && input.serviceLevel === "electrical_assurance";
+  const cleaningApplied = sellable && !testingApplied && input.cleaning;
   const monitoringApplied = sellable && monitoringEligible && input.monitoring;
-  const essentialSgd = essentialPriceSgd(size);
+  const essentialSgd = testingApplied ? 0 : essentialPriceSgd(size);
   const electricalUpgradeSgd = electricalApplied
     ? electricalUpgradePriceSgd(size)
     : 0;
   const servicePackageSgd = essentialSgd + electricalUpgradeSgd;
   const cleaningSgd = cleaningApplied ? cleaningPriceSgd(size) : 0;
   const monitoringSgd = monitoringApplied ? MONITORING_SGD : 0;
-  const packageName = electricalApplied
-    ? "Electrical Assurance"
-    : "Essential Health Check";
+  const testingSgd = testingApplied ? TESTING_SGD : 0;
+  const packageName = testingApplied
+    ? "Testing"
+    : electricalApplied
+      ? "Electrical Assurance"
+      : "Essential Health Check";
 
-  const scope = [
-    "Inverter and fault-log review",
-    "Accessible electrical checks",
-    "Generation sanity check",
-    "Remote pre-check when available",
-    "Digital maintenance report",
-  ];
+  const scope = testingApplied
+    ? ["Payment and integration test only", "No maintenance service offered"]
+    : [
+        "Inverter and fault-log review",
+        "Accessible electrical checks",
+        "Generation sanity check",
+        "Remote pre-check when available",
+        "Digital maintenance report",
+      ];
   if (electricalApplied) {
     scope.push(
       "Deeper DC-side safety and performance testing using professional solar testing equipment",
@@ -139,13 +150,17 @@ export function quote(input: QuoteInput): QuoteResult {
     );
   }
 
-  const exclusions = ["Repairs and replacement parts"];
-  if (!electricalApplied) {
+  const exclusions = testingApplied
+    ? [
+        "All maintenance, inspection, testing, cleaning, monitoring, repairs, and parts",
+      ]
+    : ["Repairs and replacement parts"];
+  if (!testingApplied && !electricalApplied) {
     exclusions.push("Deeper DC-side testing");
   }
-  if (!cleaningApplied) {
+  if (!testingApplied && !cleaningApplied) {
     exclusions.push("Roof access and panel cleaning");
-  } else {
+  } else if (!testingApplied) {
     exclusions.push("Roof work until safe access is confirmed");
   }
 
@@ -153,25 +168,33 @@ export function quote(input: QuoteInput): QuoteResult {
     kwp: input.kwp,
     installer: input.installer,
     serviceLevel: input.serviceLevel,
-    serviceCode: serviceCodeFor(input.serviceLevel, cleaningApplied),
+    serviceCode: testingApplied
+      ? "TESTING"
+      : serviceCodeFor(input.serviceLevel, cleaningApplied),
     packageName,
     essentialSgd,
     electricalUpgradeSgd,
     servicePackageSgd,
     cleaningSgd,
     monitoringSgd,
-    totalSgd: servicePackageSgd + cleaningSgd + monitoringSgd,
+    testingSgd,
+    totalSgd: servicePackageSgd + cleaningSgd + monitoringSgd + testingSgd,
     monitoringEligible,
     sellable,
     cleaningApplied,
     monitoringApplied,
+    testingApplied,
     scope,
     exclusions,
   };
 }
 
 export function formatSgd(amount: number): string {
-  return `S$${roundSgd(amount).toLocaleString("en-SG")}`;
+  const fractionDigits = Number.isInteger(amount) ? 0 : 2;
+  return `S$${amount.toLocaleString("en-SG", {
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
+  })}`;
 }
 
 export function quoteTotalSgd(options: {
@@ -179,6 +202,7 @@ export function quoteTotalSgd(options: {
   serviceLevel?: ServiceLevel;
   cleaning?: boolean;
   monitoring?: boolean;
+  testing?: boolean;
   installer?: InstallerId;
 }): number {
   return quote({
@@ -187,5 +211,6 @@ export function quoteTotalSgd(options: {
     serviceLevel: options.serviceLevel ?? "essential",
     cleaning: Boolean(options.cleaning),
     monitoring: Boolean(options.monitoring),
+    testing: Boolean(options.testing),
   }).totalSgd;
 }

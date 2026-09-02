@@ -14,19 +14,21 @@ Status: Current
 
 ## Pricing and package model
 
-Customers provide kWp, installer, service level, optional cleaning and
-monitoring selections, contact/site details, and a visit slot. The application
+Customers provide kWp, installer, service level, optional cleaning, monitoring
+or Testing selection, contact/site details, and a visit slot. The application
 does not ask about PV strings or equipment models.
 
 The two service levels are Essential Health Check and Electrical Assurance.
 Cleaning is independent. Four service codes describe the service/cleaning
 combination: `ESSENTIAL`, `ELECTRICAL_ASSURANCE`, `ESSENTIAL_CLEAN`, and
-`ELECTRICAL_CLEAN`. Monitoring remains a separate annual line item.
+`ELECTRICAL_CLEAN`. Monitoring remains a separate annual line item. `TESTING`
+is a mutually exclusive S$0.50 live-payment package whose operational scope is
+explicitly "no service offered."
 
-Each line item is rounded to whole SGD before summation. The browser uses the
-shared quote function for display, but `/api/checkout` parses the selection and
-recomputes every price, service code, scope, and Stripe line item. Browser totals
-and breakdowns are not trusted.
+Maintenance line items are rounded to whole SGD before summation; Testing is the
+only S$0.50 exception. The browser uses the shared quote function for display,
+but `/api/checkout` parses the selection and recomputes every price, service
+code, scope, and Stripe line item. Browser totals and breakdowns are not trusted.
 
 Stripe metadata is versioned and carries bounded package, breakdown, scope, and
 manual-confirmation statuses. The webhook accepts both the new metadata and

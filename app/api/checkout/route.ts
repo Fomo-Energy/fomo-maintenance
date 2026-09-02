@@ -85,7 +85,9 @@ export async function POST(request: Request) {
   }
 
   const site = publicSiteUrl();
-  const description = `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
+  const description = quoted.testingApplied
+    ? `Testing only · no service offered · ${slot.timeLabel} SGT`
+    : `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
   const lineItems = priceLineItems(quoted).map((item) => ({
     quantity: 1,
     price_data: {
@@ -108,7 +110,7 @@ export async function POST(request: Request) {
       cancel_url: `${site}/book/cancel`,
       line_items: lineItems,
       metadata: {
-        pricingVersion: "packages-v1",
+        pricingVersion: "packages-v2",
         kwp: String(quoted.kwp),
         installer: quoted.installer,
         serviceCode: quoted.serviceCode,
@@ -133,6 +135,10 @@ export async function POST(request: Request) {
         monitoringCompatibilityStatus: quoted.monitoringApplied
           ? "pending_confirmation"
           : "not_requested",
+        testing: quoted.testingApplied ? "1" : "0",
+        fulfillmentStatus: quoted.testingApplied
+          ? "no_service_offered"
+          : "service_booked",
         amountSgd: formatSgd(quoted.totalSgd),
       },
     });

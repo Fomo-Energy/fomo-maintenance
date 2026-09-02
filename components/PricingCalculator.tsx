@@ -23,6 +23,7 @@ export function PricingCalculator() {
     useState<ServiceLevel>("essential");
   const [cleaning, setCleaning] = useState(false);
   const [monitoring, setMonitoring] = useState(false);
+  const [testing, setTesting] = useState(false);
 
   const parsedKwp = Number.parseFloat(kwpInput);
   const kwp = Number.isFinite(parsedKwp) ? parsedKwp : 0;
@@ -38,8 +39,9 @@ export function PricingCalculator() {
         serviceLevel,
         cleaning,
         monitoring: installer === "fomo" ? monitoring : false,
+        testing,
       }),
-    [cleaning, installer, kwp, monitoring, serviceLevel],
+    [cleaning, installer, kwp, monitoring, serviceLevel, testing],
   );
 
   return (
@@ -52,7 +54,7 @@ export function PricingCalculator() {
           Solar maintenance priced around what you actually need.
         </h1>
         <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300">
-          Enter your system size, choose a testing level, optionally add
+          Enter your system size, choose a service level, optionally add
           cleaning, see the final price, then choose an appointment and pay
           online.
         </p>
@@ -96,6 +98,7 @@ export function PricingCalculator() {
                         setInstaller(option.id);
                         if (option.id === "rto") {
                           setCleaning(false);
+                          setTesting(false);
                         }
                         if (option.id !== "fomo") {
                           setMonitoring(false);
@@ -142,6 +145,7 @@ export function PricingCalculator() {
                       name="serviceLevel"
                       value="essential"
                       checked={serviceLevel === "essential"}
+                      disabled={testing}
                       onChange={() => setServiceLevel("essential")}
                       className="mt-1"
                     />
@@ -174,6 +178,7 @@ export function PricingCalculator() {
                       name="serviceLevel"
                       value="electrical_assurance"
                       checked={serviceLevel === "electrical_assurance"}
+                      disabled={testing}
                       onChange={() =>
                         setServiceLevel("electrical_assurance")
                       }
@@ -201,7 +206,7 @@ export function PricingCalculator() {
                   type="checkbox"
                   className="mt-1"
                   checked={cleaning}
-                  disabled={!result.sellable}
+                  disabled={!result.sellable || testing}
                   onChange={(event) => setCleaning(event.target.checked)}
                 />
                 <span>
@@ -217,7 +222,7 @@ export function PricingCalculator() {
                   </span>
                 </span>
               </label>
-              {result.monitoringEligible ? (
+              {!testing && result.monitoringEligible ? (
                 <label className="mt-2 flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
                   <input
                     type="checkbox"
@@ -236,24 +241,61 @@ export function PricingCalculator() {
                     </span>
                   </span>
                 </label>
-              ) : (
+              ) : !testing ? (
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   Continuous monitoring is available only for compatible
                   FOMO-installed systems.
                 </p>
-              )}
+              ) : null}
+              <label className="mt-2 flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={testing}
+                  disabled={!result.sellable}
+                  onChange={(event) => {
+                    const selected = event.target.checked;
+                    setTesting(selected);
+                    if (selected) {
+                      setCleaning(false);
+                      setMonitoring(false);
+                    }
+                  }}
+                />
+                <span>
+                  <span className="font-semibold">Testing · S$0.50</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">
+                    for testing purposes, no service offered
+                  </span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">
+                    Replaces the maintenance package for this checkout and
+                    creates a clearly marked TESTING calendar event.
+                  </span>
+                </span>
+              </label>
             </fieldset>
 
-            <div className="mt-8 rounded-2xl bg-peach p-5 text-sm leading-6 text-slate-700">
-              <p className="font-semibold text-ink">Before any roof work</p>
-              <p className="mt-1">
-                This site does not determine roof eligibility automatically.
-                If cleaning is selected, the team will confirm safe access
-                before it is performed. Checkout includes the cleaning charge;
-                if access cannot be confirmed, the team will contact you to
-                resolve it.
-              </p>
-            </div>
+            {testing ? (
+              <div className="mt-8 rounded-2xl border border-orange-200 bg-peach p-5 text-sm leading-6 text-slate-700">
+                <p className="font-semibold text-ink">Testing payment only</p>
+                <p className="mt-1">
+                  No inspection, maintenance, cleaning, monitoring, repair, or
+                  other service is included. Delete the TESTING calendar event
+                  after validation.
+                </p>
+              </div>
+            ) : (
+              <div className="mt-8 rounded-2xl bg-peach p-5 text-sm leading-6 text-slate-700">
+                <p className="font-semibold text-ink">Before any roof work</p>
+                <p className="mt-1">
+                  This site does not determine roof eligibility automatically.
+                  If cleaning is selected, the team will confirm safe access
+                  before it is performed. Checkout includes the cleaning charge;
+                  if access cannot be confirmed, the team will contact you to
+                  resolve it.
+                </p>
+              </div>
+            )}
               </>
             )}
           </div>
@@ -271,13 +313,15 @@ export function PricingCalculator() {
                   {formatSgd(result.totalSgd)}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
-                  {result.installer === "other"
+                  {result.testingApplied
+                    ? "live payment test"
+                    : result.installer === "other"
                     ? "online package total"
                     : "final annual price"}
                   , SGD, for {kwp} kWp
                 </p>
 
-                {result.installer === "other" ? (
+                {result.installer === "other" && !result.testingApplied ? (
                   <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-xs leading-5 text-slate-700">
                     A S$120 first-visit onboarding fee may apply. It is not
                     included in this online total because this site cannot yet
@@ -290,7 +334,11 @@ export function PricingCalculator() {
                   <div className="flex justify-between gap-4">
                     <dt>{result.packageName}</dt>
                     <dd className="font-semibold">
-                      {formatSgd(result.servicePackageSgd)}
+                      {formatSgd(
+                        result.testingApplied
+                          ? result.testingSgd
+                          : result.servicePackageSgd,
+                      )}
                     </dd>
                   </div>
                   {result.cleaningSgd ? (
@@ -337,6 +385,7 @@ export function PricingCalculator() {
                   serviceLevel={result.serviceLevel}
                   cleaning={result.cleaningApplied}
                   monitoring={result.monitoringApplied}
+                  testing={result.testingApplied}
                   totalSgd={result.totalSgd}
                 />
                 <p className="mt-4 text-sm text-slate-500">

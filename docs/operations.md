@@ -34,6 +34,19 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
 6. Stripe line items add up to the server-computed total and metadata carries
    the expected service code, breakdown, and scope.
 
+## Live Testing checkout
+
+The public Testing option makes a real S$0.50 live-mode Stripe charge and then
+runs the normal signed-webhook and Microsoft Graph flow. It is mutually
+exclusive with cleaning and monitoring and carries service code `TESTING`, a
+single `Testing — no service offered` Stripe line item, and
+`fulfillmentStatus=no_service_offered` metadata.
+
+Use unmistakably synthetic contact/site details. After payment, confirm the
+success page reports the TESTING calendar event, verify
+`calendarStatus=created` in Stripe, and delete the event so it does not block a
+real appointment slot. The payment creates no service entitlement.
+
 ## Manual package checks
 
 For bookings that request cleaning, confirm safe roof access before any roof
@@ -66,6 +79,8 @@ separate approved collection process.
   failed.
 - Package metadata says a cleaning or monitoring status is pending: this is the
   expected manual verification state, not a Graph or Stripe error.
+- A `TESTING` event is present: validate its Stripe session and webhook result,
+  then delete the calendar event. No customer service should be dispatched.
 
 ## Rollback
 
