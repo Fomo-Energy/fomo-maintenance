@@ -355,6 +355,60 @@ export const fulfillmentSteps = pgTable(
   ],
 );
 
+export const emailDeliveries = pgTable(
+  "email_deliveries",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+    rescheduleRequestId: uuid("reschedule_request_id").references(
+      () => rescheduleRequests.id,
+      { onDelete: "cascade" },
+    ),
+    messageKind: text("message_kind").notNull(),
+    recipient: text("recipient").notNull(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    provider: text("provider").default("resend").notNull(),
+    providerMessageId: text("provider_message_id"),
+    status: text("status").default("pending").notNull(),
+    attemptCount: integer("attempt_count").default(0).notNull(),
+    failureCode: text("failure_code"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    uniqueIndex("email_deliveries_idempotency_key_unique").on(
+      table.idempotencyKey,
+    ),
+    index("email_deliveries_booking_created_idx").on(
+      table.bookingId,
+      table.createdAt,
+    ),
+    index("email_deliveries_status_updated_idx").on(
+      table.status,
+      table.updatedAt,
+    ),
+    check(
+      "email_deliveries_message_kind_check",
+      sql`${table.messageKind} in ('booking_customer', 'booking_operations', 'reschedule_customer', 'reschedule_operations')`,
+    ),
+    check(
+      "email_deliveries_provider_check",
+      sql`${table.provider} = 'resend'`,
+    ),
+    check(
+      "email_deliveries_status_check",
+      sql`${table.status} in ('pending', 'processing', 'sent', 'failed', 'suppressed')`,
+    ),
+    check(
+      "email_deliveries_attempt_count_check",
+      sql`${table.attemptCount} >= 0`,
+    ),
+  ],
+);
+
 export type Booking = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
 export type BookingAccessToken = typeof bookingAccessTokens.$inferSelect;
@@ -366,3 +420,4 @@ export type FulfillmentStepName =
 export type DocumentRecord = typeof documents.$inferSelect;
 export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
 export type SlotReservation = typeof slotReservations.$inferSelect;
+export type EmailDelivery = typeof emailDeliveries.$inferSelect;

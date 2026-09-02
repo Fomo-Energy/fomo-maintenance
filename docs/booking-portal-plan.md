@@ -133,12 +133,21 @@ remain Part 6 dependencies, so this flag must stay off until that stage passes.
 
 ### Part 6 — Transactional email
 
+Status: Implemented locally behind `TRANSACTIONAL_EMAIL_ENABLED=1`; Resend DNS,
+Preview migration, delivery, replay, and inbox verification remain in progress.
+
 Use Resend and verified FOMO DNS records. Send the customer a payment/booking
 confirmation containing the service, Singapore appointment time, subtotal,
 GST, total paid, address, booking reference, and manage link. Send operations a
 separate message. After a reschedule, notify the customer and operations with
 both the previous and new time. Deterministic idempotency keys prevent duplicate
 messages during retries.
+
+The implementation stores delivery state and provider message IDs without
+storing rendered bodies or raw manage tokens. The customer receives the private
+link; operations does not. Preview can force customer messages into one
+controlled test inbox, while Production rejects that override. A later
+appointment renews the manage credential before notification when required.
 
 This confirmation is not, by itself, an IRAS tax invoice. Xero receipt/tax
 invoice generation remains a separate integration decision.

@@ -57,6 +57,7 @@ async function main() {
     "0000_booking_portal_foundation.sql",
     "0001_rare_hammerhead.sql",
     "0002_ancient_chronomancer.sql",
+    "0003_jazzy_firelord.sql",
   ]) {
     await database.exec(await migrationSql(filename));
   }
@@ -410,6 +411,37 @@ async function main() {
          values ('evt_test_foundation', 'checkout.session.completed')`,
       ),
     "Stripe webhook event IDs must be idempotent",
+  );
+
+  await database.query(
+    `insert into email_deliveries (
+      booking_id, message_kind, recipient, idempotency_key,
+      status, attempt_count
+    ) values ($1, 'booking_customer', 'customer@example.com',
+      'fm-booking-customer-test-v1', 'sent', 1)`,
+    [bookingId],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into email_deliveries (
+          booking_id, message_kind, recipient, idempotency_key
+        ) values ($1, 'booking_customer', 'customer@example.com',
+          'fm-booking-customer-test-v1')`,
+        [bookingId],
+      ),
+    "an email idempotency key must be unique across retries",
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into email_deliveries (
+          booking_id, message_kind, recipient, idempotency_key
+        ) values ($1, 'marketing', 'customer@example.com',
+          'fm-invalid-message-kind')`,
+        [bookingId],
+      ),
+    "only approved transactional message kinds may be stored",
   );
 
   await database.close();

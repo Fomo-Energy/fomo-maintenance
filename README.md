@@ -39,6 +39,13 @@ Portal and uploads remain Preview-only, rescheduling was returned to disabled
 after its test, and all three features remain disabled in Production pending
 transactional email and the remaining security/operations work.
 
+Part 6 transactional email is implemented on its feature branch behind
+`TRANSACTIONAL_EMAIL_ENABLED=1`. It records each customer/operations delivery
+with a durable idempotency key, sends payment and reschedule confirmations
+through Resend, and extends the private manage link when a later appointment
+would exceed its expiry. It remains disabled until Preview sender-domain and
+inbox verification pass.
+
 ```bash
 npm run verify:database
 npm run verify:portal
@@ -143,13 +150,27 @@ short grace-period hold, which is confirmed only after the paid webhook.
 Microsoft `getSchedule` requests are split into 60-day windows so the public
 three-month calendar stays below Graph's 62-day request limit.
 
+### Transactional email
+
+When the portal and transactional-email flags are enabled, successful paid
+fulfilment sends the customer a confirmation with the booking reference,
+service, Singapore appointment time, address, pre-GST subtotal, 9% GST, total
+paid, and private manage/upload link. Operations receives the booking and
+customer contact details without the bearer-style manage credential.
+
+Completed customer reschedules send old/new appointment times to both parties.
+The database and Resend use the same deterministic idempotency key, so retries
+do not create duplicate messages. A Preview-only recipient override can route
+all customer messages to a controlled inbox; the application rejects that
+override in Production. These confirmations are not IRAS tax invoices.
+
 ### API routes
 
 | Method | Route | Role |
 | --- | --- | --- |
 | `POST` | `/api/availability` | Microsoft Graph checks the primary calendar for `MICROSOFT_CALENDAR_USER` and the dedicated maintenance calendar. Returns free slots. |
 | `POST` | `/api/checkout` | Recomputes the pre-GST quote and GST, checks the slot is still free, applies the configured Stripe tax rate, creates a Stripe Checkout Session in SGD, and verifies Stripe's returned subtotal, tax, and total. |
-| `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`. With the portal flag off, preserves the existing idempotent Graph flow. With the flag on, claims the event in Postgres, re-reads Checkout from Stripe, persists the booking, creates/finds the Graph event, and prepares one manage credential. |
+| `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`. With the portal flag off, preserves the existing idempotent Graph flow. With the flag on, claims the event in Postgres, re-reads Checkout from Stripe, persists the booking, creates/finds the Graph event, prepares one manage credential, and sends durable customer/operations confirmation steps when transactional email is enabled. |
 | `POST` | `/api/manage/session` | Same-origin exchange of the manage-link fragment credential for a secure HttpOnly cookie. |
 | `GET` | `/manage` | Private, non-indexed read-only view of the current paid booking. Requires the valid manage cookie. |
 | `POST` | `/api/manage/documents/upload` | Authenticates the manage session, reserves one of ten database quota slots, issues a short-lived private Blob client-upload token, and validates the completion callback. |
@@ -221,6 +242,12 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `BLOB_READ_WRITE_TOKEN` | Private Vercel Blob store credential. Connect the store through Vercel so this is injected; never expose it to browser code. |
 | `DOCUMENT_UPLOADS_ENABLED` | Exact value `1` permits new customer upload tokens. Keep `0` until private storage and callback verification pass. |
 | `RESCHEDULING_ENABLED` | Exact value `1` enables customer date/time changes. Keep `0` until Preview contention, Graph-update recovery, notifications, and operational reconciliation pass. |
+| `RESEND_API_KEY` | Server-only Resend key provisioned by the Vercel Marketplace integration. Scope Preview and Production resources separately. |
+| `TRANSACTIONAL_EMAIL_ENABLED` | Exact value `1` enables paid-booking and reschedule messages. Keep disabled until the matching database migration, sender DNS, and recipients are verified. |
+| `EMAIL_FROM` | Verified FOMO sender identity, for example `Fomo Maintenance <maintenance@fomo.energy>`. |
+| `EMAIL_REPLY_TO` | Monitored reply-to mailbox. |
+| `EMAIL_OPERATIONS_TO` | Comma-separated operations/finance recipients; initially limited to the approved maintenance mailbox. |
+| `EMAIL_CUSTOMER_OVERRIDE_TO` | Optional controlled Preview recipient. Forbidden when `VERCEL_ENV=production`. |
 
 Microsoft Graph app registration:
 
@@ -241,6 +268,15 @@ Stripe:
    deployment uses, and set the matching ID as `STRIPE_GST_TAX_RATE_ID`
 3. Webhook endpoint `https://<your-domain>/api/stripe/webhook`
 4. Event: `checkout.session.completed`
+
+Resend:
+
+1. Provision a separate Preview resource through the Vercel Marketplace.
+2. Verify `fomo.energy` using the exact DKIM and sending-subdomain records
+   generated by Resend at the authoritative DNS provider.
+3. Keep `TRANSACTIONAL_EMAIL_ENABLED=0` until migration and inbox tests pass.
+4. Use `EMAIL_CUSTOMER_OVERRIDE_TO` for the controlled Preview inbox; remove it
+   before Production and use a separately approved Production resource/key.
 
 Local webhook forwarding:
 

@@ -57,6 +57,39 @@ server quote. The application uses the tax-rate ID directly so the restricted
 Stripe key does not need `tax_rate_read`; preserve that least-privilege setup.
 Do not deploy a pricing change before the matching tax-rate ID is configured.
 
+## Required Resend setup
+
+1. Provision the Resend resource through Vercel Marketplace on the free plan
+   for Preview first. The approved initial sending region is Tokyo
+   (`ap-northeast-1`); reassess residency before Production.
+2. Add only the exact DKIM TXT, sending-subdomain MX, and SPF TXT records
+   generated for `fomo.energy` to its authoritative Cloudflare DNS zone. Do not
+   replace nameservers or modify the existing inbound-mail MX records.
+3. Wait until Resend reports the domain verified before using
+   `maintenance@fomo.energy` as `EMAIL_FROM` and `EMAIL_REPLY_TO`.
+4. Scope `RESEND_API_KEY` to Preview. On `juliustanch/e2e`, set
+   `EMAIL_OPERATIONS_TO=maintenance@fomo.energy`, set the controlled customer
+   inbox through `EMAIL_CUSTOMER_OVERRIDE_TO`, and only then set
+   `TRANSACTIONAL_EMAIL_ENABLED=1`.
+5. Never set `EMAIL_CUSTOMER_OVERRIDE_TO` in Production. The application rejects
+   it there, but the environment must still be clean before rollout.
+
+Apply the email-delivery migration before enabling the flag. Verify one paid
+sandbox booking produces exactly one `booking_customer` and one
+`booking_operations` delivery, with provider IDs and `sent` status. Replay the
+Stripe event and confirm neither message is duplicated. Complete one supervised
+reschedule and verify exactly one customer and one operations change message.
+The customer email must contain the working private manage/upload link; the
+operations email must not contain it.
+
+Email rollback is to remove `TRANSACTIONAL_EMAIL_ENABLED` and redeploy. This
+stops new mail but preserves payment, calendar, portal, and existing delivery
+audit state. Do not delete the Resend resource or DNS records until retained
+delivery records have been reconciled. A booking email failure remains
+retryable through the signed Stripe webhook; a failed reschedule notification
+is recorded for operational recovery and must not reverse the confirmed
+calendar change.
+
 Before production use, perform a paid Stripe test-mode booking and confirm:
 
 1. A primary-calendar conflict is unavailable on the booking page.

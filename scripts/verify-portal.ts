@@ -59,6 +59,8 @@ class MemoryStore implements FulfillmentStore {
   calendarCalls = 0;
   persistedBookings = 0;
   manageAccessCalls = 0;
+  customerEmailCalls = 0;
+  operationsEmailCalls = 0;
   stepStatus = new Map<FulfillmentStepName, string>();
 
   async claimEvent(eventId: string) {
@@ -137,7 +139,12 @@ class MemoryStore implements FulfillmentStore {
 
   async ensureManageAccess() {
     this.manageAccessCalls += 1;
-    return "20000000-0000-4000-8000-000000000002";
+    return {
+      id: "20000000-0000-4000-8000-000000000002",
+      token: "test-manage-token",
+      expiresAt: new Date("2026-11-05T05:00:00.000Z"),
+      rotated: false,
+    };
   }
 }
 
@@ -181,6 +188,14 @@ async function verifyIdempotentFulfillment() {
       store.calendarCalls += 1;
       return { status: "created" as const, eventId: "graph-event-1" };
     },
+    sendCustomerEmail: async () => {
+      store.customerEmailCalls += 1;
+      return { providerMessageId: "email-customer-1" };
+    },
+    sendOperationsEmail: async () => {
+      store.operationsEmailCalls += 1;
+      return { providerMessageId: "email-operations-1" };
+    },
   };
   const input = {
     eventId: "evt_test_portal",
@@ -199,6 +214,10 @@ async function verifyIdempotentFulfillment() {
   assert.equal(store.persistedBookings, 1);
   assert.equal(store.calendarCalls, 1);
   assert.equal(store.manageAccessCalls, 1);
+  assert.equal(store.customerEmailCalls, 1);
+  assert.equal(store.operationsEmailCalls, 1);
+  assert.equal(store.stepStatus.get("customer_email"), "complete");
+  assert.equal(store.stepStatus.get("operations_email"), "complete");
   assert.equal(store.booking?.totalCents, 21691);
   assert.equal(store.booking?.gstCents, 1791);
   assert.equal(store.booking?.fulfillmentStatus, "complete");

@@ -14,6 +14,13 @@ export type CalendarResult = {
   eventId: string;
 };
 
+export type ManageAccessCredential = {
+  id: string;
+  token: string;
+  expiresAt: Date;
+  rotated: boolean;
+};
+
 export type FulfillmentStore = {
   claimEvent(eventId: string, eventType: string): Promise<EventClaim>;
   persistBooking(input: PaidBookingInput): Promise<Booking>;
@@ -41,13 +48,23 @@ export type FulfillmentStore = {
     failureCode: string,
     bookingId?: string,
   ): Promise<void>;
-  ensureManageAccess(bookingId: string, slotEnd: Date): Promise<string>;
+  ensureManageAccess(
+    bookingId: string,
+    slotEnd: Date,
+  ): Promise<ManageAccessCredential>;
 };
 
 export type FulfillmentServices = {
   store: FulfillmentStore;
   loadSession(sessionId: string): Promise<Stripe.Checkout.Session>;
   ensureCalendar(input: MaintenanceVisitInput): Promise<CalendarResult>;
+  sendCustomerEmail?(input: {
+    booking: Booking;
+    manageToken: string;
+  }): Promise<{ providerMessageId: string | null }>;
+  sendOperationsEmail?(input: {
+    booking: Booking;
+  }): Promise<{ providerMessageId: string | null }>;
 };
 
 export type FulfillmentResult =
@@ -94,11 +111,34 @@ export async function fulfillPaidCheckout(
 
     activeStep = "manage_link";
     await services.store.startStep(booking.id, activeStep);
-    const accessId = await services.store.ensureManageAccess(
+    const access = await services.store.ensureManageAccess(
       booking.id,
       booking.slotEnd,
     );
-    await services.store.completeStep(booking.id, activeStep, accessId);
+    await services.store.completeStep(booking.id, activeStep, access.id);
+
+    if (services.sendCustomerEmail && services.sendOperationsEmail) {
+      activeStep = "customer_email";
+      await services.store.startStep(booking.id, activeStep);
+      const customerEmail = await services.sendCustomerEmail({
+        booking,
+        manageToken: access.token,
+      });
+      await services.store.completeStep(
+        booking.id,
+        activeStep,
+        customerEmail.providerMessageId || undefined,
+      );
+
+      activeStep = "operations_email";
+      await services.store.startStep(booking.id, activeStep);
+      const operationsEmail = await services.sendOperationsEmail({ booking });
+      await services.store.completeStep(
+        booking.id,
+        activeStep,
+        operationsEmail.providerMessageId || undefined,
+      );
+    }
 
     await services.store.completeBooking(booking.id);
     await services.store.completeEvent(input.eventId, booking.id);
