@@ -7,12 +7,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database && npm run verify:portal",
+    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database && npm run verify:portal && npm run verify:documents",
     "verify:pricing": "tsx scripts/verify-pricing.ts",
     "verify:slots": "tsx scripts/verify-slots.ts",
     "verify:calendar": "tsx scripts/verify-calendar.ts",
     "verify:database": "drizzle-kit check && tsx scripts/verify-database.ts",
     "verify:portal": "tsx scripts/verify-portal.ts",
+    "verify:documents": "tsx scripts/verify-documents.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate"
   },
@@ -22,6 +23,7 @@
   "dependencies": {
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@neondatabase/serverless": "^1.1.0",
+    "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.45.2",
     "next": "^15.5.24",
     "react": "^19.2.8",

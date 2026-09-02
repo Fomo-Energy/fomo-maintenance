@@ -28,19 +28,28 @@ view booking details, upload files, or request an appointment change.
 
 ### Keep uploaded PV documents private
 
-**Status:** Planned; no upload capability or Blob store exists yet.
+**Status:** In progress; private upload/download code is implemented behind a
+disabled flag, but no Blob store is provisioned and scanning/retention policy is
+not complete.
 
 **Why it matters:** SLDs and PV documents may contain addresses, equipment
 details, personal data, and security-sensitive electrical information.
 
 **Required end state:**
 
-1. Use a private store and opaque storage pathnames without customer PII.
-2. Restrict content types, sizes, counts, and direct-upload authorization.
-3. Require authorization for every download; never expose a permanent public
-   Blob URL.
-4. Establish malware-scanning, retention, deletion, and data-residency rules.
-5. Protect staff access with Microsoft Entra ID and keep an access audit trail.
+1. Completed in code: private Blob access, opaque UUID pathnames, short-lived
+   pathname-bound direct-upload tokens, and no Blob URL in customer output.
+2. Completed in code: PDF/PNG/JPEG allow-list, 20 MB maximum, file-signature
+   validation, and ten database-enforced active quota slots per booking.
+3. Completed in code: every download revalidates the manage credential and
+   booking ownership, then streams through a no-store application response.
+4. Before activation: add rate limiting and verify callback authenticity,
+   private access, signature rejection, concurrent quota, and log redaction in
+   a Preview Blob store.
+5. Establish malware scanning, retention, customer deletion, and data-residency
+   policy before Production; basic signature checks do not detect malware.
+6. Protect future staff access with Microsoft Entra ID and retain an access
+   audit trail.
 
 ## Medium Priority
 

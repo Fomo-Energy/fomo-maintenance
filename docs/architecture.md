@@ -13,6 +13,7 @@ Status: Current
 | Calendar integration | `lib/microsoft.ts` | Microsoft Graph application authentication, conflict checks, and event creation |
 | Portal fulfilment | `lib/portal/`, `app/api/stripe/webhook/route.ts`, and Neon/Drizzle | Feature-gated database state machine claims signed Stripe events, persists paid bookings, records step recovery state, and creates/finds the Graph event |
 | Customer manage access | `/api/manage/session` and `/manage` | Fragment credential is exchanged for an HttpOnly cookie; the read-only portal returns current booking data only after server-side digest, signature, expiry, and revocation checks |
+| Private PV documents | `/api/manage/documents/*`, `lib/portal/documents.ts`, and Vercel Blob | Short-lived direct-upload tokens target private opaque paths; Postgres owns metadata/quota state and authenticated downloads stream through the application |
 
 ## Pricing and package model
 
@@ -118,6 +119,17 @@ an expiry 30 days after the visit. Postgres stores only the full credential's
 SHA-256 digest. The emailed URL will carry the credential in a fragment, which
 does not reach Vercel request logs; `/api/manage/session` exchanges it for a
 same-origin HttpOnly cookie and `/manage` removes the fragment before reload.
+The same credential is scoped into separate `/manage` and `/api/manage`
+HttpOnly cookies so it is not sent to unrelated application routes.
+
+Part 4 keeps file bytes out of Vercel Function request bodies. The browser
+uploads directly to a private Blob store using a ten-minute, pathname-bound
+token issued only after the manage cookie and booking are revalidated. The
+completion callback verifies the active access record, actual private object,
+content type, size, and PDF/PNG/JPEG signature before marking metadata
+available. Each booking has ten database-enforced active quota slots. Downloads
+revalidate booking ownership and stream bytes from private storage; the Blob URL
+is never returned to the customer.
 
 ## Authentication and storage
 

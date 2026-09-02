@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { findManageBooking } from "@/lib/portal/bookings";
-import { bookingPortalEnabled } from "@/lib/portal/config";
+import {
+  bookingPortalEnabled,
+  MANAGE_COOKIE_NAME,
+} from "@/lib/portal/config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const COOKIE_NAME = "fomo_manage";
 
 export async function POST(request: Request) {
   const requestUrl = new URL(request.url);
@@ -34,13 +35,15 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ verified: true });
-  response.cookies.set(COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/manage",
-    maxAge: 60 * 60 * 24 * 120,
-  });
+  for (const path of ["/manage", "/api/manage"]) {
+    response.cookies.set(MANAGE_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      path,
+      maxAge: 60 * 60 * 24 * 120,
+    });
+  }
   response.headers.set("Cache-Control", "no-store");
   return response;
 }

@@ -40,24 +40,24 @@ Pull request #21 was merged as `9e17e1b`; `main` now removes the redundant
 public `Other installer` choice and clarifies partial roof access and excluded
 third-party access costs.
 
-Pull request #22 was merged as `9120067`, completing Part 1 of the phased
-customer Manage Booking portal. Branch
-`juliustanch/booking-portal-fulfillment` now implements Parts 2–3 behind the
-disabled `BOOKING_PORTAL_ENABLED` flag: recoverable paid-webhook fulfilment,
-persisted Graph event identity, secure manage credentials, and a private
-read-only `/manage` page. Pull request #23 is open; local verification, GitHub
-CI, the production build, and its automatic Vercel Preview all pass. No Neon
-resource has been provisioned, no migration has been applied remotely, and the
-current production Stripe-to-calendar behavior remains unchanged.
+Pull requests #22 and #23 were merged as `9120067` and `6419bc3`, completing
+Parts 1–3 of the phased customer Manage Booking portal behind the disabled
+`BOOKING_PORTAL_ENABLED` flag. Branch `juliustanch/booking-portal-uploads` now
+implements Part 4 behind the separate disabled `DOCUMENT_UPLOADS_ENABLED` flag:
+private Blob uploads, database quota slots, file-policy checks, document lists,
+and ownership-checked downloads. Local policy/schema verification and the
+production build pass. No Neon or Blob resource has been provisioned, no
+migration has been applied remotely, and production behavior remains unchanged.
 
 ## Next up
 
-1. Review the Parts 2–3 pull request, then provision and migrate a separate Neon
-   Preview database; do not connect Production yet.
-2. Configure a Preview-only `MANAGE_LINK_SECRET`, enable the Preview flag, and
-   exercise Stripe replay, failure recovery, Graph idempotency, and portal access.
-3. Build Part 4 private uploads only after file/retention/scanning policy is set.
-4. Reduce Microsoft Graph availability queries from 90 days to its 62-day
+1. Review the Part 4 pull request, then provision and migrate separate Preview
+   Neon and private Blob resources; do not connect Production yet.
+2. Configure Preview-only portal/upload flags and secrets, then exercise payment,
+   replay, private upload/download, signature rejection, and concurrent quotas.
+3. Confirm malware scanning, retention, deletion, and data-residency policy.
+4. Build Part 5 customer rescheduling and reduce Microsoft Graph availability
+   queries from 90 days to its 62-day
    free/busy limit, or split the requested period into bounded windows.
 5. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create formal invoices through Xero; first confirm
@@ -66,6 +66,23 @@ current production Stripe-to-calendar behavior remains unchanged.
 ## Session entries
 
 ### 2026-09-02
+
+- Merged pull request #23 as `6419bc3`, completing the dormant Parts 2–3 code;
+  its GitHub checks and Vercel deployment passed.
+- Started `juliustanch/booking-portal-uploads` for Part 4 and adopted private
+  Vercel Blob direct uploads so large documents bypass Function body limits.
+- Added PDF/PNG/JPEG and 20 MB policy checks, basic magic-byte validation,
+  opaque UUID storage paths, ten-minute upload tokens, and ten database-enforced
+  quota slots per booking. Abandoned pending intents release after one hour.
+- Added ownership-checked, no-store downloads that stream private Blob content
+  without returning storage URLs. No Blob or Neon resource was created and the
+  new upload flag defaults off.
+- Re-ran the complete pricing, slot, calendar, database, portal, and document
+  policy suites plus the production build. Browser smoke checks found meaningful
+  content and no framework error overlay on `/` or `/manage`; with all portal
+  resources unset, both document endpoints returned generic no-store 404s.
+- Confirmed the merge deployment for pull request #23 is Ready and owns the
+  production aliases. Main CI passed at merge commit `6419bc3`.
 
 - Merged Part 1 in pull request #22 as `9120067`; main CI passed and Vercel
   created the corresponding production deployment without changing live behavior.
@@ -84,7 +101,7 @@ current production Stripe-to-calendar behavior remains unchanged.
   Production, paid, emailed, uploaded, or written to an external database or
   calendar in Parts 2–3 testing.
 - Opened pull request #23 at commit `528ea3b`; GitHub CI and the automatic
-  Vercel Preview deployment passed. The pull request remains unmerged.
+  Vercel Preview deployment passed. It was subsequently merged as `6419bc3`.
 
 - Planned the complete customer portal in seven independently reviewable parts:
   data foundation, paid fulfilment, secure portal, private uploads,

@@ -91,7 +91,7 @@ real appointment slot. The payment creates no service entitlement.
 
 ## Booking portal rollout
 
-The Drizzle schema and Parts 2–3 code are additive and dormant while
+The Drizzle schema and Parts 2–4 code are additive and dormant while
 `BOOKING_PORTAL_ENABLED` is not `1`. Do not apply the migration to Production or
 enable the flag merely because the code exists. The live flow remains the
 original Stripe-to-Microsoft path until Preview has passed the controlled
@@ -101,7 +101,8 @@ For a future Preview rollout:
 
 1. Provision a separate Neon Preview database through the Vercel Marketplace.
 2. Pull its environment variables into `.env.local` without committing them.
-3. Review `db/migrations/0000_booking_portal_foundation.sql`.
+3. Review both files in `db/migrations/`, including the Part 4 document-quota
+   migration.
 4. Run `npm run verify:database` locally.
 5. Generate a random `MANAGE_LINK_SECRET` of at least 32 bytes and configure it
    only in Preview.
@@ -110,7 +111,14 @@ For a future Preview rollout:
 8. Set `BOOKING_PORTAL_ENABLED=1` in Preview and redeploy.
 9. Exercise signed Stripe webhook replay, one simulated recovery, the Graph
    event, credential exchange, cookie flags, and `/manage` booking values.
-10. Disable the flag before any database rollback. Consider Production only
+10. Connect a private Vercel Blob store to Preview. Confirm
+    `BLOB_READ_WRITE_TOKEN` is server-only, then set
+    `DOCUMENT_UPLOADS_ENABLED=1` and redeploy.
+11. Verify an authenticated PDF, PNG, and JPEG upload; a rejected wrong file
+    signature; a 20 MB boundary; the concurrent 10-document database limit;
+    private Blob URLs; and ownership-checked application downloads.
+12. Disable the upload flag before Blob rollback and the portal flag before any
+    database rollback. Consider Production only
     after the complete checklist passes.
 
 The manage link uses `/manage#access=…`, not a path or query credential. Do not
@@ -121,6 +129,10 @@ the address bar. Reissuing a credential must revoke the prior row.
 Portal rollback is to remove `BOOKING_PORTAL_ENABLED` and redeploy. Do not drop
 populated portal tables as an application rollback; preserve paid-booking and
 document audit data, then reconcile any event left in `processing` or `failed`.
+Upload-only rollback is to remove `DOCUMENT_UPLOADS_ENABLED`; this stops new
+token issuance while preserving authenticated access to already accepted files.
+Do not delete the Blob store until every retained document is reconciled with
+its Postgres record and the approved retention policy.
 
 ## Manual package checks
 

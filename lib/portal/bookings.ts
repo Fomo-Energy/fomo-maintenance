@@ -182,6 +182,11 @@ export type ManageBookingView = Pick<
   | "calendarStatus"
 >;
 
+export type ManageAccess = {
+  accessTokenId: string;
+  booking: ManageBookingView;
+};
+
 async function claimWebhookEvent(
   eventId: string,
   eventType: string,
@@ -380,9 +385,7 @@ async function ensureManageAccess(
   }
 }
 
-export async function findManageBooking(
-  token: string,
-): Promise<ManageBookingView | null> {
+export async function findManageAccess(token: string): Promise<ManageAccess | null> {
   const claims = verifyManageToken(token, manageLinkSecret());
   if (!claims) {
     return null;
@@ -425,7 +428,13 @@ export async function findManageBooking(
     .update(bookingAccessTokens)
     .set({ lastUsedAt: new Date() })
     .where(eq(bookingAccessTokens.id, result.tokenId));
-  return result.booking;
+  return { accessTokenId: result.tokenId, booking: result.booking };
+}
+
+export async function findManageBooking(
+  token: string,
+): Promise<ManageBookingView | null> {
+  return (await findManageAccess(token))?.booking ?? null;
 }
 
 export function manageTokenForAccessRecord(input: {

@@ -148,6 +148,7 @@ export const documents = pgTable(
       () => bookingAccessTokens.id,
       { onDelete: "set null" },
     ),
+    quotaSlot: integer("quota_slot").notNull(),
     category: text("category").default("pv_document").notNull(),
     originalFilename: text("original_filename").notNull(),
     contentType: text("content_type").notNull(),
@@ -166,6 +167,9 @@ export const documents = pgTable(
   },
   (table) => [
     uniqueIndex("documents_blob_pathname_unique").on(table.blobPathname),
+    uniqueIndex("documents_active_quota_slot_unique")
+      .on(table.bookingId, table.quotaSlot)
+      .where(sql`${table.status} in ('pending', 'available', 'quarantined')`),
     index("documents_booking_uploaded_idx").on(
       table.bookingId,
       table.uploadedAt,
@@ -183,6 +187,10 @@ export const documents = pgTable(
       sql`${table.status} in ('pending', 'available', 'quarantined', 'deleted')`,
     ),
     check("documents_size_positive", sql`${table.sizeBytes} > 0`),
+    check(
+      "documents_quota_slot_check",
+      sql`${table.quotaSlot} between 1 and 10`,
+    ),
   ],
 );
 

@@ -10,14 +10,55 @@ async function expectConstraintFailure(
   await assert.rejects(operation, message);
 }
 
-async function main() {
+async function migrationSql(filename: string): Promise<string> {
+  return readFile(path.join(process.cwd(), "db/migrations", filename), "utf8");
+}
+
+async function verifyDocumentQuotaUpgrade(): Promise<void> {
   const database = new PGlite();
-  const migrationPath = path.join(
-    process.cwd(),
-    "db/migrations/0000_booking_portal_foundation.sql",
+  await database.exec(await migrationSql("0000_booking_portal_foundation.sql"));
+  const booking = await database.query<{ id: string }>(
+    `insert into bookings (
+      reference, stripe_checkout_session_id, customer_name, customer_email,
+      customer_phone, site_address, service_code, package_name,
+      subtotal_cents, gst_cents, total_cents, slot_start, slot_end, paid_at
+    ) values (
+      'FM-UPGRADE-TEST', 'cs_upgrade_test', 'Upgrade Test',
+      'upgrade@example.com', '+6500000000', 'Test site', 'ESSENTIAL',
+      'Essential Health Check', 19900, 1791, 21691,
+      '2026-10-05T01:00:00.000Z', '2026-10-05T05:00:00.000Z', now()
+    ) returning id`,
   );
-  const migration = await readFile(migrationPath, "utf8");
-  await database.exec(migration);
+  const bookingId = booking.rows[0]?.id;
+  assert.ok(bookingId);
+  await database.query(
+    `insert into documents (
+      booking_id, original_filename, content_type, size_bytes, blob_pathname
+    ) values ($1, 'pre-migration.pdf', 'application/pdf', 1024, $2)`,
+    [bookingId, "booking-documents/pre-migration.pdf"],
+  );
+  await database.exec(await migrationSql("0001_rare_hammerhead.sql"));
+  const migrated = await database.query<{ quota_slot: number }>(
+    `select quota_slot from documents where booking_id = $1`,
+    [bookingId],
+  );
+  assert.equal(
+    migrated.rows[0]?.quota_slot,
+    1,
+    "the Part 4 migration must backfill existing document rows",
+  );
+  await database.close();
+}
+
+async function main() {
+  await verifyDocumentQuotaUpgrade();
+  const database = new PGlite();
+  for (const filename of [
+    "0000_booking_portal_foundation.sql",
+    "0001_rare_hammerhead.sql",
+  ]) {
+    await database.exec(await migrationSql(filename));
+  }
 
   const slotStart = "2026-10-05T01:00:00.000Z";
   const slotEnd = "2026-10-05T05:00:00.000Z";
@@ -162,9 +203,63 @@ async function main() {
 
   await database.query(
     `insert into documents (
-      booking_id, original_filename, content_type, size_bytes, blob_pathname
-    ) values ($1, 'sample-sld.pdf', 'application/pdf', 1024, $2)`,
+      booking_id, quota_slot, original_filename, content_type, size_bytes, blob_pathname
+    ) values ($1, 1, 'sample-sld.pdf', 'application/pdf', 1024, $2)`,
     [bookingId, `bookings/${bookingId}/sample-sld.pdf`],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into documents (
+          booking_id, quota_slot, original_filename, content_type, size_bytes, blob_pathname
+        ) values ($1, 2, 'duplicate.pdf', 'application/pdf', 1024, $2)`,
+        [bookingId, `bookings/${bookingId}/sample-sld.pdf`],
+      ),
+    "private Blob pathnames must be unique",
+  );
+  for (let quotaSlot = 2; quotaSlot <= 10; quotaSlot += 1) {
+    await database.query(
+      `insert into documents (
+        booking_id, quota_slot, original_filename, content_type, size_bytes, blob_pathname
+      ) values ($1, $2, $3, 'application/pdf', 1024, $4)`,
+      [
+        bookingId,
+        quotaSlot,
+        `quota-${quotaSlot}.pdf`,
+        `booking-documents/quota-${quotaSlot}.pdf`,
+      ],
+    );
+  }
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into documents (
+          booking_id, quota_slot, original_filename, content_type, size_bytes, blob_pathname
+        ) values ($1, 1, 'eleventh.pdf', 'application/pdf', 1024, $2)`,
+        [bookingId, "booking-documents/eleventh.pdf"],
+      ),
+    "a booking cannot have more than ten active document quota slots",
+  );
+  await database.query(
+    `update documents set status = 'deleted', deleted_at = now()
+     where booking_id = $1 and quota_slot = 1`,
+    [bookingId],
+  );
+  await database.query(
+    `insert into documents (
+      booking_id, quota_slot, original_filename, content_type, size_bytes, blob_pathname
+    ) values ($1, 1, 'replacement.pdf', 'application/pdf', 1024, $2)`,
+    [bookingId, "booking-documents/replacement.pdf"],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into documents (
+          booking_id, quota_slot, original_filename, content_type, size_bytes, blob_pathname
+        ) values ($1, 11, 'bad-slot.pdf', 'application/pdf', 1024, $2)`,
+        [bookingId, "booking-documents/bad-slot.pdf"],
+      ),
+    "document quota slots must remain between one and ten",
   );
 
   await database.query(

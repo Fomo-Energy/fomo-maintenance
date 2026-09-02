@@ -4,6 +4,12 @@ Status: Current
 
 ## 2026-09-02
 
+- Built Part 4 behind a separate disabled upload flag: private direct Vercel
+  Blob uploads, opaque pathnames, short-lived scoped upload tokens, basic file
+  signature checks, database-enforced ten-document quotas, and authenticated
+  application-streamed downloads.
+- Scoped the manage credential into `/manage` and `/api/manage` cookies instead
+  of sending it to unrelated same-origin routes.
 - Built Parts 2–3 of the customer portal behind a disabled server flag: durable
   Stripe event/fulfilment recovery, persisted Graph event IDs, signed manage
   credentials stored only as digests, a fragment-to-HttpOnly-cookie exchange,

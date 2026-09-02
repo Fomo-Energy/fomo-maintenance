@@ -1,9 +1,19 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import ManageAccessBootstrap from "@/components/ManageAccessBootstrap";
+import DocumentUploadPanel from "@/components/DocumentUploadPanel";
 import { formatSgd } from "@/lib/pricing";
 import { findManageBooking } from "@/lib/portal/bookings";
-import { bookingPortalEnabled } from "@/lib/portal/config";
+import {
+  blobStorageIsConfigured,
+  bookingPortalEnabled,
+  documentUploadsEnabled,
+  MANAGE_COOKIE_NAME,
+} from "@/lib/portal/config";
+import {
+  documentCategoryLabel,
+  listManageDocuments,
+} from "@/lib/portal/documents";
 import { formatSlotRange } from "@/lib/slots";
 
 export const runtime = "nodejs";
@@ -16,14 +26,17 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
-const COOKIE_NAME = "fomo_manage";
-
 export default async function ManageBookingPage() {
-  const token = (await cookies()).get(COOKIE_NAME)?.value;
+  const token = (await cookies()).get(MANAGE_COOKIE_NAME)?.value;
   const booking =
     bookingPortalEnabled() && token
       ? await findManageBooking(token).catch(() => null)
       : null;
+  const documents = booking
+    ? await listManageDocuments(booking.id).catch(() => [])
+    : [];
+  const storageReady = blobStorageIsConfigured();
+  const uploadsReady = storageReady && documentUploadsEnabled();
 
   return (
     <main className="min-h-screen bg-peach px-6 py-16">
@@ -65,10 +78,58 @@ export default async function ManageBookingPage() {
                 />
               </div>
             </dl>
+            <section className="mt-10 border-t border-slate-200 pt-8 text-left">
+              <h2 className="text-xl font-bold text-ink">PV documents</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Upload your single-line diagram and other relevant PV system
+                documents. Do not include passwords, payment-card details, or
+                unrelated identity documents.
+              </p>
+              {uploadsReady ? (
+                <DocumentUploadPanel currentCount={documents.length} />
+              ) : (
+                <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm text-slate-600">
+                  Secure document upload is not available yet. Your booking is
+                  still confirmed.
+                </p>
+              )}
+              {documents.length > 0 ? (
+                <ul className="mt-8 space-y-3" aria-label="Uploaded documents">
+                  {documents.map((document) => (
+                    <li
+                      key={document.id}
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-ink">
+                            {document.originalFilename}
+                          </p>
+                          <p className="mt-1 text-slate-500">
+                            {documentCategoryLabel(document.category)} ·{" "}
+                            {formatFileSize(document.sizeBytes)} ·{" "}
+                            {document.status === "available"
+                              ? "Received"
+                              : "Processing"}
+                          </p>
+                        </div>
+                        {document.status === "available" && storageReady ? (
+                          <a
+                            href={`/api/manage/documents/${document.id}/download`}
+                            className="font-semibold text-ink underline"
+                          >
+                            Download
+                          </a>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </section>
             <div className="mt-10 rounded-2xl bg-peach px-5 py-4 text-sm leading-6 text-slate-600">
-              Secure document upload and self-service date/time changes are the
-              next delivery stages. For now, contact the FOMO team if this
-              booking needs attention.
+              Self-service date/time changes are the next delivery stage. For
+              now, contact the FOMO team if this booking needs attention.
             </div>
           </>
         ) : (
@@ -79,6 +140,13 @@ export default async function ManageBookingPage() {
       </section>
     </main>
   );
+}
+
+function formatFileSize(sizeBytes: number): string {
+  if (sizeBytes >= 1024 * 1024) {
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+  return `${Math.max(1, Math.round(sizeBytes / 1024))} KB`;
 }
 function BookingDetail({ label, value }: { label: string; value: string }) {
   return (
