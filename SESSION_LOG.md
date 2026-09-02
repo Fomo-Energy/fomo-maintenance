@@ -45,8 +45,8 @@ Parts 1–3 of the phased customer Manage Booking portal behind the disabled
 `BOOKING_PORTAL_ENABLED` flag. Branch `juliustanch/booking-portal-uploads` now
 implements Part 4 behind the separate disabled `DOCUMENT_UPLOADS_ENABLED` flag:
 private Blob uploads, database quota slots, file-policy checks, document lists,
-and ownership-checked downloads. Local policy/schema verification and the
-production build pass. No Neon or Blob resource has been provisioned, no
+and ownership-checked downloads. Pull request #24 passed GitHub CI and its
+Vercel Preview deployment. No Neon or Blob resource has been provisioned, no
 migration has been applied remotely, and production behavior remains unchanged.
 
 ## Next up
@@ -83,6 +83,8 @@ migration has been applied remotely, and production behavior remains unchanged.
   resources unset, both document endpoints returned generic no-store 404s.
 - Confirmed the merge deployment for pull request #23 is Ready and owns the
   production aliases. Main CI passed at merge commit `6419bc3`.
+- Opened pull request #24 at `383b1ae`; GitHub CI and the automatic Vercel
+  Preview deployment passed. The feature remains disabled and unmerged.
 
 - Merged Part 1 in pull request #22 as `9120067`; main CI passed and Vercel
   created the corresponding production deployment without changing live behavior.
