@@ -223,6 +223,9 @@ export const rescheduleRequests = pgTable(
   },
   (table) => [
     uniqueIndex("reschedule_requests_request_key_unique").on(table.requestKey),
+    uniqueIndex("reschedule_requests_one_active_per_booking")
+      .on(table.bookingId)
+      .where(sql`${table.status} in ('requested', 'processing')`),
     index("reschedule_requests_booking_created_idx").on(
       table.bookingId,
       table.createdAt,
@@ -250,13 +253,14 @@ export const slotReservations = pgTable(
   "slot_reservations",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    bookingId: uuid("booking_id")
-      .notNull()
-      .references(() => bookings.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").references(() => bookings.id, {
+      onDelete: "cascade",
+    }),
     rescheduleRequestId: uuid("reschedule_request_id").references(
       () => rescheduleRequests.id,
       { onDelete: "cascade" },
     ),
+    stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     resourceKey: text("resource_key").default("fomo-maintenance").notNull(),
     slotStart: timestamp("slot_start", { withTimezone: true }).notNull(),
     slotEnd: timestamp("slot_end", { withTimezone: true }).notNull(),
@@ -270,6 +274,9 @@ export const slotReservations = pgTable(
     uniqueIndex("slot_reservations_active_window_unique")
       .on(table.resourceKey, table.slotStart, table.slotEnd)
       .where(sql`${table.status} in ('held', 'confirmed')`),
+    uniqueIndex("slot_reservations_checkout_session_unique")
+      .on(table.stripeCheckoutSessionId)
+      .where(sql`${table.stripeCheckoutSessionId} is not null`),
     index("slot_reservations_booking_idx").on(table.bookingId),
     index("slot_reservations_expiry_idx").on(table.holdExpiresAt),
     check("slot_reservations_slot_order_check", sql`${table.slotEnd} > ${table.slotStart}`),
@@ -280,6 +287,10 @@ export const slotReservations = pgTable(
     check(
       "slot_reservations_hold_expiry_check",
       sql`${table.status} <> 'held' or ${table.holdExpiresAt} is not null`,
+    ),
+    check(
+      "slot_reservations_owner_check",
+      sql`${table.bookingId} is not null or ${table.stripeCheckoutSessionId} is not null`,
     ),
   ],
 );

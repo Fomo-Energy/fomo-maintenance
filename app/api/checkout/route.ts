@@ -9,8 +9,15 @@ import {
   scopeSummary,
   sgdToCents,
 } from "@/lib/booking";
+import { databaseIsConfigured } from "@/lib/database";
 import { formatSgd } from "@/lib/pricing";
 import { listBusyPeriods } from "@/lib/microsoft";
+import { bookingPortalEnabled } from "@/lib/portal/config";
+import {
+  listActiveReservedPeriods,
+  reserveCheckoutSlot,
+  SlotConflictError,
+} from "@/lib/portal/rescheduling";
 import {
   getStripe,
   publicSiteUrl,
@@ -20,6 +27,9 @@ import { findCandidateSlot, slotIsFree } from "@/lib/slots";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const CHECKOUT_HOLD_SECONDS = 31 * 60;
+const CHECKOUT_WEBHOOK_GRACE_MS = 15 * 60 * 1_000;
 
 export async function POST(request: Request) {
   let payload: unknown;
@@ -74,8 +84,24 @@ export async function POST(request: Request) {
     );
   }
 
+  const durablePortal = bookingPortalEnabled();
+  if (durablePortal && !databaseIsConfigured()) {
+    return NextResponse.json(
+      { error: "Visit times could not be confirmed. Try again shortly." },
+      { status: 503 },
+    );
+  }
+
   try {
-    const busy = await listBusyPeriods(new Date(slot.start), new Date(slot.end));
+    const rangeStart = new Date(slot.start);
+    const rangeEnd = new Date(slot.end);
+    const [calendarBusy, reservationBusy] = await Promise.all([
+      listBusyPeriods(rangeStart, rangeEnd),
+      durablePortal
+        ? listActiveReservedPeriods(rangeStart, rangeEnd)
+        : Promise.resolve([]),
+    ]);
+    const busy = [...calendarBusy, ...reservationBusy];
     if (!slotIsFree(slot, busy)) {
       return NextResponse.json(
         { error: "That visit time was just taken. Choose another slot." },
@@ -117,6 +143,9 @@ export async function POST(request: Request) {
       customer_email: parsed.email,
       success_url: `${site}/book/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${site}/book/cancel`,
+      ...(durablePortal
+        ? { expires_at: Math.floor(Date.now() / 1_000) + CHECKOUT_HOLD_SECONDS }
+        : {}),
       line_items: lineItems,
       metadata: {
         pricingVersion: "packages-v3-gst",
@@ -185,6 +214,40 @@ export async function POST(request: Request) {
         { error: "Payment total could not be verified. Try again shortly." },
         { status: 502 },
       );
+    }
+
+    if (durablePortal) {
+      try {
+        await reserveCheckoutSlot({
+          stripeCheckoutSessionId: session.id,
+          slot,
+          expiresAt: new Date(
+            session.expires_at * 1_000 + CHECKOUT_WEBHOOK_GRACE_MS,
+          ),
+        });
+      } catch (error) {
+        try {
+          await stripe.checkout.sessions.expire(session.id);
+        } catch (expireError) {
+          console.error(
+            "[fomo-maintenance] Could not expire unreserved Stripe session",
+            {
+              sessionId: session.id,
+              error:
+                expireError instanceof Error
+                  ? expireError.message
+                  : "Unknown Stripe error",
+            },
+          );
+        }
+        if (error instanceof SlotConflictError) {
+          return NextResponse.json(
+            { error: "That visit time was just taken. Choose another slot." },
+            { status: 409 },
+          );
+        }
+        throw error;
+      }
     }
 
     if (!session.url) {

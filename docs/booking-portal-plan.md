@@ -97,6 +97,9 @@ a substitute for malware scanning.
 
 ### Part 5 — Customer rescheduling
 
+Status: Implemented and locally verified on a stacked feature branch behind
+`RESCHEDULING_ENABLED=1`; not merged, migrated remotely, or enabled.
+
 Show the current visit and available replacements in the portal. On submission,
 the server revalidates the token and policy, locks the booking record, reserves
 the new slot, rechecks both Microsoft calendars, and updates the existing Graph
@@ -113,6 +116,14 @@ Recommended initial policy:
 Both new Checkout bookings and reschedules must use the same slot-reservation
 service. Postgres protects standard four-hour slots from simultaneous customer
 requests; Microsoft Graph is rechecked for ordinary mailbox conflicts.
+
+The implementation uses a 31-minute Stripe Checkout expiry plus a 15-minute
+webhook grace period. An active reschedule has one database hold and one active
+request per booking. Graph is updated and reread before Postgres changes the
+authoritative booking time; an uncertain response is resumed with the same
+request key. Operations must reconcile an abandoned active request before
+Production activation. Reschedule confirmation emails and manage-link renewal
+remain Part 6 dependencies, so this flag must stay off until that stage passes.
 
 ### Part 6 — Transactional email
 

@@ -56,6 +56,7 @@ async function main() {
   for (const filename of [
     "0000_booking_portal_foundation.sql",
     "0001_rare_hammerhead.sql",
+    "0002_ancient_chronomancer.sql",
   ]) {
     await database.exec(await migrationSql(filename));
   }
@@ -152,6 +153,40 @@ async function main() {
   await expectConstraintFailure(
     () =>
       database.query(
+        `insert into slot_reservations (
+          slot_start, slot_end, status, hold_expires_at
+        ) values ($1, $2, 'held', now() + interval '10 minutes')`,
+        ["2026-10-07T01:00:00.000Z", "2026-10-07T05:00:00.000Z"],
+      ),
+    "every slot hold must belong to a booking or Stripe Checkout Session",
+  );
+  await database.query(
+    `insert into slot_reservations (
+      stripe_checkout_session_id, slot_start, slot_end, status, hold_expires_at
+    ) values ($1, $2, $3, 'held', now() + interval '31 minutes')`,
+    [
+      "cs_provisional_hold",
+      "2026-10-07T01:00:00.000Z",
+      "2026-10-07T05:00:00.000Z",
+    ],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into slot_reservations (
+          stripe_checkout_session_id, slot_start, slot_end, status, hold_expires_at
+        ) values ($1, $2, $3, 'held', now() + interval '31 minutes')`,
+        [
+          "cs_provisional_hold",
+          "2026-10-08T01:00:00.000Z",
+          "2026-10-08T05:00:00.000Z",
+        ],
+      ),
+    "one Checkout Session cannot hold two visit times",
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
         `insert into booking_access_tokens (booking_id, token_digest, expires_at)
          values ($1, $2, now() + interval '120 days')`,
         [bookingId, secondTokenDigest],
@@ -199,6 +234,108 @@ async function main() {
       "2026-10-06T01:00:00.000Z",
       "2026-10-06T05:00:00.000Z",
     ],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into reschedule_requests (
+          request_key, booking_id, previous_slot_start, previous_slot_end,
+          requested_slot_start, requested_slot_end
+        ) values ($1, $2, $3, $4, $5, $6)`,
+        [
+          "reschedule-test-02",
+          bookingId,
+          slotStart,
+          slotEnd,
+          "2026-10-08T01:00:00.000Z",
+          "2026-10-08T05:00:00.000Z",
+        ],
+      ),
+    "a booking cannot have two active reschedule requests",
+  );
+  const reschedule = await database.query<{ id: string }>(
+    `select id from reschedule_requests where request_key = 'reschedule-test-01'`,
+  );
+  const rescheduleId = reschedule.rows[0]?.id;
+  assert.ok(rescheduleId);
+  await database.query(
+    `update slot_reservations
+     set status = 'confirmed', hold_expires_at = null
+     where booking_id = $1 and slot_start = $2 and slot_end = $3`,
+    [bookingId, slotStart, slotEnd],
+  );
+  const requestedStart = "2026-10-06T01:00:00.000Z";
+  const requestedEnd = "2026-10-06T05:00:00.000Z";
+  await database.query(
+    `insert into slot_reservations (
+      booking_id, reschedule_request_id, slot_start, slot_end,
+      status, hold_expires_at
+    ) values ($1, $2, $3, $4, 'held', now() + interval '15 minutes')`,
+    [bookingId, rescheduleId, requestedStart, requestedEnd],
+  );
+  const finalized = await database.query<{
+    reschedule_count: number;
+    record_version: number;
+  }>(
+    `with updated_booking as (
+      update bookings
+      set slot_start = $4, slot_end = $5,
+          reschedule_count = reschedule_count + 1,
+          record_version = record_version + 1,
+          updated_at = now()
+      where id = $1 and slot_start = $2 and slot_end = $3
+        and record_version = 1 and reschedule_count < 2
+      returning id, reschedule_count, record_version
+    ), confirmed_reservation as (
+      update slot_reservations
+      set status = 'confirmed', hold_expires_at = null, updated_at = now()
+      where reschedule_request_id = $6 and status = 'held'
+        and exists (select 1 from updated_booking)
+      returning id
+    ), completed_request as (
+      update reschedule_requests
+      set status = 'completed', failure_code = null,
+          completed_at = now(), updated_at = now()
+      where id = $6 and status in ('requested', 'processing')
+        and exists (select 1 from updated_booking)
+        and exists (select 1 from confirmed_reservation)
+      returning id
+    ), released_previous as (
+      update slot_reservations
+      set status = 'released', released_at = now(), updated_at = now()
+      where booking_id = $1 and slot_start = $2 and slot_end = $3
+        and status = 'confirmed'
+        and exists (select 1 from completed_request)
+      returning id
+    )
+    select updated_booking.reschedule_count, updated_booking.record_version
+    from updated_booking, completed_request`,
+    [
+      bookingId,
+      slotStart,
+      slotEnd,
+      requestedStart,
+      requestedEnd,
+      rescheduleId,
+    ],
+  );
+  assert.deepEqual(finalized.rows[0], {
+    reschedule_count: 1,
+    record_version: 2,
+  });
+  const reservationStates = await database.query<{
+    slot_start: string;
+    status: string;
+  }>(
+    `select slot_start::text, status from slot_reservations
+     where booking_id = $1 and slot_start in ($2, $3)
+     order by slot_start`,
+    [bookingId, slotStart, requestedStart],
+  );
+  assert.deepEqual(
+    reservationStates.rows.map((row) => row.status),
+    ["released", "confirmed"],
+    "Graph-confirmed rescheduling must release the old slot only when the new slot commits",
   );
 
   await database.query(

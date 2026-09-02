@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { calendarIdMatchingName } from "../lib/calendar";
+import { splitScheduleRange } from "../lib/microsoft";
 
 assert.equal(
   calendarIdMatchingName(
@@ -28,6 +29,23 @@ assert.throws(
     ),
   /was not found/,
 );
+
+const scheduleStart = new Date("2026-09-02T00:00:00.000Z");
+const scheduleEnd = new Date("2026-12-02T00:00:00.000Z");
+const scheduleWindows = splitScheduleRange(scheduleStart, scheduleEnd);
+assert.equal(scheduleWindows.length, 2);
+assert.equal(scheduleWindows[0]?.start.toISOString(), scheduleStart.toISOString());
+assert.equal(
+  scheduleWindows.at(-1)?.end.toISOString(),
+  scheduleEnd.toISOString(),
+);
+for (const window of scheduleWindows) {
+  assert.ok(
+    window.end.getTime() - window.start.getTime() <=
+      60 * 24 * 60 * 60 * 1_000,
+    "Microsoft getSchedule windows must remain below its 62-day limit",
+  );
+}
 
 assert.throws(
   () =>

@@ -31,6 +31,7 @@ import type {
   EventClaim,
   FulfillmentStore,
 } from "@/lib/portal/fulfillment";
+import { confirmPaidCheckoutSlot } from "@/lib/portal/rescheduling";
 
 export type PaidBookingInput = {
   reference: string;
@@ -118,6 +119,13 @@ export async function upsertPaidBooking(
     throw new Error("Paid booking could not be persisted.");
   }
 
+  await confirmPaidCheckoutSlot({
+    bookingId: booking.id,
+    stripeCheckoutSessionId: booking.stripeCheckoutSessionId,
+    slotStart: booking.slotStart,
+    slotEnd: booking.slotEnd,
+  });
+
   return booking;
 }
 
@@ -179,7 +187,11 @@ export type ManageBookingView = Pick<
   | "totalCents"
   | "slotStart"
   | "slotEnd"
+  | "paymentStatus"
+  | "graphEventId"
   | "calendarStatus"
+  | "rescheduleCount"
+  | "recordVersion"
 >;
 
 export type ManageAccess = {
@@ -407,7 +419,11 @@ export async function findManageAccess(token: string): Promise<ManageAccess | nu
         totalCents: bookings.totalCents,
         slotStart: bookings.slotStart,
         slotEnd: bookings.slotEnd,
+        paymentStatus: bookings.paymentStatus,
+        graphEventId: bookings.graphEventId,
         calendarStatus: bookings.calendarStatus,
+        rescheduleCount: bookings.rescheduleCount,
+        recordVersion: bookings.recordVersion,
       },
     })
     .from(bookingAccessTokens)

@@ -14,6 +14,7 @@ Status: Current
 | Portal fulfilment | `lib/portal/`, `app/api/stripe/webhook/route.ts`, and Neon/Drizzle | Feature-gated database state machine claims signed Stripe events, persists paid bookings, records step recovery state, and creates/finds the Graph event |
 | Customer manage access | `/api/manage/session` and `/manage` | Fragment credential is exchanged for an HttpOnly cookie; the read-only portal returns current booking data only after server-side digest, signature, expiry, and revocation checks |
 | Private PV documents | `/api/manage/documents/*`, `lib/portal/documents.ts`, and Vercel Blob | Short-lived direct-upload tokens target private opaque paths; Postgres owns metadata/quota state and authenticated downloads stream through the application |
+| Customer rescheduling | `/api/manage/reschedule*`, `lib/portal/rescheduling.ts`, and Microsoft Graph | Authenticated policy checks and database slot holds precede an idempotent Graph event update; Postgres changes the authoritative booking only after Graph verification |
 
 ## Pricing and package model
 
@@ -130,6 +131,15 @@ content type, size, and PDF/PNG/JPEG signature before marking metadata
 available. Each booking has ten database-enforced active quota slots. Downloads
 revalidate booking ownership and stream bytes from private storage; the Blob URL
 is never returned to the customer.
+
+Part 5 places both pre-payment Checkout holds and customer reschedule holds in
+`slot_reservations`. Active windows have a partial unique database index, while
+each booking can have only one active reschedule request. The reschedule flow
+holds the target, rechecks both Microsoft calendars, PATCHes and rereads the
+existing event, then records the new slot and releases the old reservation in
+one PostgreSQL statement. If the Graph outcome is uncertain, the request stays
+active and the same authenticated request key resumes it; the database never
+claims a new slot merely because Graph returned an error.
 
 ## Authentication and storage
 
