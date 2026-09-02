@@ -42,10 +42,11 @@ and every payment is real. If Preview or Development later switches to Stripe
 test keys, create a separate test-mode tax rate and replace the ID in that
 environment before deploying.
 
-Checkout deliberately fails closed if the setting is absent, the rate is
-inactive/inclusive/not 9%, or Stripe's returned subtotal, tax, and total do not
-match the server quote. Do not deploy a pricing change before the matching
-tax-rate ID is configured.
+Checkout deliberately fails closed if the setting is absent, Stripe rejects the
+configured rate, or Stripe's returned subtotal, tax, and total do not match the
+server quote. The application uses the tax-rate ID directly so the restricted
+Stripe key does not need `tax_rate_read`; preserve that least-privilege setup.
+Do not deploy a pricing change before the matching tax-rate ID is configured.
 
 Before production use, perform a paid Stripe test-mode booking and confirm:
 
@@ -107,6 +108,9 @@ separate approved collection process.
   `STRIPE_GST_TAX_RATE_ID` points to an active, exclusive 9% rate in the same
   Stripe mode as `STRIPE_SECRET_KEY`, then inspect the logged expected and
   actual totals.
+- Checkout reports a Stripe permission error for Tax Rates Read: do not expand
+  the restricted key. Confirm production contains the direct-tax-rate-ID fix
+  and redeploy it.
 - A `TESTING` event is present: validate its Stripe session and webhook result,
   then delete the calendar event. No customer service should be dispatched.
 
