@@ -54,7 +54,8 @@ and implements Part 5 behind disabled `RESCHEDULING_ENABLED`. It adds shared
 Checkout/reschedule database holds, customer policy enforcement, authenticated
 replacement-slot selection, bounded Graph queries, idempotent event updates,
 and Graph-first/atomic database finalization. No remote migration, Graph write,
-or Production flag change has occurred.
+or Production flag change has occurred. Pull request #25 passed GitHub CI and
+its Vercel Preview deployment.
 
 ## Next up
 
@@ -109,6 +110,8 @@ or Production flag change has occurred.
   rescheduling suites plus `next build` pass. Browser checks found content and
   no framework overlay on `/` or `/manage`; with all portal flags/resources
   unset, both rescheduling routes returned generic private no-store 404s.
+- Opened stacked pull request #25 at `1f7091a`; GitHub CI and the automatic
+  Vercel Preview deployment passed. Rescheduling remains disabled and unmerged.
 
 - Merged Part 1 in pull request #22 as `9120067`; main CI passed and Vercel
   created the corresponding production deployment without changing live behavior.
