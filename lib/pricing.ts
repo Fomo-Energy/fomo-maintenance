@@ -1,15 +1,15 @@
+export type InstallerId = "fomo" | "other" | "rto";
+
 export const INSTALLERS = [
   { id: "fomo", label: "FOMO-installed" },
-  { id: "other", label: "Other installer" },
   { id: "rto", label: "FOMO rent-to-own" },
-] as const;
+] as const satisfies ReadonlyArray<{ id: InstallerId; label: string }>;
 
 export const SERVICE_LEVELS = [
   { id: "essential", label: "Essential Health Check" },
   { id: "electrical_assurance", label: "Electrical Assurance" },
 ] as const;
 
-export type InstallerId = (typeof INSTALLERS)[number]["id"];
 export type ServiceLevel = (typeof SERVICE_LEVELS)[number]["id"];
 export type ServiceCode =
   | "ESSENTIAL"
