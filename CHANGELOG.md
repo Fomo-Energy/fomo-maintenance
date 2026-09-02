@@ -4,6 +4,11 @@ Status: Current
 
 ## 2026-09-02
 
+- Added 9% GST to every purchasable line item. Public prices now show
+  GST-inclusive totals; a S$199 Essential subtotal shows S$17.91 GST and a
+  S$216.91 final price.
+- Added server-side validation of the configured exclusive 9% Stripe tax rate
+  and fail-closed verification of Checkout subtotal, tax, and final total.
 - Updated the Essential Health Check scope to the approved inverter-area,
   inverter/DB electrical-check, remote-pre-check, and reporting wording.
 - Removed customer-facing first-visit onboarding notices.

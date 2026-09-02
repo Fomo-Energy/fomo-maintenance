@@ -66,7 +66,7 @@ export function extrasMetadata(input: {
 
 export function priceBreakdown(result: QuoteResult): string {
   if (result.testingApplied) {
-    return "Testing=0.50; Total=0.50";
+    return `Testing=${result.testingSgd.toFixed(2)}; Subtotal=${result.subtotalSgd.toFixed(2)}; GST (9%)=${result.gstSgd.toFixed(2)}; Total incl. GST=${result.totalSgd.toFixed(2)}`;
   }
   const parts = [`Essential=${result.essentialSgd}`];
   if (result.electricalUpgradeSgd) {
@@ -75,7 +75,9 @@ export function priceBreakdown(result: QuoteResult): string {
   if (result.cleaningSgd) {
     parts.push(`Cleaning=${result.cleaningSgd}`);
   }
-  parts.push(`Total=${result.totalSgd}`);
+  parts.push(`Subtotal=${result.subtotalSgd.toFixed(2)}`);
+  parts.push(`GST (9%)=${result.gstSgd.toFixed(2)}`);
+  parts.push(`Total incl. GST=${result.totalSgd.toFixed(2)}`);
   return parts.join("; ");
 }
 

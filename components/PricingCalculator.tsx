@@ -5,16 +5,24 @@ import { VisitBooking } from "@/components/VisitBooking";
 import { FOMO_ENERGY_CONTACT, QUOTE_EMAIL } from "@/lib/site";
 import {
   INSTALLERS,
+  TESTING_SGD,
   cleaningPriceSgd,
   electricalUpgradePriceSgd,
   essentialPriceSgd,
   formatSgd,
   quote,
+  totalIncludingGstSgd,
   type InstallerId,
   type ServiceLevel,
 } from "@/lib/pricing";
 
 const DEFAULT_KWP = 10;
+const ESSENTIAL_MINIMUM_FINAL_PRICE = totalIncludingGstSgd([
+  essentialPriceSgd(0),
+]);
+const CLEANING_MINIMUM_FINAL_PRICE = totalIncludingGstSgd([
+  cleaningPriceSgd(0),
+]);
 
 export function PricingCalculator() {
   const [kwpInput, setKwpInput] = useState(String(DEFAULT_KWP));
@@ -27,9 +35,15 @@ export function PricingCalculator() {
   const parsedKwp = Number.parseFloat(kwpInput);
   const kwp = Number.isFinite(parsedKwp) ? parsedKwp : 0;
   const essentialPrice = essentialPriceSgd(kwp);
-  const electricalPackagePrice =
-    essentialPrice + electricalUpgradePriceSgd(kwp);
+  const electricalUpgradePrice = electricalUpgradePriceSgd(kwp);
   const cleaningPrice = cleaningPriceSgd(kwp);
+  const essentialFinalPrice = totalIncludingGstSgd([essentialPrice]);
+  const electricalPackageFinalPrice = totalIncludingGstSgd([
+    essentialPrice,
+    electricalUpgradePrice,
+  ]);
+  const cleaningFinalPrice = totalIncludingGstSgd([cleaningPrice]);
+  const testingFinalPrice = totalIncludingGstSgd([TESTING_SGD]);
   const result = useMemo(
     () =>
       quote({
@@ -46,7 +60,7 @@ export function PricingCalculator() {
     <section id="pricing" className="scroll-mt-24 bg-ink text-white">
       <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-brand">
-          Singapore · annual · SGD
+          Singapore · annual · SGD · prices include 9% GST
         </p>
         <h1 className="mt-4 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
           Solar maintenance priced around what you actually need.
@@ -146,10 +160,11 @@ export function PricingCalculator() {
                     />
                     <span>
                       <span className="block font-bold">
-                        Essential Health Check · {formatSgd(essentialPrice)}
+                        Essential Health Check · {formatSgd(essentialFinalPrice)}
                       </span>
                       <span className="text-brand-on-light mt-1 block text-xs font-semibold">
-                        From S$199 · No roof access required
+                        From {formatSgd(ESSENTIAL_MINIMUM_FINAL_PRICE)} incl. GST
+                        · No roof access required
                       </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
                         Inverter area condition — physical integrity, switching
@@ -182,7 +197,8 @@ export function PricingCalculator() {
                     />
                     <span>
                       <span className="block font-bold">
-                        Electrical Assurance · {formatSgd(electricalPackagePrice)}
+                        Electrical Assurance ·{" "}
+                        {formatSgd(electricalPackageFinalPrice)}
                       </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
                         Everything in Essential, plus deeper DC-side safety and
@@ -207,14 +223,15 @@ export function PricingCalculator() {
                 />
                 <span>
                   <span className="font-semibold">
-                    Full panel cleaning · {formatSgd(cleaningPrice)}
+                    Full panel cleaning · {formatSgd(cleaningFinalPrice)}
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    From S$450. S$450 up to 10 kWp, then S$6 for each
+                    From {formatSgd(CLEANING_MINIMUM_FINAL_PRICE)} including GST.
+                    The pre-GST price is S$450 up to 10 kWp, then S$6 for each
                     additional kWp. Cleaning is performed only after safe roof
                     access has been confirmed. Checkout collects the cleaning
-                    charge; if access cannot be confirmed, the team will
-                    contact you to resolve that charge.
+                    charge; if access cannot be confirmed, the team will contact
+                    you to resolve that charge.
                   </span>
                 </span>
               </label>
@@ -233,7 +250,9 @@ export function PricingCalculator() {
                   }}
                 />
                 <span>
-                  <span className="font-semibold">Testing · S$0.50</span>
+                  <span className="font-semibold">
+                    Testing · {formatSgd(testingFinalPrice)} incl. GST
+                  </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
                     for testing purposes, no service offered
                   </span>
@@ -284,16 +303,14 @@ export function PricingCalculator() {
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
                   {result.testingApplied
-                    ? "live payment test"
-                    : result.installer === "other"
-                    ? "online package total"
-                    : "final annual price"}
+                    ? "live payment test including 9% GST"
+                    : "final annual price including 9% GST"}
                   , SGD, for {kwp} kWp
                 </p>
 
                 <dl className="mt-6 space-y-2 text-sm">
                   <div className="flex justify-between gap-4">
-                    <dt>{result.packageName}</dt>
+                    <dt>{result.packageName} (pre-GST)</dt>
                     <dd className="font-semibold">
                       {formatSgd(
                         result.testingApplied
@@ -304,12 +321,26 @@ export function PricingCalculator() {
                   </div>
                   {result.cleaningSgd ? (
                     <div className="flex justify-between gap-4">
-                      <dt>Full panel cleaning</dt>
+                      <dt>Full panel cleaning (pre-GST)</dt>
                       <dd className="font-semibold">
                         {formatSgd(result.cleaningSgd)}
                       </dd>
                     </div>
                   ) : null}
+                  <div className="mt-3 flex justify-between gap-4 border-t border-orange-100 pt-3">
+                    <dt>Subtotal before GST</dt>
+                    <dd className="font-semibold">
+                      {formatSgd(result.subtotalSgd)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <dt>GST (9%)</dt>
+                    <dd className="font-semibold">{formatSgd(result.gstSgd)}</dd>
+                  </div>
+                  <div className="flex justify-between gap-4 font-bold">
+                    <dt>Total incl. GST</dt>
+                    <dd>{formatSgd(result.totalSgd)}</dd>
+                  </div>
                 </dl>
 
                 <div className="mt-6">

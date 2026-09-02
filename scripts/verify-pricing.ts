@@ -11,8 +11,10 @@ import {
   electricalUpgradePriceSgd,
   essentialPriceSgd,
   formatSgd,
+  gstSgdForLineItems,
   quote,
   quoteTotalSgd,
+  totalIncludingGstSgd,
   type ServiceLevel,
 } from "../lib/pricing";
 
@@ -28,25 +30,50 @@ for (const expected of matrix) {
   assert.equal(essentialPriceSgd(expected.kwp), expected.essential);
   assert.equal(cleaningPriceSgd(expected.kwp), expected.cleaning);
   assert.equal(
-    quoteTotalSgd({
+    quote({
       kwp: expected.kwp,
+      installer: "fomo",
       serviceLevel: "electrical_assurance",
-    }),
+      cleaning: false,
+      testing: false,
+    }).subtotalSgd,
     expected.electrical,
   );
   assert.equal(
-    quoteTotalSgd({ kwp: expected.kwp, cleaning: true }),
+    quote({
+      kwp: expected.kwp,
+      installer: "fomo",
+      serviceLevel: "essential",
+      cleaning: true,
+      testing: false,
+    }).subtotalSgd,
     expected.essentialClean,
   );
   assert.equal(
-    quoteTotalSgd({
+    quote({
       kwp: expected.kwp,
+      installer: "fomo",
       serviceLevel: "electrical_assurance",
       cleaning: true,
-    }),
+      testing: false,
+    }).subtotalSgd,
     expected.electricalClean,
   );
 }
+
+const essentialTenKwp = quote({
+  kwp: 10,
+  installer: "fomo",
+  serviceLevel: "essential",
+  cleaning: false,
+  testing: false,
+});
+assert.equal(essentialTenKwp.subtotalSgd, 199);
+assert.equal(essentialTenKwp.gstSgd, 17.91);
+assert.equal(essentialTenKwp.totalSgd, 216.91);
+assert.equal(quoteTotalSgd({ kwp: 10 }), 216.91);
+assert.equal(gstSgdForLineItems([199]), 17.91);
+assert.equal(totalIncludingGstSgd([199]), 216.91);
 
 assert.equal(essentialPriceSgd(10.1), 200, "Essential rounds per line item");
 assert.equal(
@@ -94,11 +121,13 @@ const complete = quote({
   cleaning: true,
   testing: false,
 });
-assert.equal(complete.totalSgd, 1009);
+assert.equal(complete.subtotalSgd, 1009);
+assert.equal(complete.gstSgd, 90.81);
+assert.equal(complete.totalSgd, 1099.81);
 assert.equal(
   priceLineItems(complete).reduce((sum, item) => sum + item.amountSgd, 0),
-  complete.totalSgd,
-  "Stripe line items must sum to the server quote",
+  complete.subtotalSgd,
+  "Stripe line items must sum to the server pre-GST subtotal",
 );
 
 const validCheckout = {
@@ -133,7 +162,7 @@ const forgedCheckout = parseCheckoutRequest({
 });
 assert.equal(
   quoteForCheckout(forgedCheckout).totalSgd,
-  199,
+  216.91,
   "Browser-supplied totals must be ignored and recomputed on the server",
 );
 const testingCheckout = parseCheckoutRequest({
@@ -144,11 +173,16 @@ const testingCheckout = parseCheckoutRequest({
 const testingQuote = quoteForCheckout(testingCheckout);
 assert.equal(testingQuote.serviceCode, "TESTING");
 assert.equal(testingQuote.packageName, "Testing");
-assert.equal(testingQuote.totalSgd, 0.5);
+assert.equal(testingQuote.subtotalSgd, 0.5);
+assert.equal(testingQuote.gstSgd, 0.05);
+assert.equal(testingQuote.totalSgd, 0.55);
 assert.equal(testingQuote.servicePackageSgd, 0);
-assert.equal(formatSgd(testingQuote.totalSgd), "S$0.50");
-assert.equal(sgdToCents(testingQuote.totalSgd), 50);
-assert.equal(priceBreakdown(testingQuote), "Testing=0.50; Total=0.50");
+assert.equal(formatSgd(testingQuote.totalSgd), "S$0.55");
+assert.equal(sgdToCents(testingQuote.totalSgd), 55);
+assert.equal(
+  priceBreakdown(testingQuote),
+  "Testing=0.50; Subtotal=0.50; GST (9%)=0.05; Total incl. GST=0.55",
+);
 assert.deepEqual(priceLineItems(testingQuote), [
   { name: "Testing — no service offered", amountSgd: 0.5 },
 ]);

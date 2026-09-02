@@ -21,20 +21,29 @@ does not ask about PV strings or equipment models.
 The two service levels are Essential Health Check and Electrical Assurance.
 Cleaning is independent. Four service codes describe the service/cleaning
 combination: `ESSENTIAL`, `ELECTRICAL_ASSURANCE`, `ESSENTIAL_CLEAN`, and
-`ELECTRICAL_CLEAN`. `TESTING` is a mutually exclusive S$0.50 live-payment
-package whose operational scope is explicitly "no service offered."
+`ELECTRICAL_CLEAN`. `TESTING` is a mutually exclusive S$0.50 pre-GST / S$0.55
+final live-payment package whose operational scope is explicitly "no service
+offered."
 Continuous monitoring is not exposed in the quote model and checkout rejects
 crafted requests that attempt to enable it.
 
 Maintenance line items are rounded to whole SGD before summation; Testing is the
-only S$0.50 exception. The browser uses the shared quote function for display,
-but `/api/checkout` parses the selection and recomputes every price, service
-code, scope, and Stripe line item. Browser totals and breakdowns are not trusted.
+only S$0.50 pre-GST exception. Nine percent GST is then rounded to cents per
+taxable line item. The browser uses the shared quote function to display the
+pre-GST subtotal, GST, and GST-inclusive total, but `/api/checkout` parses the
+selection and recomputes every price, tax amount, service code, scope, and
+Stripe line item. Browser totals and breakdowns are not trusted.
 
-Stripe metadata is versioned and carries bounded package, breakdown, scope, and
-manual-confirmation statuses. The webhook accepts both the new metadata and
-legacy sessions created before the package migration so an already-paid booking
-is not stranded.
+Checkout applies one configured manual, exclusive 9% Stripe Tax Rate to every
+pre-GST line item. The server first retrieves and validates that the rate is
+active, exclusive, and exactly 9%. After creating the Checkout Session, it also
+compares Stripe's returned subtotal, tax, and total against the server quote;
+a mismatch expires the session and fails checkout closed.
+
+Stripe metadata is versioned (`packages-v3-gst`) and carries bounded package,
+pre-GST subtotal, GST, final amount, breakdown, scope, and manual-confirmation
+statuses. The webhook accepts both the new metadata and legacy sessions created
+before the package migration so an already-paid booking is not stranded.
 
 Calendar creation uses the Stripe Checkout Session ID as the Microsoft Graph
 transaction ID and as an extended property. The webhook performs an existing
@@ -74,11 +83,12 @@ methods.
 ## Authentication and storage
 
 Microsoft Graph uses OAuth client credentials and the application permission
-`Calendars.ReadWrite`. Stripe uses a secret API key and a webhook signing
-secret. No application database exists: Stripe is the payment/booking record,
-and Microsoft Calendar is the visit schedule. This is not sufficient for
-durable customer/site eligibility state. Secrets belong only in Vercel or
-`.env.local` and must not be committed.
+`Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
+the ID of a manually configured exclusive 9% GST tax rate. No application
+database exists: Stripe is the payment/booking record, and Microsoft Calendar
+is the visit schedule. This is not sufficient for durable customer/site
+eligibility state. Secrets and environment-specific resource IDs belong only in
+Vercel or `.env.local` and must not be committed.
 
 ## Deployment
 

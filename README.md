@@ -24,9 +24,10 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 
 ## Pricing checks
 
-The package pricing (SGD) lives in `lib/pricing.ts`. Maintenance line items are
-rounded to the nearest whole dollar before totals are calculated; the explicit
-Testing checkout is the only S$0.50 exception:
+The package pricing (SGD) lives in `lib/pricing.ts`. The formulas below are
+pre-GST. Maintenance line items are rounded to the nearest whole dollar, then
+9% GST is calculated per Stripe line item to the nearest cent. The explicit
+Testing checkout is the only S$0.50 pre-GST exception:
 
 ```bash
 npm run verify
@@ -35,7 +36,8 @@ npm run verify
 - Essential Health Check: `max(199, 149 + 5 × kWp)`
 - Electrical Assurance upgrade: `150 + 5 × kWp`
 - Cleaning: `max(450, 390 + 6 × kWp)`
-- Testing: S$0.50 live payment and integration check; no service offered
+- Testing: S$0.50 before GST / S$0.55 final live payment and integration check;
+  no service offered
 - Rent-to-own: do not sell; no checkout; no calendar. Point to FOMO Energy support.
 - Other-installer first-visit onboarding is not charged automatically because
   the app has no durable customer/site visit history. See the rollback register.
@@ -49,6 +51,10 @@ Electrical Assurance includes Essential plus deeper DC-side safety and
 performance testing with professional solar testing equipment. Cleaning is an
 independent add-on and is performed only after FOMO confirms safe roof access.
 
+All public prices and final checkout totals include 9% GST. For example, a
+10 kWp Essential Health Check is S$199.00 before GST, S$17.91 GST, and S$216.91
+in total.
+
 ## Booking and payment
 
 Payment success is the only moment a Microsoft calendar event is created. The browser never writes the calendar.
@@ -57,7 +63,7 @@ Payment success is the only moment a Microsoft calendar event is created. The br
    mutually exclusive Testing checkout
 2. Name, phone, email, site address
 3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
-4. Pay → Stripe Checkout (hosted, SGD cents)
+4. Pay → Stripe Checkout (hosted, pre-GST SGD line items plus 9% GST)
 5. Return URLs on this site: `/book/success?session_id=…` and `/book/cancel`
 
 ### API routes
@@ -65,20 +71,22 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 | Method | Route | Role |
 | --- | --- | --- |
 | `POST` | `/api/availability` | Microsoft Graph checks the primary calendar for `MICROSOFT_CALENDAR_USER` and the dedicated maintenance calendar. Returns free slots. |
-| `POST` | `/api/checkout` | Recomputes the quote, checks the slot is still free, creates a Stripe Checkout Session in SGD. |
+| `POST` | `/api/checkout` | Recomputes the pre-GST quote and GST, checks the slot is still free, validates the configured Stripe tax rate, creates a Stripe Checkout Session in SGD, and verifies Stripe's returned subtotal, tax, and total. |
 | `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`. On `checkout.session.completed`, creates the Graph event. Idempotent on the Stripe session id. |
 
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
 Checkout metadata includes pricing version, service code, service level, kWp,
-installer, cleaning and Testing statuses, bounded pricing breakdown and scope,
-customer/site details, slot, and amount in SGD cents. Legacy monitoring fields
-remain fixed to not requested so older webhook records stay compatible.
+installer, cleaning and Testing statuses, bounded pricing/GST breakdown and
+scope, customer/site details, slot, and final GST-inclusive amount in SGD cents.
+Legacy monitoring fields remain fixed to not requested so older webhook records
+stay compatible.
 
 Testing is a distinct `TESTING` package, not a kWp pricing override. It creates
-a real S$0.50 live-mode Stripe charge and a clearly marked calendar event so the
-payment-to-calendar integration can be validated. It grants no inspection,
-maintenance, cleaning, monitoring, repair, or other service entitlement.
+a real S$0.55 GST-inclusive live-mode Stripe charge and a clearly marked
+calendar event so the payment-to-calendar integration can be validated. It
+grants no inspection, maintenance, cleaning, monitoring, repair, or other
+service entitlement.
 
 Calendar event (webhook only, written to the dedicated maintenance calendar):
 
@@ -116,6 +124,7 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `STRIPE_SECRET_KEY` | Creating Checkout Sessions and retrieving them on `/book/success` |
 | `STRIPE_WEBHOOK_SECRET` | Verifying `POST /api/stripe/webhook` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe Dashboard publishable key (hosted Checkout uses the session URL; keep this in sync with the secret key) |
+| `STRIPE_GST_TAX_RATE_ID` | Active, exclusive 9% Singapore GST manual tax rate applied to every Checkout line item. Its Stripe mode must match `STRIPE_SECRET_KEY`; test and live rates have different IDs. |
 | `NEXT_PUBLIC_SITE_URL` | Origin for `success_url` / `cancel_url` (no trailing slash). Falls back to `https://$VERCEL_URL` |
 | `MICROSOFT_TENANT_ID` | Azure AD tenant for client-credentials |
 | `MICROSOFT_CLIENT_ID` | App registration id |
@@ -139,8 +148,10 @@ unchecked slot.
 Stripe:
 
 1. Checkout in SGD
-2. Webhook endpoint `https://<your-domain>/api/stripe/webhook`
-3. Event: `checkout.session.completed`
+2. Create a manual 9% exclusive Singapore GST tax rate in every Stripe mode the
+   deployment uses, and set the matching ID as `STRIPE_GST_TAX_RATE_ID`
+3. Webhook endpoint `https://<your-domain>/api/stripe/webhook`
+4. Event: `checkout.session.completed`
 
 Local webhook forwarding:
 

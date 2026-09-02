@@ -11,19 +11,43 @@ and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
 live copy/API checks, and Microsoft Graph-backed availability all pass.
 
+Pull request #13 from `juliustanch/gst-pricing` is open, green, and production
+is unchanged. It treats package formulas as pre-GST, prominently displays 9%
+GST-inclusive prices, and prepares Stripe Checkout to validate and apply an
+exclusive 9% GST tax rate. The live Stripe rate exists and
+`STRIPE_GST_TAX_RATE_ID` is configured in all Vercel environments, so the
+explicitly authorized merge and production deployment can proceed.
+
 ## Next up
 
-1. Make one S$0.50 Testing payment, validate the TESTING calendar event and
-   webhook metadata, then delete the event.
-2. Remove the public Testing option after live validation is complete, or
-   replace it with authenticated operational tooling.
-3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
-   advisories; do not combine that major upgrade with this package change.
+1. Merge pull request #13 under the user's explicit authorization and verify
+   the Vercel production deployment.
+2. Verify production shows S$199.00 subtotal, S$17.91 GST, and S$216.91 total
+   at 10 kWp, including the Stripe Checkout breakdown without submitting a
+   payment.
+3. When desired, make one S$0.55 Testing payment, validate the TESTING
+   calendar event and webhook metadata, then delete the event.
+4. Design receipt/invoice delivery separately; do not couple it to this GST
+   pricing change.
 
 ## Session entries
 
 ### 2026-09-02
 
+- Started branch `juliustanch/gst-pricing` to add 9% GST without changing the
+  approved pre-GST package formulas. The reference Essential quote is S$199.00
+  subtotal, S$17.91 GST, and S$216.91 total.
+- Added server-side tax-rate validation and Checkout subtotal/tax/total checks;
+  the change will not be merged or deployed before the Stripe test/live tax-rate
+  IDs are configured and the flow is verified.
+- Committed the GST change as `bb007ca` and opened pull request #13. Local
+  verification/build, GitHub CI, and the Vercel preview pass; the preview shows
+  the expected S$199.00 subtotal, S$17.91 GST, and S$216.91 final Essential
+  price. Production remains unchanged.
+- Created an active, exclusive 9% Singapore GST tax rate in the live Stripe
+  account and configured its ID as `STRIPE_GST_TAX_RATE_ID` for all Vercel
+  environments. Confirmed all hosted environments currently use Stripe live
+  mode; the runbook now records that every hosted test payment is real.
 - Started and verified branch `juliustanch/essential-scope-copy` for three
   requested calculator changes: approved Essential scope wording, removal of
   customer-facing onboarding notices, and removal of Continuous monitoring.

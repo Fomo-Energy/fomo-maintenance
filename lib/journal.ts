@@ -20,7 +20,7 @@ const journalArticleEntries: JournalArticle[] = [
       "Electrical distribution board during an Essential Health Check",
     imageCredit: "Photo: Pexels (freely licensed)",
     body: [
-      "An annual Essential Health Check is FOMO Energy aftercare for owners who hold the system outright. It starts at S$199 and scales with system size. It is a read of the plant, not a hardware replacement plan.",
+      "An annual Essential Health Check is FOMO Energy aftercare for owners who hold the system outright. It starts at S$216.91 including 9% GST and scales with system size. It is a read of the plant, not a hardware replacement plan.",
       "The visit covers the inverter area's physical integrity, switching and safety mechanisms; inverter and DB area electrical checks; a remote pre-check when available; and report generation. It does not require roof access and does not include panel cleaning, deeper DC-side testing, repairs, or replacement parts.",
       "Electrical Assurance includes everything in Essential plus deeper DC-side safety and performance testing using professional solar testing equipment. It is for owners who need more than a running-state review.",
       "New modules and a new inverter still sit with the installer. For FOMO Energy arrays, that is FOMO Energy. Fomo Maintenance writes the code, the likely field, and whether manufacturer cover is still in play. It does not sell a replacement from this program.",
@@ -39,7 +39,7 @@ const journalArticleEntries: JournalArticle[] = [
     body: [
       "Singapore is not a desert. Rooftop modules still pick up a film. Construction fines, tyre dust, pollen, and haze residue all scatter light before it reaches the cell. After a dry spell the glass can look only dull. Production is already down.",
       "The northeast monsoon does not rinse arrays clean. Heavy rain often leaves a splash ring of grit along the lower edge of each module. That is common on low-tilt landed-house roofs, where water sheets slowly. Bird droppings bake on in the next clear spell and shade individual cells. Those cells then run hot relative to their neighbours.",
-      "Panel cleaning is a separate full-array service, not part of the Essential Health Check or Electrical Assurance package. It starts at S$450 and is performed only where safe roof access has been confirmed. Without that confirmation, no roof work proceeds.",
+      "Panel cleaning is a separate full-array service, not part of the Essential Health Check or Electrical Assurance package. It starts at S$490.50 including 9% GST and is performed only where safe roof access has been confirmed. Without that confirmation, no roof work proceeds.",
       "A module that looks wet is not therefore clean. A wet film of silt is still a film. Infrared and production data together show whether the loss is optical or electrical. That distinction is the difference between a useful note and a wasted wash.",
       "If you are comparing quotes, separate diagnostic work from cleaning. The Essential Health Check requires no roof access; cleaning is priced independently so the package does not promise roof work that cannot safely be performed.",
     ],

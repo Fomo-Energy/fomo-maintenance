@@ -37,6 +37,8 @@ export type QuoteResult = {
   servicePackageSgd: number;
   cleaningSgd: number;
   testingSgd: number;
+  subtotalSgd: number;
+  gstSgd: number;
   totalSgd: number;
   sellable: boolean;
   cleaningApplied: boolean;
@@ -54,6 +56,7 @@ const CLEANING_MINIMUM_SGD = 450;
 const CLEANING_FIXED_SGD = 390;
 const CLEANING_PER_KWP_SGD = 6;
 export const TESTING_SGD = 0.5;
+export const GST_RATE_PERCENT = 9;
 
 /** Maintenance line items round to whole SGD; Testing is the S$0.50 exception. */
 export function roundSgd(amount: number): number {
@@ -89,6 +92,28 @@ export function cleaningPriceSgd(kwp: number): number {
   );
 }
 
+function sgdAmountToCents(amountSgd: number): number {
+  return Math.round(amountSgd * 100);
+}
+
+export function gstSgdForLineItems(amountsSgd: number[]): number {
+  const gstCents = amountsSgd.reduce(
+    (total, amountSgd) =>
+      total +
+      Math.round((sgdAmountToCents(amountSgd) * GST_RATE_PERCENT) / 100),
+    0,
+  );
+  return gstCents / 100;
+}
+
+export function totalIncludingGstSgd(amountsSgd: number[]): number {
+  const subtotalCents = amountsSgd.reduce(
+    (total, amountSgd) => total + sgdAmountToCents(amountSgd),
+    0,
+  );
+  return subtotalCents / 100 + gstSgdForLineItems(amountsSgd);
+}
+
 function serviceCodeFor(
   serviceLevel: ServiceLevel,
   cleaning: boolean,
@@ -113,6 +138,17 @@ export function quote(input: QuoteInput): QuoteResult {
   const servicePackageSgd = essentialSgd + electricalUpgradeSgd;
   const cleaningSgd = cleaningApplied ? cleaningPriceSgd(size) : 0;
   const testingSgd = testingApplied ? TESTING_SGD : 0;
+  const taxableLineItems = [
+    essentialSgd,
+    electricalUpgradeSgd,
+    cleaningSgd,
+    testingSgd,
+  ].filter((amountSgd) => amountSgd > 0);
+  const subtotalSgd = taxableLineItems.reduce(
+    (total, amountSgd) => total + amountSgd,
+    0,
+  );
+  const gstSgd = gstSgdForLineItems(taxableLineItems);
   const packageName = testingApplied
     ? "Testing"
     : electricalApplied
@@ -162,7 +198,9 @@ export function quote(input: QuoteInput): QuoteResult {
     servicePackageSgd,
     cleaningSgd,
     testingSgd,
-    totalSgd: servicePackageSgd + cleaningSgd + testingSgd,
+    subtotalSgd,
+    gstSgd,
+    totalSgd: subtotalSgd + gstSgd,
     sellable,
     cleaningApplied,
     testingApplied,
