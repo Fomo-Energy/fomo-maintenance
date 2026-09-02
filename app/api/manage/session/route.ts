@@ -35,15 +35,13 @@ export async function POST(request: Request) {
   }
 
   const response = NextResponse.json({ verified: true });
-  for (const path of ["/manage", "/api/manage"]) {
-    response.cookies.set(MANAGE_COOKIE_NAME, token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "strict",
-      path,
-      maxAge: 60 * 60 * 24 * 120,
-    });
-  }
+  response.cookies.set(MANAGE_COOKIE_NAME, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 120,
+  });
   response.headers.set("Cache-Control", "no-store");
   return response;
 }

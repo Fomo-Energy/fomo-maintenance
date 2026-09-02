@@ -4,6 +4,9 @@ Status: Current
 
 ## 2026-09-02
 
+- Corrected the manage-link exchange to issue one root-path HttpOnly cookie.
+  Preview E2E testing showed that two same-name path-scoped cookies collapsed
+  to the API cookie, preventing `/manage` from seeing the authenticated session.
 - Merged Parts 4 and 5 in pull requests #24 and #25. Their private-upload and
   customer-rescheduling flags remain disabled, and no remote database or Blob
   resource has been provisioned.

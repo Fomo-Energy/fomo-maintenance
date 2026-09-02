@@ -120,8 +120,11 @@ an expiry 30 days after the visit. Postgres stores only the full credential's
 SHA-256 digest. The emailed URL will carry the credential in a fragment, which
 does not reach Vercel request logs; `/api/manage/session` exchanges it for a
 same-origin HttpOnly cookie and `/manage` removes the fragment before reload.
-The same credential is scoped into separate `/manage` and `/api/manage`
-HttpOnly cookies so it is not sent to unrelated application routes.
+The exchange sets one root-path HttpOnly cookie so both `/manage` and
+`/api/manage` receive the same credential. A single cookie is required because
+multiple `Set-Cookie` values with the same name were collapsed by the deployed
+response path during Preview E2E testing. The application does not serve
+unrelated authenticated features from this origin.
 
 Part 4 keeps file bytes out of Vercel Function request bodies. The browser
 uploads directly to a private Blob store using a ten-minute, pathname-bound

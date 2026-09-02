@@ -182,7 +182,10 @@ For a future Preview rollout:
 The manage link uses `/manage#access=…`, not a path or query credential. Do not
 paste a real link into logs, tickets, analytics, screenshots, or staff email.
 The fragment is exchanged for an HttpOnly, same-site cookie and removed from
-the address bar. Reissuing a credential must revoke the prior row.
+the address bar. The cookie uses `Path=/` so the booking page and every
+`/api/manage` route receive one consistent credential; confirm the exchange
+response emits exactly one `Set-Cookie` header during smoke testing. Reissuing
+a credential must revoke the prior row.
 
 Portal rollback is to remove `BOOKING_PORTAL_ENABLED` and redeploy. Do not drop
 populated portal tables as an application rollback; preserve paid-booking and
