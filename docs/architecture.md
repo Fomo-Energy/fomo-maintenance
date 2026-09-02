@@ -15,6 +15,7 @@ Status: Current
 | Customer manage access | `/api/manage/session` and `/manage` | Fragment credential is exchanged for an HttpOnly cookie; the read-only portal returns current booking data only after server-side digest, signature, expiry, and revocation checks |
 | Private PV documents | `/api/manage/documents/*`, `lib/portal/documents.ts`, and Vercel Blob | Short-lived direct-upload tokens target private opaque paths; Postgres owns metadata/quota state and authenticated downloads stream through the application |
 | Customer rescheduling | `/api/manage/reschedule*`, `lib/portal/rescheduling.ts`, and Microsoft Graph | Authenticated policy checks and database slot holds precede an idempotent Graph event update; Postgres changes the authoritative booking only after Graph verification |
+| Transactional email | `lib/portal/notifications.ts`, `email_deliveries`, and Resend | Feature-gated booking/reschedule confirmations use database and provider idempotency; only the customer message carries the private manage link |
 
 ## Pricing and package model
 
@@ -105,6 +106,9 @@ relational and read-only portal foundation:
 - `slot_reservations` prevents two active claims on the same standard slot.
 - `webhook_events` and `fulfillment_steps` provide idempotency and recovery
   state without storing raw webhook payloads.
+- `email_deliveries` provides durable per-message recipient, attempt, provider
+  identifier, status, and deterministic idempotency state without storing a
+  rendered body or manage credential.
 
 The database client is initialized lazily so builds remain safe before
 `DATABASE_URL` is provisioned. With `BOOKING_PORTAL_ENABLED` absent, the webhook
@@ -143,6 +147,15 @@ existing event, then records the new slot and releases the old reservation in
 one PostgreSQL statement. If the Graph outcome is uncertain, the request stays
 active and the same authenticated request key resumes it; the database never
 claims a new slot merely because Graph returned an error.
+
+Part 6 adds customer and operations notification steps after calendar and
+manage-link fulfilment. Customer email contains the fragment-based private
+manage/upload link; operations receives contact, schedule, service, and payment
+details without that credential. Reschedule messages are keyed to the immutable
+reschedule request ID. Moving a visit later than the active credential permits
+revokes that credential, issues a longer-lived replacement, updates the
+requesting browser cookie, and emails the replacement link. A Preview-only
+customer-recipient override fails closed in Production.
 
 ## Authentication and storage
 

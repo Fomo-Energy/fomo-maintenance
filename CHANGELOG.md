@@ -2,6 +2,22 @@
 
 Status: Current
 
+## 2026-09-03
+
+- Implemented Part 6 transactional booking and reschedule confirmations behind
+  a disabled server flag. Customer messages contain the Singapore appointment,
+  subtotal, GST, total, booking reference, address, and private manage/upload
+  link; operations messages omit the bearer credential.
+- Added durable per-message delivery records and deterministic database/Resend
+  idempotency keys so webhook and customer retries do not duplicate mail.
+- Added manage-link renewal for appointments moved beyond the current link
+  expiry, including replacement of the authenticated browser cookie.
+- Provisioned a free Resend resource only for Vercel Preview in Tokyo. Sender
+  DNS, Preview migration, inbox delivery, and replay verification remain pending;
+  Production email is disabled and has no Resend resource.
+- Added transactional email rendering/idempotency and schema-constraint checks;
+  the full verification suite and production build pass locally.
+
 ## 2026-09-02
 
 - Corrected the manage-link exchange to issue one root-path HttpOnly cookie.

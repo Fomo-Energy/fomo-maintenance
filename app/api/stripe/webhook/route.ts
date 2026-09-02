@@ -9,8 +9,13 @@ import { databaseFulfillmentStore } from "@/lib/portal/bookings";
 import {
   bookingPortalEnabled,
   manageLinkSecret,
+  transactionalEmailEnabled,
 } from "@/lib/portal/config";
 import { fulfillPaidCheckout } from "@/lib/portal/fulfillment";
+import {
+  deliverBookingCustomerNotification,
+  deliverBookingOperationsNotification,
+} from "@/lib/portal/notifications";
 import { getStripe, stripeWebhookSecret } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -156,6 +161,12 @@ async function handleDurableCheckoutCompleted(
       loadSession: (sessionId) =>
         getStripe().checkout.sessions.retrieve(sessionId),
       ensureCalendar: createMaintenanceVisitRecordWithRetry,
+      ...(transactionalEmailEnabled()
+        ? {
+            sendCustomerEmail: deliverBookingCustomerNotification,
+            sendOperationsEmail: deliverBookingOperationsNotification,
+          }
+        : {}),
     },
   );
 

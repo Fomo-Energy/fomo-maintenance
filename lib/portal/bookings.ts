@@ -30,6 +30,7 @@ import type {
   CalendarResult,
   EventClaim,
   FulfillmentStore,
+  ManageAccessCredential,
 } from "@/lib/portal/fulfillment";
 import { confirmPaidCheckoutSlot } from "@/lib/portal/rescheduling";
 
@@ -324,10 +325,10 @@ async function completeCalendar(
   void status;
 }
 
-async function ensureManageAccess(
+export async function ensureManageAccessForBooking(
   bookingId: string,
   slotEnd: Date,
-): Promise<string> {
+): Promise<ManageAccessCredential> {
   const database = getDatabase();
   const secret = manageLinkSecret();
   const now = new Date();
@@ -356,14 +357,41 @@ async function ensureManageAccess(
     );
     if (
       active.expiresAt > now &&
+      active.expiresAt >= expiresAt &&
       digestManageToken(activeToken) === active.tokenDigest
     ) {
-      return active.id;
+      return {
+        id: active.id,
+        token: activeToken,
+        expiresAt: active.expiresAt,
+        rotated: false,
+      };
     }
-    await database
-      .update(bookingAccessTokens)
-      .set({ revokedAt: now, revokedReason: "expired_or_secret_rotated" })
-      .where(eq(bookingAccessTokens.id, active.id));
+
+    const id = newManageTokenId();
+    const token = buildManageToken({ id, expiresAt }, secret);
+    const rotated = await database.execute<{ id: string }>(sql`
+      with revoked as (
+        update booking_access_tokens
+        set revoked_at = ${now},
+            revoked_reason = ${active.expiresAt < expiresAt
+              ? "appointment_extended"
+              : "expired_or_secret_rotated"}
+        where id = ${active.id}::uuid
+          and revoked_at is null
+        returning id
+      )
+      insert into booking_access_tokens (
+        id, booking_id, purpose, token_digest, expires_at
+      )
+      select ${id}::uuid, ${bookingId}::uuid, 'manage_booking',
+             ${digestManageToken(token)}, ${expiresAt}
+      where exists (select 1 from revoked)
+      returning id
+    `);
+    if (rotated.rows[0]) {
+      return { id, token, expiresAt, rotated: true };
+    }
   }
 
   const id = newManageTokenId();
@@ -375,11 +403,15 @@ async function ensureManageAccess(
       tokenDigest: digestManageToken(token),
       expiresAt,
     });
-    return id;
+    return { id, token, expiresAt, rotated: Boolean(active) };
   } catch (error) {
     // A simultaneous replay may have won the single-active-token constraint.
     const [winner] = await database
-      .select({ id: bookingAccessTokens.id })
+      .select({
+        id: bookingAccessTokens.id,
+        tokenDigest: bookingAccessTokens.tokenDigest,
+        expiresAt: bookingAccessTokens.expiresAt,
+      })
       .from(bookingAccessTokens)
       .where(
         and(
@@ -391,7 +423,17 @@ async function ensureManageAccess(
       )
       .limit(1);
     if (winner) {
-      return winner.id;
+      const winnerToken = buildManageToken(
+        { id: winner.id, expiresAt: winner.expiresAt },
+        secret,
+      );
+      if (digestManageToken(winnerToken) !== winner.tokenDigest) throw error;
+      return {
+        id: winner.id,
+        token: winnerToken,
+        expiresAt: winner.expiresAt,
+        rotated: Boolean(active),
+      };
     }
     throw error;
   }
@@ -491,5 +533,5 @@ export const databaseFulfillmentStore: FulfillmentStore = {
   async failEvent(eventId, failureCode, bookingId) {
     await markWebhookReceipt(eventId, "failed", { bookingId, failureCode });
   },
-  ensureManageAccess,
+  ensureManageAccess: ensureManageAccessForBooking,
 };

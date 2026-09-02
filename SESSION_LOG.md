@@ -52,27 +52,59 @@ unchanged.
 
 Preview testing exposed a cookie-delivery defect: two same-name path-scoped
 cookies collapsed to the API-scoped cookie, so `/manage` could not authenticate.
-This change replaces them with one secure HttpOnly cookie at `Path=/`; the full
-verification/build and the real Preview browser flow pass.
+Pull request #27 is merged as `949a0a0`; it replaces them with one secure
+HttpOnly cookie at `Path=/`. Main CI, Production deployment, and the real
+Preview browser flow pass while all Production portal flags remain disabled.
+
+Part 6 is implemented on `juliustanch/booking-portal-email` behind
+`TRANSACTIONAL_EMAIL_ENABLED=1`. Durable customer/operations booking and
+reschedule messages, provider/database idempotency, Preview recipient override,
+and later-appointment manage-link renewal pass the full local verification and
+build. A free Preview-only Resend resource exists in Tokyo. Migration `0003`
+is applied to Preview Neon and branch-scoped email variables are configured on
+`juliustanch/e2e`. Cloudflare sender DNS, deployment, real inbox delivery, and
+replay testing are still pending; Production has no Resend resource or email
+flag.
 
 ## Next up
 
-1. Build Part 6 customer/operations confirmation and reschedule email, including
-   manage-link renewal for appointments moved beyond the original link expiry.
-2. Confirm malware scanning, retention, deletion, and data-residency policy.
-3. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon;
+1. Add the exact Resend DKIM/SPF/sending-subdomain records in Cloudflare and
+   verify `fomo.energy`.
+2. Deploy `juliustanch/e2e` and verify booking/reschedule delivery plus replay
+   idempotency in the approved Gmail and maintenance inboxes.
+3. Confirm malware scanning, retention, deletion, and data-residency policy.
+4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon;
    keep customer rescheduling disabled outside supervised tests until Part 6 is
    complete.
-4. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
+5. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
    retention/deletion jobs, and Graph/database reconciliation tooling.
-5. Provision a distinct Production database, Blob store, mail configuration,
+6. Provision a distinct Production database, Blob store, mail configuration,
    and dedicated Microsoft production calendar only after approval and complete
    a controlled rollout without reusing Preview secrets.
-6. Decide whether customer receipts remain Stripe receipts or whether the paid
+7. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create formal invoices through Xero; first confirm
    the target organisation, GST details, existing Stripe feed, and OAuth storage.
 
 ## Session entries
+
+### 2026-09-03
+
+- Confirmed Cloudflare is authoritative for `fomo.energy`; no DNS changes have
+  yet been submitted because the owner must complete the Cloudflare sign-in.
+- Accepted the owner-completed Resend Marketplace terms and provisioned the
+  free `fomo-maintenance-preview-email` resource for Vercel Preview only in
+  Tokyo. Production received no resource or email key.
+- Implemented customer and operations booking confirmations plus reschedule
+  messages with Singapore times, payment breakdown, reference, address, and a
+  customer-only private manage/upload link.
+- Added durable per-message audit/idempotency state and a Preview-only customer
+  recipient override that fails closed in Production. Rendered bodies and raw
+  manage credentials are not stored.
+- Added later-appointment manage-link renewal and replacement of the requesting
+  browser's secure cookie before reschedule notification.
+- Transactional email, schema, portal, pricing, slots, calendar, documents,
+  rescheduling, TypeScript, and production-build checks pass locally. Preview
+  migration, DNS, deployment, delivery and replay tests remain.
 
 ### 2026-09-02
 

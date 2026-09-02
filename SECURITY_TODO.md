@@ -4,6 +4,31 @@ Status: Current
 
 ## Critical / High Priority
 
+### Protect transactional booking email and manage credentials
+
+**Status:** In progress; database/provider idempotency, Preview recipient
+override, HTML escaping, and customer-only manage-link delivery are implemented.
+Sender DNS and real inbox verification are pending; Production is disabled.
+
+**Why it matters:** Confirmation messages contain customer contact, address,
+appointment and payment-summary data. The customer message also carries a
+bearer-style manage credential that grants private booking and document access.
+
+**Required end state:**
+
+1. Verify the FOMO sending domain and use a least-privilege Preview Resend key;
+   provision a distinct Production resource/key before rollout.
+2. Keep the customer credential out of operations email, database email rows,
+   provider tags, application logs, and error messages.
+3. Confirm the Preview-only customer-recipient override cannot operate in
+   Production and remove it from Production configuration.
+4. Add delivery-event verification for delivered, bounced, complained, and
+   suppressed messages plus staff recovery for failed/uncertain deliveries.
+5. Decide approved email-data residency and retention before Production; the
+   initial Preview sender runs in Tokyo.
+6. Add rate limits and staff-only credential revocation/reissue before broad
+   portal activation.
+
 ### Protect customer manage links as credentials
 
 **Status:** In progress; Preview credential exchange and the read-only view are
@@ -72,8 +97,9 @@ of sync.
    interrupted response without applying a second change.
 3. Before activation: add per-booking/IP rate limits and exercise concurrent
    Checkout/reschedule attempts against Preview Neon and Graph.
-4. Before activation: add customer/operations notifications and renew or reissue
-   the manage link when a later visit would outlive its current expiry.
+4. Implemented in code: customer/operations notifications and manage-link
+   renewal when a later visit would outlive its current expiry. Complete real
+   Preview delivery/replay and failed-delivery recovery checks before activation.
 5. Document and test staff reconciliation for an active request whose Graph
    outcome remains uncertain. Retain old/new times and failure state for audit.
 
