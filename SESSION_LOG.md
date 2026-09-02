@@ -42,34 +42,60 @@ third-party access costs.
 
 Pull requests #22 through #25 are merged as `9120067`, `6419bc3`, `3802119`,
 and `1ffb4a8`, completing Parts 1–5 of the phased customer Manage Booking
-portal. Durable fulfilment, secure manage access, private uploads, shared slot
-holds, and customer rescheduling are present but dormant behind disabled
-server-side flags. No Neon or Blob resource has been provisioned, no migration
-has been applied remotely, and production behavior remains unchanged.
+portal. The isolated `juliustanch/e2e` Preview now uses a Stripe sandbox,
+migrated Preview Neon database, and private Singapore-region Blob store. Its
+S$0.55 paid sandbox checkout, signed webhook and replay, durable fulfilment,
+portal, authenticated upload/download, and one supervised reschedule passed.
+Portal and uploads are enabled only on that branch; rescheduling was returned
+to disabled. Production resources, credentials, and feature flags remain
+unchanged.
+
+Preview testing exposed a cookie-delivery defect: two same-name path-scoped
+cookies collapsed to the API-scoped cookie, so `/manage` could not authenticate.
+This change replaces them with one secure HttpOnly cookie at `Path=/`; the full
+verification/build and the real Preview browser flow pass.
 
 ## Next up
 
-1. Create a long-lived `e2e` branch Preview using a Stripe sandbox, matching 9%
-   GST tax rate and webhook, separate Preview Neon/Blob resources, and a
-   dedicated Microsoft test calendar; Production secrets stay unchanged.
-2. Apply migrations to Preview, enable the portal flag, and exercise sandbox
-   payment, signed webhook replay/recovery, database state, and calendar event
-   creation. Enable uploads only after private Blob verification.
-3. Confirm malware scanning, retention, deletion, and data-residency policy.
-4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon
-   and the Microsoft test calendar; keep customer rescheduling disabled outside
-   supervised tests until Part 6 is complete.
-5. Build Part 6 customer/operations confirmation and reschedule email, including
+1. Build Part 6 customer/operations confirmation and reschedule email, including
    manage-link renewal for appointments moved beyond the original link expiry.
-6. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
+2. Confirm malware scanning, retention, deletion, and data-residency policy.
+3. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon;
+   keep customer rescheduling disabled outside supervised tests until Part 6 is
+   complete.
+4. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
    retention/deletion jobs, and Graph/database reconciliation tooling.
-7. Decide whether customer receipts remain Stripe receipts or whether the paid
+5. Provision a distinct Production database, Blob store, mail configuration,
+   and dedicated Microsoft production calendar only after approval and complete
+   a controlled rollout without reusing Preview secrets.
+6. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create formal invoices through Xero; first confirm
    the target organisation, GST details, existing Stripe feed, and OAuth storage.
 
 ## Session entries
 
 ### 2026-09-02
+
+- Provisioned a free isolated Neon Preview database and private Singapore-region
+  Vercel Blob store for `juliustanch/e2e`; applied the reviewed Drizzle
+  migrations without changing Production resources or secrets.
+- Configured a Stripe sandbox restricted key, exclusive 9% GST rate, and signed
+  webhook only for the stable `e2e` Preview alias.
+- Completed one S$0.55 paid sandbox Testing checkout. Stripe reported paid, the
+  signed webhook returned 200, and replay retained exactly one booking and one
+  Microsoft event.
+- Exchanged the manage credential, verified private booking data, uploaded a
+  benign JPEG, rejected unauthenticated download, and retrieved identical bytes
+  through the authenticated application route.
+- Found and corrected the collapsed same-name cookie issue by issuing one
+  secure HttpOnly root-path cookie; the complete test/build suite and live
+  Preview browser flow pass.
+- With explicit owner confirmation, moved the synthetic visit from 14 September
+  2026 13:00–17:00 SGT to 15 September 2026 09:00–13:00 SGT. Graph and Postgres
+  agreed, one online change was recorded, and rescheduling was disabled again.
+- Deleted the exact synthetic Microsoft calendar event after verification. The
+  Preview booking history and benign Blob fixture remain as an intentional
+  audit record; a distinct calendar is still required for Production.
 
 - Merged pull requests #24 and #25 as `3802119` and `1ffb4a8`. The feature
   flags remain off, no remote portal migration or storage provisioning occurred,
