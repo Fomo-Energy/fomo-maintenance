@@ -4,20 +4,17 @@ Status: Current
 
 ## Current state
 
-Production still runs the original Condition & Standard pricing. Branch
-`juliustanch/pricing-packages` now contains the completed Essential Health
-Check, Electrical Assurance, independent cleaning, and fixed-price monitoring
-migration. Functional QA, desktop/mobile UX review, and feature security review
-all pass. Pull request #6 is open and its GitHub verification and Vercel preview
-checks pass. The branch is not authorized for production deployment and is not
-yet merged.
+Production now runs the Essential Health Check, Electrical Assurance,
+independent cleaning, and fixed-price monitoring packages from pull request #6.
+The merge commit is `fa037f4`; main-branch CI and the Vercel production
+deployment passed. The live homepage serves the new package copy and the live
+availability API returns Microsoft Graph-backed slots.
 
 ## Next up
 
-1. Review pull request #6 and run a Stripe test-mode paid booking against the
-   preview before authorizing any production deployment.
-2. After explicit approval, merge and verify production separately.
-3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
+1. Run a controlled Stripe test-mode paid booking and confirm the package
+   breakdown, webhook retry/idempotency, and maintenance-calendar event.
+2. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
    advisories; do not combine that major upgrade with this package change.
 
 ## Session entries
@@ -43,6 +40,11 @@ yet merged.
 - Committed and pushed the migration, opened pull request #6, and confirmed the
   GitHub verification and non-production Vercel preview checks pass. No
   production deployment was performed.
+- On explicit authorization, merged pull request #6 as `fa037f4` and completed
+  the Vercel production deployment. Main-branch CI passed.
+- Confirmed the live homepage serves the Essential and Electrical Assurance
+  package copy. The production availability API returned 118 Graph-backed slots
+  with no error; no payment or calendar event was created during smoke testing.
 - Confirmed the user created `Fomo Maintenance` as a secondary calendar under
   `jtan@fomo.energy`.
 - Browser-based Graph ID retrieval was unavailable because Computer Use timed
