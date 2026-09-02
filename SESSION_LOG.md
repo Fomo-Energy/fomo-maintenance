@@ -45,7 +45,8 @@ customer Manage Booking portal. Branch
 `juliustanch/booking-portal-fulfillment` now implements Parts 2–3 behind the
 disabled `BOOKING_PORTAL_ENABLED` flag: recoverable paid-webhook fulfilment,
 persisted Graph event identity, secure manage credentials, and a private
-read-only `/manage` page. Local verification and production build pass. No Neon
+read-only `/manage` page. Pull request #23 is open; local verification, GitHub
+CI, the production build, and its automatic Vercel Preview all pass. No Neon
 resource has been provisioned, no migration has been applied remotely, and the
 current production Stripe-to-calendar behavior remains unchanged.
 
@@ -79,8 +80,11 @@ current production Stripe-to-calendar behavior remains unchanged.
   exchange for an HttpOnly cookie, plus a private read-only booking page.
 - Pricing, slot, calendar, database, portal retry/token tests and `next build`
   pass. Browser verification found content, no framework overlay, and the
-  expected disabled-portal message. Nothing was merged, deployed, paid, emailed,
-  uploaded, or written to an external database/calendar in Parts 2–3 testing.
+  expected disabled-portal message. Nothing was merged to or activated in
+  Production, paid, emailed, uploaded, or written to an external database or
+  calendar in Parts 2–3 testing.
+- Opened pull request #23 at commit `528ea3b`; GitHub CI and the automatic
+  Vercel Preview deployment passed. The pull request remains unmerged.
 
 - Planned the complete customer portal in seven independently reviewable parts:
   data foundation, paid fulfilment, secure portal, private uploads,
