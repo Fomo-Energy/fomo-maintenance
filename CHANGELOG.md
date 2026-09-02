@@ -4,6 +4,8 @@ Status: Current
 
 ## 2026-09-02
 
+- Simplified the booking payment note to say that the displayed amount includes
+  GST and that the booking is confirmed after successful payment.
 - Changed the left-side service selector to show pre-GST prices explicitly
   marked `subject to GST`; the booking summary continues to show the complete
   GST-inclusive amount.

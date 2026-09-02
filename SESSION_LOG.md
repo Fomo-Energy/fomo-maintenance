@@ -23,20 +23,26 @@ Pull request #16 was merged as `c427db0`. Production selector cards show pre-GST
 prices marked `subject to GST`, while the final booking summary and Stripe
 payment remain GST-inclusive and server-authoritative. Name, phone, email, and
 site address persist in the same browser until `Clear saved details` is used.
+Branch `juliustanch/booking-confirmation-copy` contains the requested shorter
+payment and booking-confirmation note and is pending verification and review.
 
 ## Next up
 
-1. Decide whether customer receipts remain Stripe receipts or whether the paid
+1. Verify and review the booking-confirmation copy pull request.
+2. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create and email formal invoices through Xero.
-2. Before a Xero implementation, confirm the target Xero organisation, GST
+3. Before a Xero implementation, confirm the target Xero organisation, GST
    registration details, existing Stripe feed, and durable OAuth token storage.
-3. When desired, make one S$0.55 Testing payment, validate the TESTING
+4. When desired, make one S$0.55 Testing payment, validate the TESTING
    calendar event and webhook metadata, then delete the event.
 
 ## Session entries
 
 ### 2026-09-02
 
+- Started `juliustanch/booking-confirmation-copy` to replace the long payment
+  note with the requested concise GST and post-payment confirmation message;
+  corrected the supplied `You booking` typo to `Your booking`.
 - Started `juliustanch/pre-gst-left-and-saved-details` after confirming the
   controlled form always initialized empty and relied only on browser
   autocomplete; no application-level cache previously existed.
