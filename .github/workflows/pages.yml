@@ -32,6 +32,8 @@ jobs:
         run: npm run verify:slots
       - name: Verify maintenance calendar selection
         run: npm run verify:calendar
+      - name: Verify saved booking details
+        run: npm run verify:booking-details
       - name: Build
         run: npm run build
 

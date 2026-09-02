@@ -11,6 +11,7 @@ Status: Current
 | Booking slots | `lib/slots.ts` | Asia/Singapore weekday candidates; two four-hour windows per day |
 | Payments | Stripe Checkout and `app/api/stripe/webhook/route.ts` | Stripe metadata carries the booking record; signed webhook is the booking trigger |
 | Calendar integration | `lib/microsoft.ts` | Microsoft Graph application authentication, conflict checks, and event creation |
+| Booking-detail cache | Browser `localStorage` via `lib/booking-details.ts` | Restores contact/site fields on the same browser; never treated as server data |
 
 ## Pricing and package model
 
@@ -79,6 +80,13 @@ secret. No application database exists: Stripe is the payment/booking record,
 and Microsoft Calendar is the visit schedule. This is not sufficient for
 durable customer/site eligibility state. Secrets belong only in Vercel or
 `.env.local` and must not be committed.
+
+The booking form stores name, phone, email, and site address in browser
+`localStorage` so repeat visitors can restore them. Values are bounded to the
+same maximum lengths as the form, malformed storage is ignored, and the user
+can clear the cache from the form. Service configuration and visit slots are
+not cached. This device-local convenience cache is not an application database
+and is never used as an authority for pricing, eligibility, or fulfillment.
 
 ## Deployment
 

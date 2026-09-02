@@ -7,10 +7,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar",
+    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:booking-details",
     "verify:pricing": "tsx scripts/verify-pricing.ts",
     "verify:slots": "tsx scripts/verify-slots.ts",
-    "verify:calendar": "tsx scripts/verify-calendar.ts"
+    "verify:calendar": "tsx scripts/verify-calendar.ts",
+    "verify:booking-details": "tsx scripts/verify-booking-details.ts"
   },
   "engines": {
     "node": ">=20"

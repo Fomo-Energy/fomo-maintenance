@@ -61,6 +61,9 @@ separate approved collection process.
 
 ## Troubleshooting
 
+- Saved contact details are wrong or should be removed: use **Clear saved
+  details** below the contact fields. This deletes
+  `fomo-maintenance.booking-details.v1` from that browser's `localStorage`.
 - `Microsoft calendar "Fomo Maintenance" was not found`: confirm the calendar
   belongs to the configured mailbox and that the name matches exactly, or set
   `MICROSOFT_MAINTENANCE_CALENDAR_ID`.
