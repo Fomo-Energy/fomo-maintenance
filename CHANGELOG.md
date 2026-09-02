@@ -4,9 +4,14 @@ Status: Current
 
 ## 2026-09-02
 
+- Changed the left-side service selector to show pre-GST prices explicitly
+  marked `subject to GST`; the booking summary continues to show the complete
+  GST-inclusive amount.
+- Added versioned browser-local persistence for name, phone, email, and site
+  address, plus a control for clearing the saved details.
 - Added 9% GST to every purchasable line item. Public prices now show
-  GST-inclusive totals; a S$199 Essential subtotal shows S$17.91 GST and a
-  S$216.91 final price.
+  the complete GST breakdown; a S$199 Essential subtotal shows S$17.91 GST and
+  a S$216.91 final price.
 - Added fail-closed verification of Stripe Checkout subtotal, 9% tax, and final
   total against the server quote.
 - Preserved the restricted Stripe key's least-privilege permissions by applying

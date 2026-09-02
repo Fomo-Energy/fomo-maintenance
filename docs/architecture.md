@@ -29,10 +29,12 @@ crafted requests that attempt to enable it.
 
 Maintenance line items are rounded to whole SGD before summation; Testing is the
 only S$0.50 pre-GST exception. Nine percent GST is then rounded to cents per
-taxable line item. The browser uses the shared quote function to display the
-pre-GST subtotal, GST, and GST-inclusive total, but `/api/checkout` parses the
-selection and recomputes every price, tax amount, service code, scope, and
-Stripe line item. Browser totals and breakdowns are not trusted.
+taxable line item. The left-side selector displays the current pre-GST price
+with `subject to GST`; the booking summary displays the pre-GST subtotal, GST,
+and GST-inclusive total. The browser uses the shared quote function for both,
+but `/api/checkout` parses the selection and recomputes every price, tax amount,
+service code, scope, and Stripe line item. Browser totals and breakdowns are
+not trusted.
 
 Checkout applies one configured manual, exclusive 9% Stripe Tax Rate to every
 pre-GST line item. The restricted Stripe key does not require Tax Rates Read:
@@ -88,8 +90,11 @@ Microsoft Graph uses OAuth client credentials and the application permission
 the ID of a manually configured exclusive 9% GST tax rate. No application
 database exists: Stripe is the payment/booking record, and Microsoft Calendar
 is the visit schedule. This is not sufficient for durable customer/site
-eligibility state. Secrets and environment-specific resource IDs belong only in
-Vercel or `.env.local` and must not be committed.
+eligibility state. Name, phone, email, and site address are cached only in
+versioned `localStorage` in the customer's browser, with a form control to clear
+them; that cache is not an authoritative customer record. Secrets and
+environment-specific resource IDs belong only in Vercel or `.env.local` and
+must not be committed.
 
 ## Deployment
 

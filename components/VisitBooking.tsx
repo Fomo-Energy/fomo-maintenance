@@ -38,6 +38,36 @@ const EMPTY_FIELDS: FieldState = {
   address: "",
 };
 
+const SAVED_DETAILS_STORAGE_KEY = "fomo-maintenance:booking-details:v1";
+
+function parseSavedFields(value: string | null): FieldState | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<
+      Record<keyof FieldState, unknown>
+    >;
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+
+    const name =
+      typeof parsed.name === "string" ? parsed.name.slice(0, 120) : "";
+    const phone =
+      typeof parsed.phone === "string" ? parsed.phone.slice(0, 32) : "";
+    const email =
+      typeof parsed.email === "string" ? parsed.email.slice(0, 254) : "";
+    const address =
+      typeof parsed.address === "string" ? parsed.address.slice(0, 500) : "";
+
+    return { name, phone, email, address };
+  } catch {
+    return null;
+  }
+}
+
 export function VisitBooking({
   kwp,
   installer,
@@ -47,6 +77,7 @@ export function VisitBooking({
   totalSgd,
 }: VisitBookingProps) {
   const [fields, setFields] = useState<FieldState>(EMPTY_FIELDS);
+  const [savedDetailsReady, setSavedDetailsReady] = useState(false);
   const [slots, setSlots] = useState<VisitSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -96,6 +127,43 @@ export function VisitBooking({
     void loadSlots();
   }, [loadSlots]);
 
+  useEffect(() => {
+    try {
+      const saved = parseSavedFields(
+        window.localStorage.getItem(SAVED_DETAILS_STORAGE_KEY),
+      );
+      if (saved) {
+        setFields(saved);
+      }
+    } catch {
+      // The booking form remains usable when browser storage is unavailable.
+    } finally {
+      setSavedDetailsReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!savedDetailsReady) {
+      return;
+    }
+
+    try {
+      const hasSavedValue = Object.values(fields).some(
+        (value) => value.trim().length > 0,
+      );
+      if (hasSavedValue) {
+        window.localStorage.setItem(
+          SAVED_DETAILS_STORAGE_KEY,
+          JSON.stringify(fields),
+        );
+      } else {
+        window.localStorage.removeItem(SAVED_DETAILS_STORAGE_KEY);
+      }
+    } catch {
+      // The booking form remains usable when browser storage is unavailable.
+    }
+  }, [fields, savedDetailsReady]);
+
   const daySlots = useMemo(
     () =>
       selectedDateKey
@@ -126,6 +194,10 @@ export function VisitBooking({
 
   function update<K extends keyof FieldState>(key: K, value: string) {
     setFields((current) => ({ ...current, [key]: value }));
+  }
+
+  function clearSavedDetails() {
+    setFields(EMPTY_FIELDS);
   }
 
   async function pay(event: FormEvent<HTMLFormElement>) {
@@ -190,6 +262,17 @@ export function VisitBooking({
           ? "Add sample contact and site details, then choose a slot to test Stripe and the calendar integration. No service is offered."
           : "Add your contact and site details, then choose a four-hour weekday visit. Paying books the package at the final price above."}
       </p>
+
+      <div className="mt-3 flex items-center justify-between gap-4 text-xs text-slate-500">
+        <span>Your contact and site details are saved on this browser.</span>
+        <button
+          type="button"
+          className="shrink-0 font-semibold text-ink underline underline-offset-2"
+          onClick={clearSavedDetails}
+        >
+          Clear saved details
+        </button>
+      </div>
 
       <div className="mt-5 grid gap-3">
         <label className="text-sm font-semibold">

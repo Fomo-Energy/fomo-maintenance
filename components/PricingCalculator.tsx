@@ -11,18 +11,13 @@ import {
   essentialPriceSgd,
   formatSgd,
   quote,
-  totalIncludingGstSgd,
   type InstallerId,
   type ServiceLevel,
 } from "@/lib/pricing";
 
 const DEFAULT_KWP = 10;
-const ESSENTIAL_MINIMUM_FINAL_PRICE = totalIncludingGstSgd([
-  essentialPriceSgd(0),
-]);
-const CLEANING_MINIMUM_FINAL_PRICE = totalIncludingGstSgd([
-  cleaningPriceSgd(0),
-]);
+const ESSENTIAL_MINIMUM_PRICE = essentialPriceSgd(0);
+const CLEANING_MINIMUM_PRICE = cleaningPriceSgd(0);
 
 export function PricingCalculator() {
   const [kwpInput, setKwpInput] = useState(String(DEFAULT_KWP));
@@ -37,13 +32,7 @@ export function PricingCalculator() {
   const essentialPrice = essentialPriceSgd(kwp);
   const electricalUpgradePrice = electricalUpgradePriceSgd(kwp);
   const cleaningPrice = cleaningPriceSgd(kwp);
-  const essentialFinalPrice = totalIncludingGstSgd([essentialPrice]);
-  const electricalPackageFinalPrice = totalIncludingGstSgd([
-    essentialPrice,
-    electricalUpgradePrice,
-  ]);
-  const cleaningFinalPrice = totalIncludingGstSgd([cleaningPrice]);
-  const testingFinalPrice = totalIncludingGstSgd([TESTING_SGD]);
+  const electricalPackagePrice = essentialPrice + electricalUpgradePrice;
   const result = useMemo(
     () =>
       quote({
@@ -60,7 +49,7 @@ export function PricingCalculator() {
     <section id="pricing" className="scroll-mt-24 bg-ink text-white">
       <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-brand">
-          Singapore · annual · SGD · prices include 9% GST
+          Singapore · annual · SGD · prices subject to 9% GST
         </p>
         <h1 className="mt-4 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
           Solar maintenance priced around what you actually need.
@@ -160,11 +149,12 @@ export function PricingCalculator() {
                     />
                     <span>
                       <span className="block font-bold">
-                        Essential Health Check · {formatSgd(essentialFinalPrice)}
+                        Essential Health Check · {formatSgd(essentialPrice)}{" "}
+                        (subject to GST)
                       </span>
                       <span className="text-brand-on-light mt-1 block text-xs font-semibold">
-                        From {formatSgd(ESSENTIAL_MINIMUM_FINAL_PRICE)} incl. GST
-                        · No roof access required
+                        From {formatSgd(ESSENTIAL_MINIMUM_PRICE)} before GST · No
+                        roof access required
                       </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
                         Inverter area condition — physical integrity, switching
@@ -198,7 +188,7 @@ export function PricingCalculator() {
                     <span>
                       <span className="block font-bold">
                         Electrical Assurance ·{" "}
-                        {formatSgd(electricalPackageFinalPrice)}
+                        {formatSgd(electricalPackagePrice)} (subject to GST)
                       </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
                         Everything in Essential, plus deeper DC-side safety and
@@ -223,15 +213,16 @@ export function PricingCalculator() {
                 />
                 <span>
                   <span className="font-semibold">
-                    Full panel cleaning · {formatSgd(cleaningFinalPrice)}
+                    Full panel cleaning · {formatSgd(cleaningPrice)} (subject
+                    to GST)
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    From {formatSgd(CLEANING_MINIMUM_FINAL_PRICE)} including GST.
-                    The pre-GST price is S$450 up to 10 kWp, then S$6 for each
+                    From {formatSgd(CLEANING_MINIMUM_PRICE)} before GST. The
+                    pre-GST price is S$450 up to 10 kWp, then S$6 for each
                     additional kWp. Cleaning is performed only after safe roof
                     access has been confirmed. Checkout collects the cleaning
-                    charge; if access cannot be confirmed, the team will contact
-                    you to resolve that charge.
+                    charge; if access cannot be confirmed, the team will
+                    contact you to resolve that charge.
                   </span>
                 </span>
               </label>
@@ -251,7 +242,7 @@ export function PricingCalculator() {
                 />
                 <span>
                   <span className="font-semibold">
-                    Testing · {formatSgd(testingFinalPrice)} incl. GST
+                    Testing · {formatSgd(TESTING_SGD)} (subject to GST)
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
                     for testing purposes, no service offered

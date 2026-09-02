@@ -51,9 +51,10 @@ Electrical Assurance includes Essential plus deeper DC-side safety and
 performance testing with professional solar testing equipment. Cleaning is an
 independent add-on and is performed only after FOMO confirms safe roof access.
 
-All public prices and final checkout totals include 9% GST. For example, a
-10 kWp Essential Health Check is S$199.00 before GST, S$17.91 GST, and S$216.91
-in total.
+The left-side package selector shows pre-GST prices marked `subject to GST`.
+The booking summary shows the pre-GST subtotal, 9% GST, and final amount. For
+example, a 10 kWp Essential Health Check is S$199.00 before GST, S$17.91 GST,
+and S$216.91 in total.
 
 ## Booking and payment
 
@@ -65,6 +66,11 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
 4. Pay → Stripe Checkout (hosted, pre-GST SGD line items plus 9% GST)
 5. Return URLs on this site: `/book/success?session_id=…` and `/book/cancel`
+
+Contact and site details are saved in versioned browser-local storage as they
+are entered and restored on the next visit in the same browser. The form
+provides a `Clear saved details` control. These saved details are not sent to
+the server until the customer starts Checkout.
 
 ### API routes
 
