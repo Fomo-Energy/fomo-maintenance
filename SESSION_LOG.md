@@ -11,11 +11,11 @@ and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
 live copy/API checks, and Microsoft Graph-backed availability all pass.
 
-Branch `juliustanch/gst-pricing` is in progress and production is unchanged. It
-treats package formulas as pre-GST, prominently displays 9% GST-inclusive
-prices, and prepares Stripe Checkout to validate and apply an exclusive 9% GST
-tax rate. Production deployment remains blocked until the live-mode
-`STRIPE_GST_TAX_RATE_ID` is configured.
+Pull request #13 from `juliustanch/gst-pricing` is open, green, and production
+is unchanged. It treats package formulas as pre-GST, prominently displays 9%
+GST-inclusive prices, and prepares Stripe Checkout to validate and apply an
+exclusive 9% GST tax rate. Production deployment remains blocked until the
+live-mode `STRIPE_GST_TAX_RATE_ID` is configured.
 
 ## Next up
 
@@ -39,6 +39,10 @@ tax rate. Production deployment remains blocked until the live-mode
 - Added server-side tax-rate validation and Checkout subtotal/tax/total checks;
   the change will not be merged or deployed before the Stripe test/live tax-rate
   IDs are configured and the flow is verified.
+- Committed the GST change as `bb007ca` and opened pull request #13. Local
+  verification/build, GitHub CI, and the Vercel preview pass; the preview shows
+  the expected S$199.00 subtotal, S$17.91 GST, and S$216.91 final Essential
+  price. Production remains unchanged.
 - Started and verified branch `juliustanch/essential-scope-copy` for three
   requested calculator changes: approved Essential scope wording, removal of
   customer-facing onboarding notices, and removal of Continuous monitoring.
