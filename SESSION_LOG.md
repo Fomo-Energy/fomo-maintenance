@@ -19,19 +19,18 @@ configured rate without broader tax-rate read permission. Production Checkout
 was verified without payment: a 10 kWp Essential booking shows S$199.00
 subtotal, S$17.91 GST, and S$216.91 total.
 
-Branch `juliustanch/pre-gst-left-and-saved-details` changes the selector cards
-to pre-GST prices marked `subject to GST` and adds browser-local persistence for
-the four contact/site fields. The final booking summary and Stripe payment
-remain GST-inclusive and server-authoritative.
+Pull request #16 was merged as `c427db0`. Production selector cards show pre-GST
+prices marked `subject to GST`, while the final booking summary and Stripe
+payment remain GST-inclusive and server-authoritative. Name, phone, email, and
+site address persist in the same browser until `Clear saved details` is used.
 
 ## Next up
 
-1. Verify, merge, and deploy the selector-price and saved-details change.
-2. Decide whether customer receipts remain Stripe receipts or whether the paid
+1. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create and email formal invoices through Xero.
-3. Before a Xero implementation, confirm the target Xero organisation, GST
+2. Before a Xero implementation, confirm the target Xero organisation, GST
    registration details, existing Stripe feed, and durable OAuth token storage.
-4. When desired, make one S$0.55 Testing payment, validate the TESTING
+3. When desired, make one S$0.55 Testing payment, validate the TESTING
    calendar event and webhook metadata, then delete the event.
 
 ## Session entries
@@ -49,6 +48,10 @@ remain GST-inclusive and server-authoritative.
 - Pricing, slot, calendar, production-build, and browser checks pass. Browser
   verification confirmed saved details survive reload, the clear action
   persists, and the page has no framework error overlay.
+- Merged pull request #16 as `c427db0`; main CI and Vercel production passed.
+  Live browser verification confirmed the pre-GST selector copy, S$216.91 final
+  Essential total, contact/site restoration after reload, and persistent clear
+  behavior. No Checkout session, payment, or calendar event was created.
 - Started branch `juliustanch/gst-pricing` to add 9% GST without changing the
   approved pre-GST package formulas. The reference Essential quote is S$199.00
   subtotal, S$17.91 GST, and S$216.91 total.
