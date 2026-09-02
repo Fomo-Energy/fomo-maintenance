@@ -11,12 +11,12 @@ deployment passed. The live homepage serves the new package copy and the live
 availability API returns Microsoft Graph-backed slots.
 
 Branch `juliustanch/testing-service` adds the requested S$0.50 live Testing
-checkout. Production does not include this option yet.
+checkout. Pull request #8 is open; GitHub verification and the Vercel preview
+pass. Production does not include this option yet.
 
 ## Next up
 
-1. Verify the Testing checkout, commit it, and open a pull request without
-   deploying until explicitly approved.
+1. Review pull request #8 without deploying until explicitly approved.
 2. After deployment approval, make one S$0.50 payment, validate the TESTING
    calendar event and webhook metadata, then delete the event.
 3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
@@ -34,6 +34,9 @@ checkout. Production does not include this option yet.
   entitlement.
 - Pricing, slot, calendar, production-build, rendered-copy, and diff checks pass
   for the Testing checkout branch.
+- Committed the Testing checkout and opened pull request #8. GitHub verification
+  and the Vercel preview pass, and the preview renders `Testing · S$0.50` with
+  the requested no-service description.
 
 ### 2026-09-01
 
