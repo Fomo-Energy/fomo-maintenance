@@ -60,6 +60,11 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
 7. Stripe line items add up to the server-computed pre-GST subtotal; Stripe's
    tax and final total match the server quote; metadata carries the expected
    service code, GST breakdown, and scope.
+8. The left selector labels S$199 as subject to GST while the right summary
+   displays S$199.00 subtotal, S$17.91 GST, and S$216.91 total.
+9. Enter sample contact/site details, reload the page, and confirm the same
+   browser restores them. Use `Clear saved details`, reload again, and confirm
+   the fields remain empty.
 
 ## Live Testing checkout
 
