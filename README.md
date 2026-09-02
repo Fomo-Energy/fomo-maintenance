@@ -45,11 +45,15 @@ npm run verify
 Essential includes checking the inverter area's physical integrity, switching
 and safety mechanisms; electrical checks in the inverter and DB areas; a
 remote pre-check when available; and report generation. It requires no roof
-access and excludes panel cleaning, deeper DC testing, repairs, and parts.
+access, is recommended annually, and excludes panel cleaning, deeper DC
+testing, repairs, and parts.
 
-Electrical Assurance includes Essential plus deeper DC-side safety and
-performance testing with professional solar testing equipment. Cleaning is an
-independent add-on and is performed only after FOMO confirms safe roof access.
+Electrical Assurance is recommended once every two years and includes
+Essential plus thorough DC-side safety and performance testing with
+professional solar testing equipment. It helps identify deteriorated cabling
+and insulation that may lead to DC-related electrical faults and fires. Neither
+service level requires roof access. Cleaning is an independent add-on and is
+performed only after FOMO confirms safe roof access.
 
 The left-side package selector shows pre-GST prices marked `subject to GST`.
 The booking summary shows the pre-GST subtotal, 9% GST, and final amount. For

@@ -16,8 +16,6 @@ import {
 } from "@/lib/pricing";
 
 const DEFAULT_KWP = 10;
-const ESSENTIAL_MINIMUM_PRICE = essentialPriceSgd(0);
-const CLEANING_MINIMUM_PRICE = cleaningPriceSgd(0);
 
 export function PricingCalculator() {
   const [kwpInput, setKwpInput] = useState(String(DEFAULT_KWP));
@@ -129,6 +127,9 @@ export function PricingCalculator() {
               <>
             <fieldset className="mt-6">
               <legend className="text-sm font-semibold">Service level</legend>
+              <p className="text-brand-on-light mt-2 text-xs font-semibold">
+                No roof access required for either service level.
+              </p>
               <div className="mt-3 grid gap-3">
                 <label
                   className={`cursor-pointer rounded-2xl border p-4 ${
@@ -153,8 +154,7 @@ export function PricingCalculator() {
                         (subject to GST)
                       </span>
                       <span className="text-brand-on-light mt-1 block text-xs font-semibold">
-                        From {formatSgd(ESSENTIAL_MINIMUM_PRICE)} before GST · No
-                        roof access required
+                        Recommended annually.
                       </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
                         Inverter area condition — physical integrity, switching
@@ -190,10 +190,15 @@ export function PricingCalculator() {
                         Electrical Assurance ·{" "}
                         {formatSgd(electricalPackagePrice)} (subject to GST)
                       </span>
+                      <span className="text-brand-on-light mt-1 block text-xs font-semibold">
+                        Recommended once every 2 years.
+                      </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
-                        Everything in Essential, plus deeper DC-side safety and
-                        performance testing using professional solar testing
-                        equipment.
+                        Everything in Essential, plus a thorough DC-side safety
+                        and performance testing using professional solar testing
+                        equipment. This helps to identify deteriorated cabling
+                        and insulation which may lead to DC related electrical
+                        faults and fires.
                       </span>
                     </span>
                   </span>
@@ -217,11 +222,8 @@ export function PricingCalculator() {
                     to GST)
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    From {formatSgd(CLEANING_MINIMUM_PRICE)} before GST. The
-                    pre-GST price is S$450 up to 10 kWp, then S$6 for each
-                    additional kWp. Cleaning is performed only after safe roof
-                    access has been confirmed. Checkout collects the cleaning
-                    charge; if access cannot be confirmed, the team will
+                    Cleaning is performed only after safe roof access has been
+                    confirmed. If access cannot be confirmed, the team will
                     contact you to resolve that charge.
                   </span>
                 </span>
