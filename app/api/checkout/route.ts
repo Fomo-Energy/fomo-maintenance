@@ -14,7 +14,7 @@ import { listBusyPeriods } from "@/lib/microsoft";
 import {
   getStripe,
   publicSiteUrl,
-  validatedStripeGstTaxRate,
+  stripeGstTaxRateId,
 } from "@/lib/stripe";
 import { findCandidateSlot, slotIsFree } from "@/lib/slots";
 
@@ -96,10 +96,10 @@ export async function POST(request: Request) {
     : `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
   try {
     const stripe = getStripe();
-    const gstTaxRate = await validatedStripeGstTaxRate();
+    const gstTaxRateId = stripeGstTaxRateId();
     const lineItems = priceLineItems(quoted).map((item) => ({
       quantity: 1,
-      tax_rates: [gstTaxRate.id],
+      tax_rates: [gstTaxRateId],
       price_data: {
         currency: "sgd" as const,
         unit_amount: sgdToCents(item.amountSgd),

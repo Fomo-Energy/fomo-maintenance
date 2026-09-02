@@ -35,10 +35,11 @@ selection and recomputes every price, tax amount, service code, scope, and
 Stripe line item. Browser totals and breakdowns are not trusted.
 
 Checkout applies one configured manual, exclusive 9% Stripe Tax Rate to every
-pre-GST line item. The server first retrieves and validates that the rate is
-active, exclusive, and exactly 9%. After creating the Checkout Session, it also
-compares Stripe's returned subtotal, tax, and total against the server quote;
-a mismatch expires the session and fails checkout closed.
+pre-GST line item. The restricted Stripe key does not require Tax Rates Read:
+the configured resource ID is used directly. After creating the Checkout
+Session, the server compares Stripe's returned subtotal, tax, and total against
+the server quote; a wrong or inactive rate either fails Stripe creation or
+produces a mismatch that expires the session and fails checkout closed.
 
 Stripe metadata is versioned (`packages-v3-gst`) and carries bounded package,
 pre-GST subtotal, GST, final amount, breakdown, scope, and manual-confirmation
