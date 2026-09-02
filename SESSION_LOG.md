@@ -10,14 +10,33 @@ The merge commit is `fa037f4`; main-branch CI and the Vercel production
 deployment passed. The live homepage serves the new package copy and the live
 availability API returns Microsoft Graph-backed slots.
 
+Branch `juliustanch/testing-service` adds the requested S$0.50 live Testing
+checkout. Pull request #8 is open; GitHub verification and the Vercel preview
+pass. Production does not include this option yet.
+
 ## Next up
 
-1. Run a controlled Stripe test-mode paid booking and confirm the package
-   breakdown, webhook retry/idempotency, and maintenance-calendar event.
-2. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
+1. Review pull request #8 without deploying until explicitly approved.
+2. After deployment approval, make one S$0.50 payment, validate the TESTING
+   calendar event and webhook metadata, then delete the event.
+3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
    advisories; do not combine that major upgrade with this package change.
 
 ## Session entries
+
+### 2026-09-02
+
+- Started branch `juliustanch/testing-service` for a distinct S$0.50 live
+  Testing checkout with the exact public description
+  `for testing purposes, no service offered`.
+- Kept Testing out of the kWp formula, made it mutually exclusive with service
+  add-ons, and marked Stripe/calendar records as `TESTING` with no fulfillment
+  entitlement.
+- Pricing, slot, calendar, production-build, rendered-copy, and diff checks pass
+  for the Testing checkout branch.
+- Committed the Testing checkout and opened pull request #8. GitHub verification
+  and the Vercel preview pass, and the preview renders `Testing · S$0.50` with
+  the requested no-service description.
 
 ### 2026-09-01
 

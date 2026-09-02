@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import {
   parseCheckoutRequest,
+  priceBreakdown,
   priceLineItems,
   quoteForCheckout,
+  sgdToCents,
 } from "../lib/booking";
 import {
   cleaningPriceSgd,
   electricalUpgradePriceSgd,
   essentialPriceSgd,
+  formatSgd,
   quote,
   quoteTotalSgd,
   type ServiceLevel,
@@ -79,6 +82,7 @@ for (const expected of codeCases) {
       serviceLevel: expected.serviceLevel,
       cleaning: expected.cleaning,
       monitoring: false,
+      testing: false,
     }).serviceCode,
     expected.code,
   );
@@ -90,6 +94,7 @@ const complete = quote({
   serviceLevel: "electrical_assurance",
   cleaning: true,
   monitoring: true,
+  testing: false,
 });
 assert.equal(complete.totalSgd, 1129);
 assert.equal(
@@ -104,6 +109,7 @@ const validCheckout = {
   serviceLevel: "essential",
   cleaning: false,
   monitoring: false,
+  testing: false,
   name: "Test Owner",
   phone: "+65 8123 4567",
   email: "owner@example.com",
@@ -121,6 +127,31 @@ assert.equal(
   quoteForCheckout(forgedCheckout).totalSgd,
   199,
   "Browser-supplied totals must be ignored and recomputed on the server",
+);
+const testingCheckout = parseCheckoutRequest({
+  ...validCheckout,
+  testing: true,
+  totalSgd: 0.01,
+});
+const testingQuote = quoteForCheckout(testingCheckout);
+assert.equal(testingQuote.serviceCode, "TESTING");
+assert.equal(testingQuote.packageName, "Testing");
+assert.equal(testingQuote.totalSgd, 0.5);
+assert.equal(testingQuote.servicePackageSgd, 0);
+assert.equal(formatSgd(testingQuote.totalSgd), "S$0.50");
+assert.equal(sgdToCents(testingQuote.totalSgd), 50);
+assert.equal(priceBreakdown(testingQuote), "Testing=0.50; Total=0.50");
+assert.deepEqual(priceLineItems(testingQuote), [
+  { name: "Testing — no service offered", amountSgd: 0.5 },
+]);
+assert.throws(
+  () =>
+    parseCheckoutRequest({
+      ...validCheckout,
+      testing: true,
+      cleaning: true,
+    }),
+  /Testing cannot be combined/,
 );
 assert.throws(
   () => parseCheckoutRequest({ ...validCheckout, kwp: "10junk" }),
@@ -167,6 +198,7 @@ assert.equal(
     serviceLevel: "essential",
     cleaning: false,
     monitoring: false,
+    testing: false,
   }).sellable,
   false,
 );

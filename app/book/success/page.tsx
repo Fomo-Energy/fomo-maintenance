@@ -39,6 +39,7 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
     const address = metadata.address || "—";
     const packageName = metadata.package;
     const calendarStatus = metadata.calendarStatus || "pending";
+    const testing = metadata.testing === "1";
     const slotStart = metadata.slotStart;
     const slotEnd = metadata.slotEnd;
     const amountCents =
@@ -67,7 +68,9 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
       <ConfirmShell
         title={
           calendarStatus === "created" || calendarStatus === "exists"
-            ? "Payment received — visit scheduled"
+            ? testing
+              ? "Test payment received — calendar event created"
+              : "Payment received — visit scheduled"
             : calendarStatus === "failed"
               ? "Payment received — scheduling needs attention"
               : "Payment received — scheduling in progress"
@@ -76,7 +79,14 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
         <CalendarStatusNotice
           calendarStatus={calendarStatus}
           sessionId={sessionId}
+          testing={testing}
         />
+        {testing ? (
+          <p className="mt-4 rounded-xl border border-orange-200 bg-white px-4 py-3 text-left text-sm font-semibold text-ink">
+            For testing purposes, no service is offered. Delete the TESTING
+            event from the operations calendar after validation.
+          </p>
+        ) : null}
         <dl className="mt-8 space-y-4 text-left text-sm">
           {packageName ? (
             <div>
@@ -169,15 +179,18 @@ function ConfirmShell({
 function CalendarStatusNotice({
   calendarStatus,
   sessionId,
+  testing,
 }: {
   calendarStatus: string;
   sessionId: string;
+  testing: boolean;
 }) {
   if (calendarStatus === "created" || calendarStatus === "exists") {
     return (
       <p className="rounded-xl bg-white px-4 py-3 text-left" role="status">
-        Payment is confirmed and the visit is on the operations calendar. Keep
-        the details below.
+        {testing
+          ? "Payment is confirmed and the TESTING event is on the operations calendar."
+          : "Payment is confirmed and the visit is on the operations calendar. Keep the details below."}
       </p>
     );
   }
@@ -213,8 +226,8 @@ function CalendarStatusNotice({
   return (
     <div className="rounded-xl bg-white px-4 py-3 text-left" role="status">
       <p>
-        Payment is confirmed. Calendar confirmation has not been recorded yet;
-        it may still be processing.
+        Payment is confirmed. {testing ? "The TESTING event" : "Calendar confirmation"}{" "}
+        has not been recorded yet; it may still be processing.
       </p>
       <Link
         href={`/book/success?session_id=${encodeURIComponent(sessionId)}`}

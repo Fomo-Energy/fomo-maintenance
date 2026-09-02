@@ -11,6 +11,7 @@ export type CheckoutRequest = {
   serviceLevel: ServiceLevel;
   cleaning: boolean;
   monitoring: boolean;
+  testing: boolean;
   name: string;
   phone: string;
   email: string;
@@ -56,15 +57,20 @@ export function extrasMetadata(input: {
   serviceLevel: ServiceLevel;
   cleaning: boolean;
   monitoring: boolean;
+  testing: boolean;
 }): string {
   return [
     `serviceLevel=${input.serviceLevel}`,
     `cleaning=${input.cleaning ? "1" : "0"}`,
     `monitoring=${input.monitoring ? "1" : "0"}`,
+    `testing=${input.testing ? "1" : "0"}`,
   ].join(";");
 }
 
 export function priceBreakdown(result: QuoteResult): string {
+  if (result.testingApplied) {
+    return "Testing=0.50; Total=0.50";
+  }
   const parts = [`Essential=${result.essentialSgd}`];
   if (result.electricalUpgradeSgd) {
     parts.push(`Electrical upgrade=${result.electricalUpgradeSgd}`);
@@ -85,6 +91,14 @@ export type PriceLineItem = {
 };
 
 export function priceLineItems(result: QuoteResult): PriceLineItem[] {
+  if (result.testingApplied) {
+    return [
+      {
+        name: "Testing — no service offered",
+        amountSgd: result.testingSgd,
+      },
+    ];
+  }
   const items: PriceLineItem[] = [
     { name: "Essential Health Check", amountSgd: result.essentialSgd },
   ];
@@ -133,6 +147,7 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   const kwp = asNumber(raw.kwp);
   const cleaning = asBoolean(raw.cleaning);
   const monitoring = asBoolean(raw.monitoring);
+  const testing = asBoolean(raw.testing);
 
   if (!Number.isFinite(kwp) || kwp <= 0 || kwp > 10000) {
     throw new Error("Enter a system size in kWp.");
@@ -140,6 +155,11 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   if (monitoring && installer !== "fomo") {
     throw new Error(
       "Continuous monitoring is only available for compatible FOMO-installed systems.",
+    );
+  }
+  if (testing && (cleaning || monitoring)) {
+    throw new Error(
+      "Testing cannot be combined with cleaning or continuous monitoring.",
     );
   }
   if (name.length < 1 || name.length > 120) {
@@ -164,6 +184,7 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
     serviceLevel,
     cleaning,
     monitoring,
+    testing,
     name,
     phone,
     email,
@@ -180,6 +201,7 @@ export function quoteForCheckout(input: CheckoutRequest): QuoteResult {
     serviceLevel: input.serviceLevel,
     cleaning: input.cleaning,
     monitoring: input.monitoring,
+    testing: input.testing,
   });
 }
 

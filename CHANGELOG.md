@@ -2,6 +2,13 @@
 
 Status: Current
 
+## 2026-09-02
+
+- Added a mutually exclusive S$0.50 Testing checkout for live Stripe and
+  calendar-flow validation, explicitly carrying no service entitlement.
+- Added `TESTING` service code, server-recomputed test pricing, Stripe metadata,
+  calendar labeling, and customer/operations safeguards.
+
 ## 2026-09-01
 
 - Replaced stepped Condition & Standard pricing with Essential Health Check and

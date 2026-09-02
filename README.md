@@ -24,8 +24,9 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 
 ## Pricing checks
 
-The package pricing (SGD) lives in `lib/pricing.ts`. Each line item is rounded
-to the nearest whole dollar before totals are calculated:
+The package pricing (SGD) lives in `lib/pricing.ts`. Maintenance line items are
+rounded to the nearest whole dollar before totals are calculated; the explicit
+Testing checkout is the only S$0.50 exception:
 
 ```bash
 npm run verify
@@ -35,6 +36,7 @@ npm run verify
 - Electrical Assurance upgrade: `150 + 5 × kWp`
 - Cleaning: `max(450, 390 + 6 × kWp)`
 - Continuous monitoring: S$120/year, FOMO-installed compatible systems only
+- Testing: S$0.50 live payment and integration check; no service offered
 - Rent-to-own: do not sell; no checkout; no calendar. Point to FOMO Energy support.
 - Other-installer first-visit onboarding is not charged automatically because
   the app has no durable customer/site visit history. See the rollback register.
@@ -52,7 +54,8 @@ independent add-on and is performed only after FOMO confirms safe roof access.
 
 Payment success is the only moment a Microsoft calendar event is created. The browser never writes the calendar.
 
-1. Calculator: system kWp, installer, service level, optional cleaning and monitoring
+1. Calculator: system kWp, installer, service level, optional cleaning,
+   monitoring, or mutually exclusive Testing checkout
 2. Name, phone, email, site address
 3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
 4. Pay → Stripe Checkout (hosted, SGD cents)
@@ -69,8 +72,13 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
 Checkout metadata includes pricing version, service code, service level, kWp,
-installer, cleaning and monitoring statuses, bounded pricing breakdown and
-scope, customer/site details, slot, and amount in SGD cents.
+installer, cleaning, monitoring and Testing statuses, bounded pricing breakdown
+and scope, customer/site details, slot, and amount in SGD cents.
+
+Testing is a distinct `TESTING` package, not a kWp pricing override. It creates
+a real S$0.50 live-mode Stripe charge and a clearly marked calendar event so the
+payment-to-calendar integration can be validated. It grants no inspection,
+maintenance, cleaning, monitoring, repair, or other service entitlement.
 
 Calendar event (webhook only, written to the dedicated maintenance calendar):
 
