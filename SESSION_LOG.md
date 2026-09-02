@@ -4,23 +4,45 @@ Status: Current
 
 ## Current state
 
-Production resolves the `Fomo Maintenance` secondary calendar under
-`jtan@fomo.energy`, checks it together with the primary calendar, and writes
-paid visits only to the secondary calendar. Pull request #4 was merged and
-deployed to Vercel. Production CI passed, the live homepage returns HTTP 200,
-and `/api/availability` returns live Microsoft Graph slots.
+Production still runs the original Condition & Standard pricing. Branch
+`juliustanch/pricing-packages` now contains the completed Essential Health
+Check, Electrical Assurance, independent cleaning, and fixed-price monitoring
+migration. Functional QA, desktop/mobile UX review, and feature security review
+all pass. Pull request #6 is open and its GitHub verification and Vercel preview
+checks pass. The branch is not authorized for production deployment and is not
+yet merged.
 
 ## Next up
 
-1. Run a Stripe test-mode paid booking and confirm the event appears only in
-   `Fomo Maintenance`, then replay the webhook to check idempotency.
-2. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
-   advisories; do not combine that major upgrade with this calendar change.
+1. Review pull request #6 and run a Stripe test-mode paid booking against the
+   preview before authorizing any production deployment.
+2. After explicit approval, merge and verify production separately.
+3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
+   advisories; do not combine that major upgrade with this package change.
 
 ## Session entries
 
 ### 2026-09-01
 
+- Started branch `juliustanch/pricing-packages` for the approved package and
+  pricing migration; production remains unchanged.
+- Omitted automatic S$120 other-installer onboarding because the app has no
+  durable site/visit history and the agreed customer form cannot establish it.
+- Kept cleaning and monitoring selectable with explicit pending operational
+  confirmation; no automated property or compatibility lookup was invented.
+- Added server-authoritative package pricing, transparent Stripe line items,
+  service codes, bounded operational metadata, and legacy paid-session support.
+- Hardened checkout and fulfillment with strict input parsing, single-line
+  calendar-bound customer data, Graph transaction IDs, redacted failure logs,
+  and retryable webhook failures.
+- Added explicit payment-versus-calendar confirmation states and remediated the
+  accessibility review findings for forms, contrast, calendar controls, status
+  announcements, and RTO behavior.
+- Final `npm run verify`, `npm run build`, and `git diff --check` pass. QA, UX,
+  and feature security reviewers approved the completed migration.
+- Committed and pushed the migration, opened pull request #6, and confirmed the
+  GitHub verification and non-production Vercel preview checks pass. No
+  production deployment was performed.
 - Confirmed the user created `Fomo Maintenance` as a secondary calendar under
   `jtan@fomo.energy`.
 - Browser-based Graph ID retrieval was unavailable because Computer Use timed

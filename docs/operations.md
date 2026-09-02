@@ -31,6 +31,25 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
 3. A paid visit appears only in `Fomo Maintenance`.
 4. The Stripe Checkout Session metadata has `calendarStatus=created`.
 5. Replaying the webhook does not create a duplicate event.
+6. Stripe line items add up to the server-computed total and metadata carries
+   the expected service code, breakdown, and scope.
+
+## Manual package checks
+
+For bookings that request cleaning, confirm safe roof access before any roof
+work. The booking and calendar event mark this as pending; the application does
+not determine access eligibility. If access cannot be confirmed after payment,
+contact the customer and resolve the cleaning line item manually under the
+current operations policy.
+
+For monitoring selections, confirm equipment compatibility before activation.
+The UI restricts monitoring to FOMO-installed systems, but the application does
+not have an equipment registry. Resolve an incompatible paid selection manually
+under the current operations policy.
+
+Other-installer first-visit onboarding is not part of online checkout. Do not
+add it manually unless operations can establish that it is applicable and has a
+separate approved collection process.
 
 ## Troubleshooting
 
@@ -42,11 +61,21 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
 - Availability returns HTTP 503: inspect server logs for primary or maintenance
   `calendarView` failures and verify the Azure app permission and access policy.
 - Stripe metadata says `calendarStatus=failed`: payment succeeded but the
-  Outlook event was not created; reconcile the booking manually and investigate
-  the Graph error before retrying.
+  Outlook event was not created; Stripe will retry the signed webhook. Monitor
+  for recovery, then reconcile manually and investigate Graph if it remains
+  failed.
+- Package metadata says a cleaning or monitoring status is pending: this is the
+  expected manual verification state, not a Graph or Stripe error.
 
 ## Rollback
 
-Revert the secondary-calendar change and restore the previous default-calendar
-Graph paths, then redeploy. Existing events remain in whichever calendar they
-were created and are not moved automatically.
+To roll back this package migration, revert the pricing-package commit and
+redeploy the previously known-good release. Stripe sessions created before the
+rollback remain valid: the webhook keeps the legacy metadata fallback so paid
+bookings are not stranded. Do not partially revert only the calculator or only
+the checkout route, because browser selection, server pricing, Stripe metadata,
+and calendar rendering form one versioned flow.
+
+For a separate secondary-calendar rollback, restore the previous
+default-calendar Graph paths and redeploy. Existing events remain in whichever
+calendar they were created and are not moved automatically.

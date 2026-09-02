@@ -24,26 +24,35 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 
 ## Pricing checks
 
-The stepped annual tariff (SGD) lives in `lib/pricing.ts`. Required examples:
+The package pricing (SGD) lives in `lib/pricing.ts`. Each line item is rounded
+to the nearest whole dollar before totals are calculated:
 
 ```bash
-npm run verify:pricing
-npm run verify:slots
+npm run verify
 ```
 
-- First 10 kWp: S$40 / kWp
-- Next 30 kWp (10–40): S$20 / kWp
-- Above 40 kWp: S$5 / kWp
-- Advanced preventive: +25% of Condition & Standard
-- Monitoring: +12.5% of Condition & Standard, Fomo-installed only
+- Essential Health Check: `max(199, 149 + 5 × kWp)`
+- Electrical Assurance upgrade: `150 + 5 × kWp`
+- Cleaning: `max(450, 390 + 6 × kWp)`
+- Continuous monitoring: S$120/year, FOMO-installed compatible systems only
 - Rent-to-own: do not sell; no checkout; no calendar. Point to FOMO Energy support.
-- Other-installer: indicative until a site check; they can pay to book a site-check visit.
+- Other-installer first-visit onboarding is not charged automatically because
+  the app has no durable customer/site visit history. See the rollback register.
+
+Essential includes inverter/fault-log review, accessible electrical checks,
+generation sanity checking, a remote pre-check when available, and a digital
+report. It requires no roof access and excludes panel cleaning, deeper DC
+testing, repairs, and parts.
+
+Electrical Assurance includes Essential plus deeper DC-side safety and
+performance testing with professional solar testing equipment. Cleaning is an
+independent add-on and is performed only after FOMO confirms safe roof access.
 
 ## Booking and payment
 
 Payment success is the only moment a Microsoft calendar event is created. The browser never writes the calendar.
 
-1. Calculator on the homepage
+1. Calculator: system kWp, installer, service level, optional cleaning and monitoring
 2. Name, phone, email, site address
 3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
 4. Pay → Stripe Checkout (hosted, SGD cents)
@@ -59,16 +68,36 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
-Checkout metadata: `kwp`, `installer`, `extras`, `name`, `phone`, `email`, `address`, `slotStart`, `slotEnd`, `amount` (SGD cents).
+Checkout metadata includes pricing version, service code, service level, kWp,
+installer, cleaning and monitoring statuses, bounded pricing breakdown and
+scope, customer/site details, slot, and amount in SGD cents.
 
 Calendar event (webhook only, written to the dedicated maintenance calendar):
 
-- Subject: `Fomo Maintenance visit — {address}`
+- Subject: `{serviceCode} — {address}` for package bookings; legacy paid
+  sessions retain the previous Fomo Maintenance visit label
 - Location: site address
 - Attendees: customer email
-- Body: kWp, scope, amount paid, Stripe session id
+- Body: service package, kWp, pricing breakdown, operational scope and
+  exclusions, cleaning/monitoring confirmation statuses, customer/site details,
+  amount paid, and Stripe session id
 
-If Graph fails, the webhook retries once, logs the booking, sets Stripe session metadata `calendarStatus=failed` for ops, and still returns **200** so Stripe does not retry-storm.
+If Graph fails, the webhook retries once, records
+`calendarStatus=failed`, and returns a retryable error to Stripe. The Graph event
+uses the Checkout Session ID as its stable transaction ID, and the existing
+event lookup remains a second idempotency check against duplicate retries.
+
+### Eligibility limitations
+
+The app has no property eligibility, equipment compatibility, customer, or site
+history datastore. It therefore does not pretend to automate those decisions:
+
+- A cleaning selection is recorded as pending safe-access confirmation. No roof
+  work should proceed until operations confirms access.
+- Monitoring is selectable only for FOMO-installed systems, but equipment
+  compatibility still requires operational confirmation.
+- The S$120 other-installer first-visit onboarding charge is omitted until the
+  app can reliably distinguish first and repeat visits.
 
 ### Environment variables
 

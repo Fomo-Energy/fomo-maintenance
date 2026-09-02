@@ -2,13 +2,14 @@ import {
   quote,
   type InstallerId,
   type QuoteResult,
+  type ServiceLevel,
 } from "@/lib/pricing";
 
 export type CheckoutRequest = {
   kwp: number;
   installer: InstallerId;
-  roofAccess: boolean;
-  advancedPreventive: boolean;
+  serviceLevel: ServiceLevel;
+  cleaning: boolean;
   monitoring: boolean;
   name: string;
   phone: string;
@@ -19,10 +20,18 @@ export type CheckoutRequest = {
 };
 
 const INSTALLERS: InstallerId[] = ["fomo", "other", "rto"];
+const SERVICE_LEVELS: ServiceLevel[] = ["essential", "electrical_assurance"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function asString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function asSingleLineString(value: unknown): string {
+  return asString(value)
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function asBoolean(value: unknown): boolean {
@@ -34,21 +43,67 @@ function asNumber(value: unknown): number {
     return value;
   }
   if (typeof value === "string" && value.trim() !== "") {
-    return Number.parseFloat(value);
+    const normalized = value.trim();
+    if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) {
+      return Number.NaN;
+    }
+    return Number(normalized);
   }
   return Number.NaN;
 }
 
 export function extrasMetadata(input: {
-  advancedPreventive: boolean;
+  serviceLevel: ServiceLevel;
+  cleaning: boolean;
   monitoring: boolean;
-  roofAccess: boolean;
 }): string {
   return [
-    `advancedPreventive=${input.advancedPreventive ? "1" : "0"}`,
+    `serviceLevel=${input.serviceLevel}`,
+    `cleaning=${input.cleaning ? "1" : "0"}`,
     `monitoring=${input.monitoring ? "1" : "0"}`,
-    `roofAccess=${input.roofAccess ? "1" : "0"}`,
   ].join(";");
+}
+
+export function priceBreakdown(result: QuoteResult): string {
+  const parts = [`Essential=${result.essentialSgd}`];
+  if (result.electricalUpgradeSgd) {
+    parts.push(`Electrical upgrade=${result.electricalUpgradeSgd}`);
+  }
+  if (result.cleaningSgd) {
+    parts.push(`Cleaning=${result.cleaningSgd}`);
+  }
+  if (result.monitoringSgd) {
+    parts.push(`Monitoring=${result.monitoringSgd}`);
+  }
+  parts.push(`Total=${result.totalSgd}`);
+  return parts.join("; ");
+}
+
+export type PriceLineItem = {
+  name: string;
+  amountSgd: number;
+};
+
+export function priceLineItems(result: QuoteResult): PriceLineItem[] {
+  const items: PriceLineItem[] = [
+    { name: "Essential Health Check", amountSgd: result.essentialSgd },
+  ];
+  if (result.electricalUpgradeSgd) {
+    items.push({
+      name: "Electrical Assurance upgrade",
+      amountSgd: result.electricalUpgradeSgd,
+    });
+  }
+  if (result.cleaningSgd) {
+    items.push({ name: "Full panel cleaning", amountSgd: result.cleaningSgd });
+  }
+  if (result.monitoringSgd) {
+    items.push({
+      name: "Continuous monitoring — one year",
+      amountSgd: result.monitoringSgd,
+    });
+  }
+  return items;
 }
 
 export function sgdToCents(amountSgd: number): number {
@@ -64,17 +119,28 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   if (!INSTALLERS.includes(installer)) {
     throw new Error("Choose who installed the system.");
   }
+  const serviceLevel = asString(raw.serviceLevel) as ServiceLevel;
+  if (!SERVICE_LEVELS.includes(serviceLevel)) {
+    throw new Error("Choose a service level.");
+  }
 
-  const name = asString(raw.name);
-  const phone = asString(raw.phone);
-  const email = asString(raw.email).toLowerCase();
-  const address = asString(raw.address);
+  const name = asSingleLineString(raw.name);
+  const phone = asSingleLineString(raw.phone);
+  const email = asSingleLineString(raw.email).toLowerCase();
+  const address = asSingleLineString(raw.address);
   const slotStart = asString(raw.slotStart);
   const slotEnd = asString(raw.slotEnd);
   const kwp = asNumber(raw.kwp);
+  const cleaning = asBoolean(raw.cleaning);
+  const monitoring = asBoolean(raw.monitoring);
 
   if (!Number.isFinite(kwp) || kwp <= 0 || kwp > 10000) {
     throw new Error("Enter a system size in kWp.");
+  }
+  if (monitoring && installer !== "fomo") {
+    throw new Error(
+      "Continuous monitoring is only available for compatible FOMO-installed systems.",
+    );
   }
   if (name.length < 1 || name.length > 120) {
     throw new Error("Enter a name.");
@@ -82,7 +148,7 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   if (phone.replace(/\s/g, "").length < 8 || phone.length > 32) {
     throw new Error("Enter a phone number.");
   }
-  if (!EMAIL_RE.test(email)) {
+  if (!EMAIL_RE.test(email) || email.length > 254) {
     throw new Error("Enter an email address.");
   }
   if (address.length < 5 || address.length > 500) {
@@ -95,9 +161,9 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   return {
     kwp,
     installer,
-    roofAccess: asBoolean(raw.roofAccess),
-    advancedPreventive: asBoolean(raw.advancedPreventive),
-    monitoring: asBoolean(raw.monitoring),
+    serviceLevel,
+    cleaning,
+    monitoring,
     name,
     phone,
     email,
@@ -111,12 +177,16 @@ export function quoteForCheckout(input: CheckoutRequest): QuoteResult {
   return quote({
     kwp: input.kwp,
     installer: input.installer,
-    roofAccess: input.roofAccess,
-    advancedPreventive: input.advancedPreventive,
+    serviceLevel: input.serviceLevel,
+    cleaning: input.cleaning,
     monitoring: input.monitoring,
   });
 }
 
 export function scopeSummary(result: QuoteResult): string {
-  return result.scope.join(", ");
+  return result.scope.join("; ");
+}
+
+export function exclusionsSummary(result: QuoteResult): string {
+  return result.exclusions.join("; ");
 }

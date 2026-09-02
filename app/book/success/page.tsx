@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export const metadata = {
-  title: "Booking confirmed",
-  description: "Payment received for a Fomo Maintenance visit.",
+  title: "Payment and booking status",
+  description: "Payment and scheduling status for a Fomo Maintenance visit.",
 };
 
 type SuccessPageProps = {
@@ -22,8 +22,11 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
 
   if (!sessionId) {
     return (
-      <ConfirmShell title="Payment received">
-        <p>Open this page from the Stripe return link so we can show the visit details.</p>
+      <ConfirmShell title="Booking details unavailable">
+        <p>
+          Open this page from the Stripe return link so we can verify payment
+          and show the visit details.
+        </p>
         <HomeLink />
       </ConfirmShell>
     );
@@ -34,6 +37,8 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
     const paid = session.payment_status === "paid";
     const metadata = session.metadata ?? {};
     const address = metadata.address || "—";
+    const packageName = metadata.package;
+    const calendarStatus = metadata.calendarStatus || "pending";
     const slotStart = metadata.slotStart;
     const slotEnd = metadata.slotEnd;
     const amountCents =
@@ -59,12 +64,28 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
     }
 
     return (
-      <ConfirmShell title="Payment received">
-        <p>
-          The visit is added to the operations calendar after Stripe confirms
-          payment, not from this browser. Keep these details.
-        </p>
+      <ConfirmShell
+        title={
+          calendarStatus === "created" || calendarStatus === "exists"
+            ? "Payment received — visit scheduled"
+            : calendarStatus === "failed"
+              ? "Payment received — scheduling needs attention"
+              : "Payment received — scheduling in progress"
+        }
+      >
+        <CalendarStatusNotice
+          calendarStatus={calendarStatus}
+          sessionId={sessionId}
+        />
         <dl className="mt-8 space-y-4 text-left text-sm">
+          {packageName ? (
+            <div>
+              <dt className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                Package
+              </dt>
+              <dd className="mt-1 font-semibold text-ink">{packageName}</dd>
+            </div>
+          ) : null}
           <div>
             <dt className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
               Visit time
@@ -86,6 +107,19 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
             <dd className="mt-1 font-semibold text-ink">{amountLabel}</dd>
           </div>
         </dl>
+        {metadata.cleaningAccessStatus === "pending_confirmation" ? (
+          <p className="mt-6 rounded-xl bg-white px-4 py-3 text-left text-sm text-slate-600">
+            Cleaning is requested. The team will confirm safe roof access
+            before any roof work is performed. If access cannot be confirmed,
+            the team will contact you to resolve the cleaning charge.
+          </p>
+        ) : null}
+        {metadata.monitoringCompatibilityStatus === "pending_confirmation" ? (
+          <p className="mt-3 rounded-xl bg-white px-4 py-3 text-left text-sm text-slate-600">
+            Continuous monitoring is requested and remains subject to system
+            compatibility confirmation.
+          </p>
+        ) : null}
         <p className="mt-8 text-sm text-slate-500">
           Questions:{" "}
           <a className="font-semibold text-ink" href={`mailto:${QUOTE_EMAIL}`}>
@@ -97,7 +131,7 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
     );
   } catch {
     return (
-      <ConfirmShell title="Could not load this booking">
+      <ConfirmShell title="Booking status unavailable">
         <p>
           Payment may still have gone through. Check your email from Stripe, or
           write to{" "}
@@ -122,12 +156,72 @@ function ConfirmShell({
   return (
     <div className="bg-peach">
       <div className="mx-auto max-w-lg px-6 py-20 text-center">
-        <p className="text-sm font-semibold uppercase tracking-[0.2em] text-brand">
+        <p className="text-brand-on-light text-sm font-semibold uppercase tracking-[0.2em]">
           Fomo Maintenance
         </p>
         <h1 className="mt-3 text-3xl font-bold tracking-tight text-ink">{title}</h1>
         <div className="mt-4 text-base leading-7 text-slate-600">{children}</div>
       </div>
+    </div>
+  );
+}
+
+function CalendarStatusNotice({
+  calendarStatus,
+  sessionId,
+}: {
+  calendarStatus: string;
+  sessionId: string;
+}) {
+  if (calendarStatus === "created" || calendarStatus === "exists") {
+    return (
+      <p className="rounded-xl bg-white px-4 py-3 text-left" role="status">
+        Payment is confirmed and the visit is on the operations calendar. Keep
+        the details below.
+      </p>
+    );
+  }
+
+  if (calendarStatus === "failed") {
+    const subject = encodeURIComponent(
+      `Scheduling help for Stripe session ${sessionId}`,
+    );
+    return (
+      <div
+        className="rounded-xl border border-red-200 bg-white px-4 py-3 text-left"
+        role="alert"
+      >
+        <p>
+          Payment is confirmed, but the calendar event could not be created.
+          Your payment and scheduling status are separate.
+        </p>
+        <p className="mt-2 text-sm">
+          Email{" "}
+          <a
+            className="font-semibold text-ink underline"
+            href={`mailto:${QUOTE_EMAIL}?subject=${subject}`}
+          >
+            {QUOTE_EMAIL}
+          </a>{" "}
+          with reference <span className="font-semibold">{sessionId}</span> so
+          the team can place the visit manually.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl bg-white px-4 py-3 text-left" role="status">
+      <p>
+        Payment is confirmed. Calendar confirmation has not been recorded yet;
+        it may still be processing.
+      </p>
+      <Link
+        href={`/book/success?session_id=${encodeURIComponent(sessionId)}`}
+        className="mt-2 inline-block text-sm font-semibold text-ink underline"
+      >
+        Check scheduling status again
+      </Link>
     </div>
   );
 }

@@ -11,17 +11,21 @@ function meta(session: Stripe.Checkout.Session, key: string): string {
 }
 
 function amountPaidLabel(session: Stripe.Checkout.Session): string {
-  const fromMeta = meta(session, "amountSgd");
-  if (fromMeta) {
-    return fromMeta;
-  }
   if (typeof session.amount_total === "number") {
     return `S$${(session.amount_total / 100).toLocaleString("en-SG", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     })}`;
   }
+  const fromMeta = meta(session, "amountSgd");
+  if (fromMeta) {
+    return fromMeta;
+  }
   return "unknown";
+}
+
+function loggableError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 async function markCalendarStatus(
@@ -44,7 +48,7 @@ async function markCalendarStatus(
 }
 
 async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
-  if (session.payment_status && session.payment_status !== "paid") {
+  if (session.payment_status !== "paid") {
     console.info(
       "[fomo-maintenance] skipping calendar; payment_status is",
       session.payment_status,
@@ -70,7 +74,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   if (!slotStart || !slotEnd || !address || !email) {
     console.error(
       "[fomo-maintenance] checkout.session.completed missing booking metadata",
-      { sessionId: session.id, metadata: session.metadata },
+      { sessionId: session.id },
     );
     await markCalendarStatus(session, "failed");
     return { calendar: "failed" as const };
@@ -87,9 +91,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       slotEnd,
       kwp: meta(session, "kwp"),
       installer,
+      serviceCode: meta(session, "serviceCode"),
+      packageName: meta(session, "package"),
+      breakdown: meta(session, "breakdown"),
       extras: meta(session, "extras"),
       amountPaidSgd: amountPaidLabel(session),
       scope: meta(session, "scope"),
+      exclusions: meta(session, "exclusions"),
+      cleaningAccessStatus: meta(session, "cleaningAccessStatus"),
+      monitoringCompatibilityStatus: meta(
+        session,
+        "monitoringCompatibilityStatus",
+      ),
       indicative: meta(session, "indicative") === "1",
     });
     await markCalendarStatus(session, result);
@@ -99,12 +112,10 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
       "[fomo-maintenance] Graph calendar create failed after retry",
       {
         sessionId: session.id,
-        email,
-        address,
         slotStart,
         slotEnd,
         amount: amountPaidLabel(session),
-        error,
+        error: loggableError(error),
       },
     );
     await markCalendarStatus(session, "failed");
@@ -137,5 +148,11 @@ export async function POST(request: Request) {
 
   const session = event.data.object as Stripe.Checkout.Session;
   const result = await handleCheckoutCompleted(session);
+  if (result.calendar === "failed") {
+    return NextResponse.json(
+      { received: true, ...result },
+      { status: 502 },
+    );
+  }
   return NextResponse.json({ received: true, ...result });
 }

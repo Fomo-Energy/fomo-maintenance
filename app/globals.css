@@ -4,6 +4,7 @@
 
 :root {
   --color-primary-500: #fc7e40;
+  --color-brand-text: #a83b12;
   --color-peach: #fff6f2;
   --color-ink: #0f172a;
   --gradient-brand: linear-gradient(135deg, #fc7e40 0%, #ff9f43 100%);
@@ -24,7 +25,7 @@ body {
   justify-content: center;
   border-radius: 9999px;
   background: var(--gradient-brand);
-  color: #ffffff;
+  color: var(--color-ink);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -44,7 +45,7 @@ body {
   justify-content: center;
   border-radius: 0;
   background: #fc7e40;
-  color: #ffffff;
+  color: var(--color-ink);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -53,4 +54,9 @@ body {
 
 .btn-square:hover {
   background: #e65e1e;
+}
+
+/* The display orange works on dark surfaces; light surfaces need a deeper tone. */
+.text-brand-on-light {
+  color: var(--color-brand-text);
 }

@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import {
+  exclusionsSummary,
   extrasMetadata,
   parseCheckoutRequest,
+  priceBreakdown,
+  priceLineItems,
   quoteForCheckout,
   scopeSummary,
   sgdToCents,
@@ -82,12 +85,18 @@ export async function POST(request: Request) {
   }
 
   const site = publicSiteUrl();
-  const productName = quoted.indicative
-    ? "Fomo Maintenance site-check visit"
-    : "Fomo Maintenance annual program";
-  const description = quoted.indicative
-    ? `${quoted.kwp} kWp · indicative until site check · ${slot.timeLabel} SGT`
-    : `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
+  const description = `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
+  const lineItems = priceLineItems(quoted).map((item) => ({
+    quantity: 1,
+    price_data: {
+      currency: "sgd" as const,
+      unit_amount: sgdToCents(item.amountSgd),
+      product_data: {
+        name: item.name,
+        description,
+      },
+    },
+  }));
 
   try {
     const session = await getStripe().checkout.sessions.create({
@@ -97,22 +106,15 @@ export async function POST(request: Request) {
       customer_email: parsed.email,
       success_url: `${site}/book/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${site}/book/cancel`,
-      line_items: [
-        {
-          quantity: 1,
-          price_data: {
-            currency: "sgd",
-            unit_amount: amountCents,
-            product_data: {
-              name: productName,
-              description,
-            },
-          },
-        },
-      ],
+      line_items: lineItems,
       metadata: {
+        pricingVersion: "packages-v1",
         kwp: String(quoted.kwp),
         installer: quoted.installer,
+        serviceCode: quoted.serviceCode,
+        serviceLevel: quoted.serviceLevel,
+        package: quoted.packageName,
+        breakdown: priceBreakdown(quoted).slice(0, 500),
         extras: extrasMetadata(parsed),
         name: parsed.name,
         phone: parsed.phone,
@@ -121,8 +123,16 @@ export async function POST(request: Request) {
         slotStart: slot.start,
         slotEnd: slot.end,
         amount: String(amountCents),
-        scope: scopeSummary(quoted).slice(0, 450),
-        indicative: quoted.indicative ? "1" : "0",
+        scope: scopeSummary(quoted).slice(0, 500),
+        exclusions: exclusionsSummary(quoted).slice(0, 500),
+        cleaning: quoted.cleaningApplied ? "1" : "0",
+        cleaningAccessStatus: quoted.cleaningApplied
+          ? "pending_confirmation"
+          : "not_requested",
+        monitoring: quoted.monitoringApplied ? "1" : "0",
+        monitoringCompatibilityStatus: quoted.monitoringApplied
+          ? "pending_confirmation"
+          : "not_requested",
         amountSgd: formatSgd(quoted.totalSgd),
       },
     });
