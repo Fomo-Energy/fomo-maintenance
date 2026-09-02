@@ -24,6 +24,23 @@ npm run verify
 npm run build
 ```
 
+## Required Stripe GST setup
+
+Create the tax rate separately in both Stripe test mode and live mode:
+
+1. In Stripe Dashboard, create a manual tax rate with display name `GST`,
+   percentage `9`, jurisdiction/country Singapore, and tax behavior
+   **exclusive**.
+2. Confirm the tax rate is active.
+3. Set its `txr_...` ID as `STRIPE_GST_TAX_RATE_ID` in the corresponding Vercel
+   environment. The tax-rate mode must match the Stripe secret key's mode.
+4. Redeploy only after the environment variable is present.
+
+Checkout deliberately fails closed if the setting is absent, the rate is
+inactive/inclusive/not 9%, or Stripe's returned subtotal, tax, and total do not
+match the server quote. Do not deploy this change before the production live
+tax-rate ID is configured.
+
 Before production use, perform a paid Stripe test-mode booking and confirm:
 
 1. A primary-calendar conflict is unavailable on the booking page.
@@ -31,16 +48,19 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
 3. A paid visit appears only in `Fomo Maintenance`.
 4. The Stripe Checkout Session metadata has `calendarStatus=created`.
 5. Replaying the webhook does not create a duplicate event.
-6. Stripe line items add up to the server-computed total and metadata carries
-   the expected service code, breakdown, and scope.
+6. At 10 kWp, Essential shows and charges S$199.00 before GST, S$17.91 GST, and
+   S$216.91 total.
+7. Stripe line items add up to the server-computed pre-GST subtotal; Stripe's
+   tax and final total match the server quote; metadata carries the expected
+   service code, GST breakdown, and scope.
 
 ## Live Testing checkout
 
-The public Testing option makes a real S$0.50 live-mode Stripe charge and then
-runs the normal signed-webhook and Microsoft Graph flow. It is mutually
-exclusive with cleaning and carries service code `TESTING`, a
-single `Testing — no service offered` Stripe line item, and
-`fulfillmentStatus=no_service_offered` metadata.
+The public Testing option has a S$0.50 pre-GST price and makes a real S$0.55
+GST-inclusive live-mode Stripe charge, then runs the normal signed-webhook and
+Microsoft Graph flow. It is mutually exclusive with cleaning and carries
+service code `TESTING`, a single `Testing — no service offered` Stripe line
+item, and `fulfillmentStatus=no_service_offered` metadata.
 
 Use unmistakably synthetic contact/site details. After payment, confirm the
 success page reports the TESTING calendar event, verify
@@ -77,6 +97,10 @@ separate approved collection process.
 - A new checkout request contains `monitoring=true`: the API rejects it because
   continuous monitoring is no longer offered. Legacy paid-session metadata
   remains supported by the webhook.
+- Checkout reports that the payment total could not be verified: confirm
+  `STRIPE_GST_TAX_RATE_ID` points to an active, exclusive 9% rate in the same
+  Stripe mode as `STRIPE_SECRET_KEY`, then inspect the logged expected and
+  actual totals.
 - A `TESTING` event is present: validate its Stripe session and webhook result,
   then delete the calendar event. No customer service should be dispatched.
 

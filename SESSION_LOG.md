@@ -11,19 +11,34 @@ and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
 live copy/API checks, and Microsoft Graph-backed availability all pass.
 
+Branch `juliustanch/gst-pricing` is in progress and production is unchanged. It
+treats package formulas as pre-GST, prominently displays 9% GST-inclusive
+prices, and prepares Stripe Checkout to validate and apply an exclusive 9% GST
+tax rate. Production deployment remains blocked until the live-mode
+`STRIPE_GST_TAX_RATE_ID` is configured.
+
 ## Next up
 
-1. Make one S$0.50 Testing payment, validate the TESTING calendar event and
-   webhook metadata, then delete the event.
-2. Remove the public Testing option after live validation is complete, or
-   replace it with authenticated operational tooling.
-3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
-   advisories; do not combine that major upgrade with this package change.
+1. Create exclusive 9% Singapore GST tax rates in Stripe test and live modes,
+   then configure the matching `STRIPE_GST_TAX_RATE_ID` in Vercel Preview and
+   Production.
+2. Verify a preview Checkout shows S$199.00 subtotal, S$17.91 GST, and S$216.91
+   total at 10 kWp; merge and deploy only with explicit authorization.
+3. After deployment, make one S$0.55 Testing payment, validate the TESTING
+   calendar event and webhook metadata, then delete the event.
+4. Design receipt/invoice delivery separately; do not couple it to this GST
+   pricing change.
 
 ## Session entries
 
 ### 2026-09-02
 
+- Started branch `juliustanch/gst-pricing` to add 9% GST without changing the
+  approved pre-GST package formulas. The reference Essential quote is S$199.00
+  subtotal, S$17.91 GST, and S$216.91 total.
+- Added server-side tax-rate validation and Checkout subtotal/tax/total checks;
+  the change will not be merged or deployed before the Stripe test/live tax-rate
+  IDs are configured and the flow is verified.
 - Started and verified branch `juliustanch/essential-scope-copy` for three
   requested calculator changes: approved Essential scope wording, removal of
   customer-facing onboarding notices, and removal of Continuous monitoring.

@@ -392,8 +392,8 @@ export function VisitBooking({
       </button>
       <p className="mt-3 text-xs leading-5 text-slate-500">
         {testing
-          ? "This is a real live-mode Stripe charge. Payment creates a TESTING calendar event but no service entitlement."
-          : "You will pay on Stripe’s checkout page. A calendar event is created only after payment succeeds, not when you pick a time."}
+          ? "This is a real live-mode Stripe charge including 9% GST. Payment creates a TESTING calendar event but no service entitlement."
+          : "The displayed payment includes 9% GST. You will pay on Stripe’s checkout page. A calendar event is created only after payment succeeds, not when you pick a time."}
       </p>
     </form>
   );
