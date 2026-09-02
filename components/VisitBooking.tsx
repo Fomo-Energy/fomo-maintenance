@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { VisitCalendar } from "@/components/VisitCalendar";
+import {
+  BOOKING_DETAILS_STORAGE_KEY,
+  hasSavedBookingDetails,
+  parseSavedBookingDetails,
+  serializeBookingDetails,
+  type SavedBookingDetails,
+} from "@/lib/booking-details";
 import { QUOTE_EMAIL } from "@/lib/site";
 import {
   formatSgd,
@@ -24,14 +31,7 @@ type VisitBookingProps = {
   totalSgd: number;
 };
 
-type FieldState = {
-  name: string;
-  phone: string;
-  email: string;
-  address: string;
-};
-
-const EMPTY_FIELDS: FieldState = {
+const EMPTY_FIELDS: SavedBookingDetails = {
   name: "",
   phone: "",
   email: "",
@@ -46,7 +46,8 @@ export function VisitBooking({
   testing,
   totalSgd,
 }: VisitBookingProps) {
-  const [fields, setFields] = useState<FieldState>(EMPTY_FIELDS);
+  const [fields, setFields] = useState<SavedBookingDetails>(EMPTY_FIELDS);
+  const [savedDetailsReady, setSavedDetailsReady] = useState(false);
   const [slots, setSlots] = useState<VisitSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
   const [slotsError, setSlotsError] = useState<string | null>(null);
@@ -96,6 +97,40 @@ export function VisitBooking({
     void loadSlots();
   }, [loadSlots]);
 
+  useEffect(() => {
+    try {
+      const saved = parseSavedBookingDetails(
+        window.localStorage.getItem(BOOKING_DETAILS_STORAGE_KEY),
+      );
+      if (saved) {
+        setFields(saved);
+      }
+    } catch {
+      // Storage can be unavailable in private or restricted browser contexts.
+    } finally {
+      setSavedDetailsReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!savedDetailsReady) {
+      return;
+    }
+
+    try {
+      if (hasSavedBookingDetails(fields)) {
+        window.localStorage.setItem(
+          BOOKING_DETAILS_STORAGE_KEY,
+          serializeBookingDetails(fields),
+        );
+      } else {
+        window.localStorage.removeItem(BOOKING_DETAILS_STORAGE_KEY);
+      }
+    } catch {
+      // The form remains usable when browser storage is unavailable.
+    }
+  }, [fields, savedDetailsReady]);
+
   const daySlots = useMemo(
     () =>
       selectedDateKey
@@ -124,8 +159,17 @@ export function VisitBooking({
         ? "Now choose a visit time."
         : "Booking details complete. Continue to secure Stripe checkout.";
 
-  function update<K extends keyof FieldState>(key: K, value: string) {
+  function update<K extends keyof SavedBookingDetails>(key: K, value: string) {
     setFields((current) => ({ ...current, [key]: value }));
+  }
+
+  function clearSavedDetails() {
+    setFields(EMPTY_FIELDS);
+    try {
+      window.localStorage.removeItem(BOOKING_DETAILS_STORAGE_KEY);
+    } catch {
+      // Clearing the visible form still works when storage is unavailable.
+    }
   }
 
   async function pay(event: FormEvent<HTMLFormElement>) {
@@ -252,6 +296,19 @@ export function VisitBooking({
             This is where the visit happens.
           </span>
         </label>
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs leading-5 text-slate-500">
+        <p>These details are saved only in this browser for your next visit.</p>
+        {hasSavedBookingDetails(fields) ? (
+          <button
+            type="button"
+            className="font-semibold text-ink underline decoration-brand/50 underline-offset-4"
+            onClick={clearSavedDetails}
+          >
+            Clear saved details
+          </button>
+        ) : null}
       </div>
 
       <div className="mt-6">

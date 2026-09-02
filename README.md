@@ -60,6 +60,10 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 4. Pay → Stripe Checkout (hosted, SGD cents)
 5. Return URLs on this site: `/book/success?session_id=…` and `/book/cancel`
 
+The four contact/site fields are saved in that browser's `localStorage` as the
+user types and restored on the next visit. The form provides a clear control.
+Service choices and appointment slots are not persisted.
+
 ### API routes
 
 | Method | Route | Role |

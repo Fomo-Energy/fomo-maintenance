@@ -4,6 +4,8 @@ Status: Current
 
 ## 2026-09-02
 
+- Added device-local caching for name, phone, email, and site address, including
+  bounded restore behavior and a customer-facing clear control.
 - Updated the Essential Health Check scope to the approved inverter-area,
   inverter/DB electrical-check, remote-pre-check, and reporting wording.
 - Removed customer-facing first-visit onboarding notices.

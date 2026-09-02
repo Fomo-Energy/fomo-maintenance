@@ -9,21 +9,30 @@ Electrical Assurance, independent cleaning, and the S$0.50 Testing checkout.
 Pull request #10 was merged as `9d70665`: customer-facing onboarding notices
 and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
-live copy/API checks, and Microsoft Graph-backed availability all pass.
+live copy/API checks, and Microsoft Graph-backed availability all pass. Branch
+`juliustanch/cache-booking-details` is verified and ready for review; it retains
+contact/site fields in the customer's browser. Production is unchanged until
+the branch is merged.
 
 ## Next up
 
-1. Make one S$0.50 Testing payment, validate the TESTING calendar event and
+1. Review and merge the saved booking-details branch when approved.
+2. Make one S$0.50 Testing payment, validate the TESTING calendar event and
    webhook metadata, then delete the event.
-2. Remove the public Testing option after live validation is complete, or
+3. Remove the public Testing option after live validation is complete, or
    replace it with authenticated operational tooling.
-3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
+4. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
    advisories; do not combine that major upgrade with this package change.
 
 ## Session entries
 
 ### 2026-09-02
 
+- Started `juliustanch/cache-booking-details` to persist name, phone, email, and
+  site address in browser-local storage, with bounded parsing and an in-form
+  clear control. Service selections and appointment slots remain ephemeral.
+- Added deterministic cache parsing tests and the CI step; full verification,
+  production build, and diff checks pass locally.
 - Started and verified branch `juliustanch/essential-scope-copy` for three
   requested calculator changes: approved Essential scope wording, removal of
   customer-facing onboarding notices, and removal of Continuous monitoring.
