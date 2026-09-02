@@ -124,7 +124,7 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `STRIPE_SECRET_KEY` | Creating Checkout Sessions and retrieving them on `/book/success` |
 | `STRIPE_WEBHOOK_SECRET` | Verifying `POST /api/stripe/webhook` |
 | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | Stripe Dashboard publishable key (hosted Checkout uses the session URL; keep this in sync with the secret key) |
-| `STRIPE_GST_TAX_RATE_ID` | Active, exclusive 9% Singapore GST manual tax rate applied to every Checkout line item. Test and live modes require different IDs. |
+| `STRIPE_GST_TAX_RATE_ID` | Active, exclusive 9% Singapore GST manual tax rate applied to every Checkout line item. Its Stripe mode must match `STRIPE_SECRET_KEY`; test and live rates have different IDs. |
 | `NEXT_PUBLIC_SITE_URL` | Origin for `success_url` / `cancel_url` (no trailing slash). Falls back to `https://$VERCEL_URL` |
 | `MICROSOFT_TENANT_ID` | Azure AD tenant for client-credentials |
 | `MICROSOFT_CLIENT_ID` | App registration id |
@@ -148,8 +148,8 @@ unchecked slot.
 Stripe:
 
 1. Checkout in SGD
-2. Create a manual 9% exclusive Singapore GST tax rate and set its ID as
-   `STRIPE_GST_TAX_RATE_ID`
+2. Create a manual 9% exclusive Singapore GST tax rate in every Stripe mode the
+   deployment uses, and set the matching ID as `STRIPE_GST_TAX_RATE_ID`
 3. Webhook endpoint `https://<your-domain>/api/stripe/webhook`
 4. Event: `checkout.session.completed`
 

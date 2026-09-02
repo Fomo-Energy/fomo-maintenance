@@ -14,17 +14,18 @@ live copy/API checks, and Microsoft Graph-backed availability all pass.
 Pull request #13 from `juliustanch/gst-pricing` is open, green, and production
 is unchanged. It treats package formulas as pre-GST, prominently displays 9%
 GST-inclusive prices, and prepares Stripe Checkout to validate and apply an
-exclusive 9% GST tax rate. Production deployment remains blocked until the
-live-mode `STRIPE_GST_TAX_RATE_ID` is configured.
+exclusive 9% GST tax rate. The live Stripe rate exists and
+`STRIPE_GST_TAX_RATE_ID` is configured in all Vercel environments, so the
+explicitly authorized merge and production deployment can proceed.
 
 ## Next up
 
-1. Create exclusive 9% Singapore GST tax rates in Stripe test and live modes,
-   then configure the matching `STRIPE_GST_TAX_RATE_ID` in Vercel Preview and
-   Production.
-2. Verify a preview Checkout shows S$199.00 subtotal, S$17.91 GST, and S$216.91
-   total at 10 kWp; merge and deploy only with explicit authorization.
-3. After deployment, make one S$0.55 Testing payment, validate the TESTING
+1. Merge pull request #13 under the user's explicit authorization and verify
+   the Vercel production deployment.
+2. Verify production shows S$199.00 subtotal, S$17.91 GST, and S$216.91 total
+   at 10 kWp, including the Stripe Checkout breakdown without submitting a
+   payment.
+3. When desired, make one S$0.55 Testing payment, validate the TESTING
    calendar event and webhook metadata, then delete the event.
 4. Design receipt/invoice delivery separately; do not couple it to this GST
    pricing change.
@@ -43,6 +44,10 @@ live-mode `STRIPE_GST_TAX_RATE_ID` is configured.
   verification/build, GitHub CI, and the Vercel preview pass; the preview shows
   the expected S$199.00 subtotal, S$17.91 GST, and S$216.91 final Essential
   price. Production remains unchanged.
+- Created an active, exclusive 9% Singapore GST tax rate in the live Stripe
+  account and configured its ID as `STRIPE_GST_TAX_RATE_ID` for all Vercel
+  environments. Confirmed all hosted environments currently use Stripe live
+  mode; the runbook now records that every hosted test payment is real.
 - Started and verified branch `juliustanch/essential-scope-copy` for three
   requested calculator changes: approved Essential scope wording, removal of
   customer-facing onboarding notices, and removal of Continuous monitoring.

@@ -26,7 +26,7 @@ npm run build
 
 ## Required Stripe GST setup
 
-Create the tax rate separately in both Stripe test mode and live mode:
+Create the tax rate in every Stripe mode used by a deployment:
 
 1. In Stripe Dashboard, create a manual tax rate with display name `GST`,
    percentage `9`, jurisdiction/country Singapore, and tax behavior
@@ -36,9 +36,15 @@ Create the tax rate separately in both Stripe test mode and live mode:
    environment. The tax-rate mode must match the Stripe secret key's mode.
 4. Redeploy only after the environment variable is present.
 
+The current Vercel Development, Preview, and Production environments all use
+Stripe live mode by product decision, so they share the same live tax-rate ID
+and every payment is real. If Preview or Development later switches to Stripe
+test keys, create a separate test-mode tax rate and replace the ID in that
+environment before deploying.
+
 Checkout deliberately fails closed if the setting is absent, the rate is
 inactive/inclusive/not 9%, or Stripe's returned subtotal, tax, and total do not
-match the server quote. Do not deploy this change before the production live
+match the server quote. Do not deploy a pricing change before the matching
 tax-rate ID is configured.
 
 Before production use, perform a paid Stripe test-mode booking and confirm:
