@@ -9,7 +9,7 @@ Electrical Assurance, independent cleaning, and the S$0.50 Testing checkout.
 Pull request #10 was merged as `9d70665`: customer-facing onboarding notices
 and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
-live copy/API checks, and Microsoft Graph-backed availability all pass.
+live copy, and API checks passed at that deployment.
 
 Pull request #13 was merged as `64001b8`, and production displays the approved
 9% GST-inclusive prices. The live Stripe rate exists and
@@ -23,15 +23,17 @@ Pull request #16 was merged as `c427db0`. Production selector cards show pre-GST
 prices marked `subject to GST`, while the final booking summary and Stripe
 payment remain GST-inclusive and server-authoritative. Name, phone, email, and
 site address persist in the same browser until `Clear saved details` is used.
-Branch `juliustanch/booking-confirmation-copy` contains the requested shorter
+Pull request #18 was merged as `aab5324`. Production now contains the shorter
 payment note, consistent shared no-roof-access presentation, service cadence
-recommendations, and expanded Electrical Assurance safety copy. It is pending
-verification and review. The cleaning card now omits its repeated minimum-price
-formula and checkout-charge wording while retaining the safe-access condition.
+recommendations, expanded Electrical Assurance safety copy, and simplified
+cleaning copy. Main CI and the Vercel production deployment passed, and the live
+page was verified without creating a Checkout session, payment, or calendar
+event.
 
 ## Next up
 
-1. Verify and review the booking-confirmation copy pull request.
+1. Reduce Microsoft Graph availability queries from 90 days to its 62-day
+   free/busy limit, or split the requested period into bounded windows.
 2. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create and email formal invoices through Xero.
 3. Before a Xero implementation, confirm the target Xero organisation, GST
@@ -55,6 +57,14 @@ formula and checkout-charge wording while retaining the safe-access condition.
   present.
 - Simplified the cleaning-card description without changing its calculated
   price, checkout behavior, or safe-access requirement.
+- Merged pull request #18 as `aab5324`; main CI and the 35-second Vercel
+  production deployment passed. Live verification confirmed the shorter
+  booking note, shared no-roof-access guidance, service cadence, expanded
+  Electrical Assurance description, and simplified cleaning description. No
+  Checkout session, payment, or calendar event was created.
+- The post-deploy error scan found that Microsoft Graph now rejects the app's
+  90-day free/busy request because its limit is 62 days. The page still renders
+  via its availability fallback; a bounded-query fix remains next work.
 - Started `juliustanch/pre-gst-left-and-saved-details` after confirming the
   controlled form always initialized empty and relied only on browser
   autocomplete; no application-level cache previously existed.
