@@ -339,7 +339,11 @@ export const fulfillmentSteps = pgTable(
 export type Booking = typeof bookings.$inferSelect;
 export type NewBooking = typeof bookings.$inferInsert;
 export type BookingAccessToken = typeof bookingAccessTokens.$inferSelect;
+export type FulfillmentStepName =
+  | "calendar"
+  | "manage_link"
+  | "customer_email"
+  | "operations_email";
 export type DocumentRecord = typeof documents.$inferSelect;
 export type RescheduleRequest = typeof rescheduleRequests.$inferSelect;
 export type SlotReservation = typeof slotReservations.$inferSelect;
-

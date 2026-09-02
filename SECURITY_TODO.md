@@ -6,18 +6,25 @@ Status: Current
 
 ### Protect customer manage links as credentials
 
-**Status:** Planned; no public manage-link route exists yet.
+**Status:** In progress; the route and read-only view are implemented behind a
+disabled server feature flag and have not been provisioned remotely.
 
 **Why it matters:** Anyone possessing a bearer-style manage URL could otherwise
 view booking details, upload files, or request an appointment change.
 
 **Required end state:**
 
-1. Generate high-entropy tokens only after confirmed payment.
-2. Persist only SHA-256 token digests, expiry, revocation, and audit timestamps.
-3. Exclude raw tokens from logs, analytics, error reports, and email to staff.
-4. Revalidate token state on every read and mutation.
-5. Rate-limit access and provide revocation/reissue controls.
+1. Completed in code: issue credentials only in paid webhook fulfilment; sign
+   them with HMAC-SHA-256 and persist only SHA-256 digest/state.
+2. Completed in code: carry the credential in a URL fragment, exchange it for
+   an HttpOnly same-site cookie, strip the fragment, and revalidate signature,
+   digest, expiry, and revocation on every read.
+3. Before activation: verify no third-party analytics captures fragments or
+   manage-page content and confirm Vercel runtime logs contain no credential.
+4. Add rate limits plus explicit staff revocation/reissue controls before
+   document upload or rescheduling is enabled.
+5. Rotate `MANAGE_LINK_SECRET` through Vercel secret management and document
+   the resulting invalidation of outstanding credentials.
 
 ### Keep uploaded PV documents private
 

@@ -4,11 +4,18 @@ Status: Current
 
 ## 2026-09-02
 
+- Built Parts 2–3 of the customer portal behind a disabled server flag: durable
+  Stripe event/fulfilment recovery, persisted Graph event IDs, signed manage
+  credentials stored only as digests, a fragment-to-HttpOnly-cookie exchange,
+  and a private read-only `/manage` booking view.
+- Rejected the Vercel Workflow SDK for this phase after its current dependency
+  tree introduced 15 high-severity production audit findings; Stripe retryable
+  delivery plus the existing Postgres state tables provide the retry driver.
 - Began the customer Manage Booking portal as a non-production foundation:
   added the phased delivery plan, Neon/Drizzle schema, reviewed migration,
   lazy server-only database client, idempotent booking/webhook repository
-  primitives, and isolated database constraint verification. No live route uses
-  the database yet.
+  primitives, and isolated database constraint verification. Part 1 itself did
+  not connect a live route to the database.
 - Removed the redundant `Other installer` choice from the public calculator and
   expanded the roof-access notice to cover partial safe access and excluded
   third-party access costs.

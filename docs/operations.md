@@ -25,8 +25,9 @@ npm run build
 ```
 
 `npm run verify` includes the portal schema check and an isolated application
-of the migration with constraint tests. It does not connect to any configured
-Neon database.
+of the migration with constraint tests. It also tests signed manage credentials,
+duplicate paid-event handling, and transient fulfilment recovery. It does not
+connect to any configured Neon database, Stripe account, or Microsoft calendar.
 
 The canonical repository is `Fomo-Energy/fomo-maintenance`. Pull requests and
 pushes should run the repository's `CI` workflow and create Vercel deployments
@@ -88,12 +89,13 @@ success page reports the TESTING calendar event, verify
 `calendarStatus=created` in Stripe, and delete the event so it does not block a
 real appointment slot. The payment creates no service entitlement.
 
-## Booking portal database rollout
+## Booking portal rollout
 
-The initial Drizzle schema is additive and dormant. Do not set
-`DATABASE_URL`, run its migration against Production, or connect it to the
-Stripe webhook merely because the schema exists in source. The live flow
-remains Stripe to Microsoft Calendar until the next delivery part is complete.
+The Drizzle schema and Parts 2–3 code are additive and dormant while
+`BOOKING_PORTAL_ENABLED` is not `1`. Do not apply the migration to Production or
+enable the flag merely because the code exists. The live flow remains the
+original Stripe-to-Microsoft path until Preview has passed the controlled
+rollout below.
 
 For a future Preview rollout:
 
@@ -101,15 +103,24 @@ For a future Preview rollout:
 2. Pull its environment variables into `.env.local` without committing them.
 3. Review `db/migrations/0000_booking_portal_foundation.sql`.
 4. Run `npm run verify:database` locally.
-5. Run `npm run db:migrate` with the intended Preview `DATABASE_URL`.
-6. Verify all seven tables and the `__drizzle_migrations` journal exist.
-7. Exercise the Part 2 webhook workflow in Stripe test mode before considering
-   a Production migration.
+5. Generate a random `MANAGE_LINK_SECRET` of at least 32 bytes and configure it
+   only in Preview.
+6. Run `npm run db:migrate` with the intended Preview `DATABASE_URL`.
+7. Verify all seven tables and the `__drizzle_migrations` journal exist.
+8. Set `BOOKING_PORTAL_ENABLED=1` in Preview and redeploy.
+9. Exercise signed Stripe webhook replay, one simulated recovery, the Graph
+   event, credential exchange, cookie flags, and `/manage` booking values.
+10. Disable the flag before any database rollback. Consider Production only
+    after the complete checklist passes.
 
-Database rollback for Part 1 is a code rollback only because no application
-route reads or writes the new tables. Do not drop populated portal tables as an
-application rollback; preserve paid-booking and document audit data and disable
-the feature at the application boundary instead.
+The manage link uses `/manage#access=…`, not a path or query credential. Do not
+paste a real link into logs, tickets, analytics, screenshots, or staff email.
+The fragment is exchanged for an HttpOnly, same-site cookie and removed from
+the address bar. Reissuing a credential must revoke the prior row.
+
+Portal rollback is to remove `BOOKING_PORTAL_ENABLED` and redeploy. Do not drop
+populated portal tables as an application rollback; preserve paid-booking and
+document audit data, then reconcile any event left in `processing` or `failed`.
 
 ## Manual package checks
 

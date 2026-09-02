@@ -11,7 +11,8 @@ Status: Current
 | Booking slots | `lib/slots.ts` | Asia/Singapore weekday candidates; two four-hour windows per day |
 | Payments | Stripe Checkout and `app/api/stripe/webhook/route.ts` | Stripe metadata carries the booking record; signed webhook is the booking trigger |
 | Calendar integration | `lib/microsoft.ts` | Microsoft Graph application authentication, conflict checks, and event creation |
-| Portal data foundation | `db/schema.ts`, `db/migrations/`, and `lib/database.ts` | Additive Neon/Drizzle schema for durable bookings, access tokens, documents, reschedules, reservations, webhook receipts, and fulfilment state; not connected to production Checkout yet |
+| Portal fulfilment | `lib/portal/`, `app/api/stripe/webhook/route.ts`, and Neon/Drizzle | Feature-gated database state machine claims signed Stripe events, persists paid bookings, records step recovery state, and creates/finds the Graph event |
+| Customer manage access | `/api/manage/session` and `/manage` | Fragment credential is exchanged for an HttpOnly cookie; the read-only portal returns current booking data only after server-side digest, signature, expiry, and revocation checks |
 
 ## Pricing and package model
 
@@ -89,7 +90,8 @@ methods.
 ## Customer booking portal delivery boundary
 
 The portal is being delivered in the reviewed parts described in
-`docs/booking-portal-plan.md`. Part 1 adds a dormant relational foundation:
+`docs/booking-portal-plan.md`. Parts 1–3 now provide a dormant, feature-gated
+relational and read-only portal foundation:
 
 - `bookings` stores the paid service, customer/site details, money in integer
   cents, current slot, and external identifiers.
@@ -103,10 +105,19 @@ The portal is being delivered in the reviewed parts described in
   state without storing raw webhook payloads.
 
 The database client is initialized lazily so builds remain safe before
-`DATABASE_URL` is provisioned. No current page, checkout route, or webhook
-imports the repository layer, so Part 1 does not change production behavior.
-Part 2 will make Postgres the durable application record only after a signed
-Stripe event has been verified and payment has been confirmed server-side.
+`DATABASE_URL` is provisioned. With `BOOKING_PORTAL_ENABLED` absent, the webhook
+uses the established Stripe-to-Graph implementation and `/manage` does not read
+the database. With the flag set to `1`, the webhook records a recoverable event
+claim, re-reads the authoritative Checkout Session from Stripe, persists the
+paid booking and fulfilment steps, creates or finds the Graph event, and issues
+one active manage credential. Failed steps are safe for Stripe to retry; stale
+processing claims can be reclaimed after five minutes.
+
+Manage credentials use a random record UUID and an HMAC-SHA-256 signature with
+an expiry 30 days after the visit. Postgres stores only the full credential's
+SHA-256 digest. The emailed URL will carry the credential in a fragment, which
+does not reach Vercel request logs; `/api/manage/session` exchanges it for a
+same-origin HttpOnly cookie and `/manage` removes the fragment before reload.
 
 ## Authentication and storage
 
@@ -114,9 +125,9 @@ Microsoft Graph uses OAuth client credentials and the application permission
 `Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
 the ID of a manually configured exclusive 9% GST tax rate. The active
 production flow still treats Stripe as the payment/booking record and Microsoft
-Calendar as the visit schedule. A Neon/Drizzle database schema now exists in
-source but remains dormant until the post-payment workflow is connected and the
-environment migration is explicitly applied. Name, phone, email, and site
+Calendar as the visit schedule. Neon remains dormant until its migration,
+secret, and server feature flag are deliberately applied. Name, phone, email,
+and site
 address are cached in versioned `localStorage` in the customer's browser, with
 a form control to clear them; that cache is not an authoritative customer
 record. Database credentials, secrets, token material, and environment-specific

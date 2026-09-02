@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
-import { createMaintenanceVisitWithRetry } from "@/lib/microsoft";
+import { databaseIsConfigured } from "@/lib/database";
+import {
+  createMaintenanceVisitRecordWithRetry,
+  createMaintenanceVisitWithRetry,
+} from "@/lib/microsoft";
+import { databaseFulfillmentStore } from "@/lib/portal/bookings";
+import {
+  bookingPortalEnabled,
+  manageLinkSecret,
+} from "@/lib/portal/config";
+import { fulfillPaidCheckout } from "@/lib/portal/fulfillment";
 import { getStripe, stripeWebhookSecret } from "@/lib/stripe";
 
 export const runtime = "nodejs";
@@ -123,6 +133,53 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
+async function handleDurableCheckoutCompleted(
+  event: Stripe.Event,
+  session: Stripe.Checkout.Session,
+) {
+  if (!databaseIsConfigured()) {
+    throw new Error(
+      "BOOKING_PORTAL_ENABLED is set but DATABASE_URL is not configured.",
+    );
+  }
+  manageLinkSecret();
+
+  const result = await fulfillPaidCheckout(
+    {
+      eventId: event.id,
+      eventType: event.type,
+      sessionId: session.id,
+      paidAt: new Date(event.created * 1_000),
+    },
+    {
+      store: databaseFulfillmentStore,
+      loadSession: (sessionId) =>
+        getStripe().checkout.sessions.retrieve(sessionId),
+      ensureCalendar: createMaintenanceVisitRecordWithRetry,
+    },
+  );
+
+  if (result.status === "complete") {
+    await markCalendarStatus(session, result.calendar);
+  } else if (result.status === "rejected") {
+    console.error("[fomo-maintenance] paid fulfilment rejected", {
+      eventId: event.id,
+      sessionId: session.id,
+      reason: result.reason,
+    });
+    await markCalendarStatus(session, "failed");
+  } else if (result.status === "failed") {
+    console.error("[fomo-maintenance] paid fulfilment will be retried", {
+      eventId: event.id,
+      sessionId: session.id,
+      reason: result.reason,
+    });
+    await markCalendarStatus(session, "failed");
+  }
+
+  return result;
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
@@ -147,6 +204,29 @@ export async function POST(request: Request) {
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
+  if (bookingPortalEnabled()) {
+    try {
+      const result = await handleDurableCheckoutCompleted(event, session);
+      if (result.status === "busy" || result.status === "failed") {
+        return NextResponse.json(
+          { received: true, fulfillment: result.status },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ received: true, fulfillment: result.status });
+    } catch (error) {
+      console.error("[fomo-maintenance] durable fulfilment failed", {
+        eventId: event.id,
+        sessionId: session.id,
+        error: loggableError(error),
+      });
+      return NextResponse.json(
+        { received: true, fulfillment: "failed" },
+        { status: 503 },
+      );
+    }
+  }
+
   const result = await handleCheckoutCompleted(session);
   if (result.calendar === "failed") {
     return NextResponse.json(

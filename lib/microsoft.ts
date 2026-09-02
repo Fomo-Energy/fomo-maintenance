@@ -386,7 +386,7 @@ async function findEventBySessionId(
   sessionId: string,
   slotStart: string,
   slotEnd: string,
-): Promise<boolean> {
+): Promise<string | null> {
   const calendarPath = maintenanceCalendarPath(mailbox, calendarId);
   const filter = `singleValueExtendedProperties/Any(ep: ep/id eq '${STRIPE_SESSION_PROPERTY}' and ep/value eq '${sessionId}')`;
   try {
@@ -396,8 +396,9 @@ async function findEventBySessionId(
       .select("id")
       .top(1)
       .get()) as GraphEventListResponse;
-    if ((found.value || []).length > 0) {
-      return true;
+    const eventId = found.value?.[0]?.id;
+    if (eventId) {
+      return eventId;
     }
   } catch (error) {
     console.error(
@@ -418,15 +419,17 @@ async function findEventBySessionId(
       .select("id,subject,body")
       .top(50)
       .get()) as CalendarViewResponse;
-    return (view.value || []).some((event) =>
-      (event.body?.content || event.subject || "").includes(sessionId),
+    return (
+      (view.value || []).find((event) =>
+        (event.body?.content || event.subject || "").includes(sessionId),
+      )?.id || null
     );
   } catch (error) {
     console.error(
       "[fomo-maintenance] calendarView session lookup failed",
       error,
     );
-    return false;
+    return null;
   }
 }
 
@@ -470,6 +473,13 @@ function visitBody(input: MaintenanceVisitInput): string {
 export async function createMaintenanceVisit(
   input: MaintenanceVisitInput,
 ): Promise<"created" | "exists"> {
+  const result = await createMaintenanceVisitRecord(input);
+  return result.status;
+}
+
+export async function createMaintenanceVisitRecord(
+  input: MaintenanceVisitInput,
+): Promise<{ status: "created" | "exists"; eventId: string }> {
   const mailbox = calendarMailbox();
   const client = await getGraphClient();
   const maintenanceCalendarId = await resolveMaintenanceCalendarId(
@@ -477,17 +487,16 @@ export async function createMaintenanceVisit(
     mailbox,
   );
 
-  if (
-    await findEventBySessionId(
-      client,
-      mailbox,
-      maintenanceCalendarId,
-      input.sessionId,
-      input.slotStart,
-      input.slotEnd,
-    )
-  ) {
-    return "exists";
+  const existingEventId = await findEventBySessionId(
+    client,
+    mailbox,
+    maintenanceCalendarId,
+    input.sessionId,
+    input.slotStart,
+    input.slotEnd,
+  );
+  if (existingEventId) {
+    return { status: "exists", eventId: existingEventId };
   }
 
   const subjectAddress =
@@ -497,7 +506,7 @@ export async function createMaintenanceVisit(
 
   const subjectPrefix = input.serviceCode || "Fomo Maintenance visit";
 
-  await client
+  const created = (await client
     .api(`${maintenanceCalendarPath(mailbox, maintenanceCalendarId)}/events`)
     .post({
       subject: `${subjectPrefix} — ${subjectAddress}`,
@@ -518,9 +527,12 @@ export async function createMaintenanceVisit(
       singleValueExtendedProperties: [
         { id: STRIPE_SESSION_PROPERTY, value: input.sessionId },
       ],
-    });
+    })) as CalendarEvent;
 
-  return "created";
+  if (!created.id) {
+    throw new Error("Microsoft Graph created an event without returning its ID.");
+  }
+  return { status: "created", eventId: created.id };
 }
 
 export async function createMaintenanceVisitWithRetry(
@@ -537,5 +549,22 @@ export async function createMaintenanceVisitWithRetry(
       },
     );
     return await createMaintenanceVisit(input);
+  }
+}
+
+export async function createMaintenanceVisitRecordWithRetry(
+  input: MaintenanceVisitInput,
+): Promise<{ status: "created" | "exists"; eventId: string }> {
+  try {
+    return await createMaintenanceVisitRecord(input);
+  } catch (firstError) {
+    console.error(
+      "[fomo-maintenance] Graph event create failed, retrying once",
+      {
+        sessionId: input.sessionId,
+        error: firstError,
+      },
+    );
+    return await createMaintenanceVisitRecord(input);
   }
 }
