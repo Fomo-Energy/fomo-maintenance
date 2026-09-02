@@ -24,7 +24,9 @@ prices marked `subject to GST`, while the final booking summary and Stripe
 payment remain GST-inclusive and server-authoritative. Name, phone, email, and
 site address persist in the same browser until `Clear saved details` is used.
 Branch `juliustanch/booking-confirmation-copy` contains the requested shorter
-payment and booking-confirmation note and is pending verification and review.
+payment note, consistent shared no-roof-access presentation, service cadence
+recommendations, and expanded Electrical Assurance safety copy. It is pending
+verification and review.
 
 ## Next up
 
@@ -43,6 +45,13 @@ payment and booking-confirmation note and is pending verification and review.
 - Started `juliustanch/booking-confirmation-copy` to replace the long payment
   note with the requested concise GST and post-payment confirmation message;
   corrected the supplied `You booking` typo to `Your booking`.
+- Consolidated no-roof-access guidance above both service cards, recommends
+  Essential annually and Electrical Assurance every two years, and explains
+  the deeper service's role in identifying cabling and insulation deterioration
+  that can lead to DC faults and fires.
+- Pricing, slot, calendar, production-build, rendered-copy, and visual layout
+  checks pass for the expanded pull request; no framework error overlay was
+  present.
 - Started `juliustanch/pre-gst-left-and-saved-details` after confirming the
   controlled form always initialized empty and relied only on browser
   autocomplete; no application-level cache previously existed.
