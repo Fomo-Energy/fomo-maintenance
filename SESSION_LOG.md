@@ -34,6 +34,8 @@ The canonical repository is now `Fomo-Energy/fomo-maintenance`. The transfer
 preserved repository ID `1350261809`, history, issues, pull requests, and the
 active CI workflow. The local `origin` and Vercel project's Git link both point
 to the organisation-owned repository; production still follows `main`.
+Organisation-owned pull requests now trigger both GitHub CI and Vercel preview
+deployments after refreshing the Vercel Git connection.
 
 ## Next up
 
@@ -77,6 +79,8 @@ to the organisation-owned repository; production still follows `main`.
 - Refreshed the Vercel Git connection after the transferred repository's first
   pull-request events did not create preview deployments; the Vercel GitHub App
   already had all-repository access in the organisation.
+- Verified the refreshed integration with pull request #20: GitHub CI and the
+  Vercel preview deployment both passed from the organisation repository.
 - Started `juliustanch/pre-gst-left-and-saved-details` after confirming the
   controlled form always initialized empty and relied only on browser
   autocomplete; no application-level cache previously existed.
