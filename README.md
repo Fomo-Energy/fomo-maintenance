@@ -30,12 +30,12 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 ### Booking portal foundation and fulfilment
 
 The customer Manage Booking portal uses Neon Postgres through Drizzle. Parts 1
-through 3 provide durable paid-booking fulfilment and secure manage access.
-Part 4 adds private Vercel Blob uploads and authenticated downloads behind a
-separate `DOCUMENT_UPLOADS_ENABLED=1` flag. Part 5 adds database-backed slot
-holds and customer date/time changes behind `RESCHEDULING_ENABLED=1`. The flags
-remain off until the migrated database, manage-link secret, private Blob store,
-calendar update, and notification flows pass Preview testing.
+through 5 are merged but dormant. They provide durable paid-booking fulfilment,
+secure manage access, private Vercel Blob uploads, authenticated downloads,
+database-backed slot holds, and customer date/time changes. The flags remain
+off until a Stripe sandbox, migrated Preview database, manage-link secret,
+private Preview Blob store, calendar update, and notification flows pass
+Preview testing.
 
 ```bash
 npm run verify:database

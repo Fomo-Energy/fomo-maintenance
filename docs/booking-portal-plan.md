@@ -36,8 +36,8 @@ Exit criteria:
 
 ### Part 2 — Post-payment fulfilment state machine
 
-Status: Implemented and locally verified behind a server-side feature flag;
-not merged, provisioned, or enabled.
+Status: Complete and merged in pull request #23 behind a server-side feature
+flag; not provisioned or enabled.
 
 Refactor the signed Stripe webhook so it verifies the raw event, records the
 event idempotently, and advances a durable database-backed state machine.
@@ -55,8 +55,8 @@ Exit criteria:
 
 ### Part 3 — Secure Manage Booking portal
 
-Status: Read-only portal and credential exchange implemented and locally
-verified behind the same feature flag; not merged, provisioned, or enabled.
+Status: Complete and merged in pull request #23 behind the same feature flag;
+not provisioned or enabled.
 
 Add `/manage#access=…` as the customer entrypoint. The URL fragment is not sent
 in HTTP request paths; the page exchanges it for a same-origin HttpOnly cookie
@@ -75,8 +75,8 @@ Recommended initial policy:
 
 ### Part 4 — Private document upload
 
-Status: Implemented and locally verified behind
-`DOCUMENT_UPLOADS_ENABLED=1`; not merged, provisioned, or enabled.
+Status: Complete and merged in pull request #24 behind
+`DOCUMENT_UPLOADS_ENABLED=1`; not provisioned or enabled.
 
 Authorize direct uploads to a private Vercel Blob store after validating the
 manage token. Store only opaque Blob pathnames plus reviewed metadata in
@@ -97,8 +97,8 @@ a substitute for malware scanning.
 
 ### Part 5 — Customer rescheduling
 
-Status: Implemented and locally verified on a stacked feature branch behind
-`RESCHEDULING_ENABLED=1`; not merged, migrated remotely, or enabled.
+Status: Complete and merged in pull request #25 behind
+`RESCHEDULING_ENABLED=1`; not migrated remotely or enabled.
 
 Show the current visit and available replacements in the portal. On submission,
 the server revalidates the token and policy, locks the booking record, reserves

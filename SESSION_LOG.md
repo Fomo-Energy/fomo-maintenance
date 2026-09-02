@@ -40,32 +40,25 @@ Pull request #21 was merged as `9e17e1b`; `main` now removes the redundant
 public `Other installer` choice and clarifies partial roof access and excluded
 third-party access costs.
 
-Pull requests #22 and #23 were merged as `9120067` and `6419bc3`, completing
-Parts 1–3 of the phased customer Manage Booking portal behind the disabled
-`BOOKING_PORTAL_ENABLED` flag. Branch `juliustanch/booking-portal-uploads` now
-implements Part 4 behind the separate disabled `DOCUMENT_UPLOADS_ENABLED` flag:
-private Blob uploads, database quota slots, file-policy checks, document lists,
-and ownership-checked downloads. Pull request #24 passed GitHub CI and its
-Vercel Preview deployment. No Neon or Blob resource has been provisioned, no
-migration has been applied remotely, and production behavior remains unchanged.
-
-Branch `juliustanch/booking-portal-rescheduling` is stacked on pull request #24
-and implements Part 5 behind disabled `RESCHEDULING_ENABLED`. It adds shared
-Checkout/reschedule database holds, customer policy enforcement, authenticated
-replacement-slot selection, bounded Graph queries, idempotent event updates,
-and Graph-first/atomic database finalization. No remote migration, Graph write,
-or Production flag change has occurred. Pull request #25 passed GitHub CI and
-its Vercel Preview deployment.
+Pull requests #22 through #25 are merged as `9120067`, `6419bc3`, `3802119`,
+and `1ffb4a8`, completing Parts 1–5 of the phased customer Manage Booking
+portal. Durable fulfilment, secure manage access, private uploads, shared slot
+holds, and customer rescheduling are present but dormant behind disabled
+server-side flags. No Neon or Blob resource has been provisioned, no migration
+has been applied remotely, and production behavior remains unchanged.
 
 ## Next up
 
-1. Review the Part 4 pull request, then provision and migrate separate Preview
-   Neon and private Blob resources; do not connect Production yet.
-2. Configure Preview-only portal/upload flags and secrets, then exercise payment,
-   replay, private upload/download, signature rejection, and concurrent quotas.
+1. Create a long-lived `e2e` branch Preview using a Stripe sandbox, matching 9%
+   GST tax rate and webhook, separate Preview Neon/Blob resources, and a
+   dedicated Microsoft test calendar; Production secrets stay unchanged.
+2. Apply migrations to Preview, enable the portal flag, and exercise sandbox
+   payment, signed webhook replay/recovery, database state, and calendar event
+   creation. Enable uploads only after private Blob verification.
 3. Confirm malware scanning, retention, deletion, and data-residency policy.
-4. Review the stacked Part 5 pull request, then run its concurrent-slot and
-   interrupted-Graph matrix against Preview Neon and Microsoft Graph.
+4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon
+   and the Microsoft test calendar; keep customer rescheduling disabled outside
+   supervised tests until Part 6 is complete.
 5. Build Part 6 customer/operations confirmation and reschedule email, including
    manage-link renewal for appointments moved beyond the original link expiry.
 6. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
@@ -78,6 +71,13 @@ its Vercel Preview deployment.
 
 ### 2026-09-02
 
+- Merged pull requests #24 and #25 as `3802119` and `1ffb4a8`. The feature
+  flags remain off, no remote portal migration or storage provisioning occurred,
+  and the legacy Production payment-to-calendar path remains authoritative.
+- Replaced the former all-live-environments assumption with an isolated Stripe
+  sandbox plan for a long-lived `e2e` Vercel Preview. The runbook keeps sandbox
+  keys, tax rate, webhook, database, Blob store, and test calendar separate
+  from Production.
 - Merged pull request #23 as `6419bc3`, completing the dormant Parts 2–3 code;
   its GitHub checks and Vercel deployment passed.
 - Started `juliustanch/booking-portal-uploads` for Part 4 and adopted private
