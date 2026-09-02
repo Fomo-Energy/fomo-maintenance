@@ -100,4 +100,7 @@ must not be committed.
 
 The booking APIs require the Node.js runtime and are deployed on Vercel. The
 GitHub Actions workflow verifies the pricing and slot rules and runs a Next.js
-production build; GitHub Pages deployment is disabled.
+production build; GitHub Pages deployment is disabled. The canonical source is
+the `Fomo-Energy/fomo-maintenance` GitHub repository, linked by repository ID to
+the `fomo-energy/fomo-maintenance` Vercel project with `main` as its production
+branch.

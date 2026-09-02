@@ -24,6 +24,11 @@ npm run verify
 npm run build
 ```
 
+The canonical repository is `Fomo-Energy/fomo-maintenance`. Pull requests and
+pushes should run the repository's `CI` workflow and create Vercel deployments
+in the `fomo-energy/fomo-maintenance` project. Production follows `main` and is
+served at https://fomo-maintenance.vercel.app.
+
 ## Required Stripe GST setup
 
 Create the tax rate in every Stripe mode used by a deployment:

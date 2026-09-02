@@ -30,6 +30,13 @@ cleaning copy. Main CI and the Vercel production deployment passed, and the live
 page was verified without creating a Checkout session, payment, or calendar
 event.
 
+The canonical repository is now `Fomo-Energy/fomo-maintenance`. The transfer
+preserved repository ID `1350261809`, history, issues, pull requests, and the
+active CI workflow. The local `origin` and Vercel project's Git link both point
+to the organisation-owned repository; production still follows `main`.
+Organisation-owned pull requests now trigger both GitHub CI and Vercel preview
+deployments after refreshing the Vercel Git connection.
+
 ## Next up
 
 1. Reduce Microsoft Graph availability queries from 90 days to its 62-day
@@ -65,6 +72,15 @@ event.
 - The post-deploy error scan found that Microsoft Graph now rejects the app's
   90-day free/busy request because its limit is 62 days. The page still renders
   via its availability fallback; a bounded-query fix remains next work.
+- Transferred the GitHub repository from `juliustanch/fomo-maintenance` to
+  `Fomo-Energy/fomo-maintenance`, preserving its repository ID and updating the
+  local remote. Confirmed administrator access, active Actions workflow, and an
+  automatically updated Vercel Git connection to the organisation repository.
+- Refreshed the Vercel Git connection after the transferred repository's first
+  pull-request events did not create preview deployments; the Vercel GitHub App
+  already had all-repository access in the organisation.
+- Verified the refreshed integration with pull request #20: GitHub CI and the
+  Vercel preview deployment both passed from the organisation repository.
 - Started `juliustanch/pre-gst-left-and-saved-details` after confirming the
   controlled form always initialized empty and relied only on browser
   autocomplete; no application-level cache previously existed.

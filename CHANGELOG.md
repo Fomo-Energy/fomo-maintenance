@@ -4,6 +4,9 @@ Status: Current
 
 ## 2026-09-02
 
+- Transferred the canonical repository from the maintainer's personal GitHub
+  account to the `Fomo-Energy` organisation while preserving its history,
+  repository ID, Actions workflow, and Vercel project linkage.
 - Simplified the cleaning-card description to the safe-access condition and
   follow-up when access cannot be confirmed; its calculated price is unchanged.
 - Moved the shared no-roof-access note above both service options, added the
