@@ -10,15 +10,16 @@ The merge commit is `fa037f4`; main-branch CI and the Vercel production
 deployment passed. The live homepage serves the new package copy and the live
 availability API returns Microsoft Graph-backed slots.
 
-Branch `juliustanch/testing-service` adds the requested S$0.50 live Testing
-checkout. Pull request #8 is open; GitHub verification and the Vercel preview
-pass. Production does not include this option yet.
+Production also includes the S$0.50 live Testing checkout from pull request #8,
+merged as `8186447`. Main-branch CI and the Vercel production deployment pass;
+the live page renders the requested no-service description.
 
 ## Next up
 
-1. Review pull request #8 without deploying until explicitly approved.
-2. After deployment approval, make one S$0.50 payment, validate the TESTING
-   calendar event and webhook metadata, then delete the event.
+1. Make one S$0.50 Testing payment, validate the TESTING calendar event and
+   webhook metadata, then delete the event.
+2. Remove the public Testing option after live validation is complete, or
+   replace it with authenticated operational tooling.
 3. Plan a separate Next.js 16 migration to clear the inherited PostCSS audit
    advisories; do not combine that major upgrade with this package change.
 
@@ -37,6 +38,11 @@ pass. Production does not include this option yet.
 - Committed the Testing checkout and opened pull request #8. GitHub verification
   and the Vercel preview pass, and the preview renders `Testing · S$0.50` with
   the requested no-service description.
+- On explicit authorization, merged pull request #8 as `8186447`. Main-branch
+  CI and the Vercel production deployment passed.
+- Confirmed production renders `Testing · S$0.50` and
+  `for testing purposes, no service offered`. The availability API still
+  returned 118 Graph-backed slots with no error; no payment was submitted.
 
 ### 2026-09-01
 
