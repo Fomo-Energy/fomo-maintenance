@@ -74,6 +74,9 @@ to the organisation-owned repository; production still follows `main`.
   `Fomo-Energy/fomo-maintenance`, preserving its repository ID and updating the
   local remote. Confirmed administrator access, active Actions workflow, and an
   automatically updated Vercel Git connection to the organisation repository.
+- Refreshed the Vercel Git connection after the transferred repository's first
+  pull-request events did not create preview deployments; the Vercel GitHub App
+  already had all-repository access in the organisation.
 - Started `juliustanch/pre-gst-left-and-saved-details` after confirming the
   controlled form always initialized empty and relied only on browser
   autocomplete; no application-level cache previously existed.
