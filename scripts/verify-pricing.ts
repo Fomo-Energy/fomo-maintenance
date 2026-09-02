@@ -81,7 +81,6 @@ for (const expected of codeCases) {
       installer: "fomo",
       serviceLevel: expected.serviceLevel,
       cleaning: expected.cleaning,
-      monitoring: false,
       testing: false,
     }).serviceCode,
     expected.code,
@@ -93,10 +92,9 @@ const complete = quote({
   installer: "fomo",
   serviceLevel: "electrical_assurance",
   cleaning: true,
-  monitoring: true,
   testing: false,
 });
-assert.equal(complete.totalSgd, 1129);
+assert.equal(complete.totalSgd, 1009);
 assert.equal(
   priceLineItems(complete).reduce((sum, item) => sum + item.amountSgd, 0),
   complete.totalSgd,
@@ -118,6 +116,16 @@ const validCheckout = {
   slotEnd: "2026-09-02T05:00:00.000Z",
 };
 assert.equal(parseCheckoutRequest(validCheckout).serviceLevel, "essential");
+assert.deepEqual(
+  quoteForCheckout(parseCheckoutRequest(validCheckout)).scope,
+  [
+    "Inverter area condition - physical integrity, switching and safety mechanisms",
+    "Inverter and DB area electrical checks",
+    "Remote pre-check when available",
+    "Report generation",
+  ],
+  "Essential scope must match the approved customer wording",
+);
 const forgedCheckout = parseCheckoutRequest({
   ...validCheckout,
   totalSgd: 1,
@@ -186,10 +194,10 @@ assert.throws(
   () =>
     parseCheckoutRequest({
       ...validCheckout,
-      installer: "other",
       monitoring: true,
     }),
-  /only available for compatible FOMO-installed systems/,
+  /not available for online booking/,
+  "Continuous monitoring must not be purchasable through a crafted request",
 );
 assert.equal(
   quote({
@@ -197,7 +205,6 @@ assert.equal(
     installer: "rto",
     serviceLevel: "essential",
     cleaning: false,
-    monitoring: false,
     testing: false,
   }).sellable,
   false,

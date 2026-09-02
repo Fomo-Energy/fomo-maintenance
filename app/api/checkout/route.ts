@@ -131,10 +131,8 @@ export async function POST(request: Request) {
         cleaningAccessStatus: quoted.cleaningApplied
           ? "pending_confirmation"
           : "not_requested",
-        monitoring: quoted.monitoringApplied ? "1" : "0",
-        monitoringCompatibilityStatus: quoted.monitoringApplied
-          ? "pending_confirmation"
-          : "not_requested",
+        monitoring: "0",
+        monitoringCompatibilityStatus: "not_requested",
         testing: quoted.testingApplied ? "1" : "0",
         fulfillmentStatus: quoted.testingApplied
           ? "no_service_offered"

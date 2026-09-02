@@ -18,10 +18,9 @@ export function About() {
             Maintenance gives owners a choice between an Essential Health
             Check and deeper Electrical Assurance testing. Full panel cleaning
             is a separate service performed only where safe roof access is
-            confirmed. Compatible FOMO-installed systems can also add
-            continuous monitoring. Rent-to-own already includes maintenance,
-            while repairs and replacement parts remain separate. Hardware
-            questions stay with{" "}
+            confirmed. Rent-to-own already includes maintenance, while repairs
+            and replacement parts remain separate. Hardware questions stay
+            with{" "}
             <a
               className="font-semibold text-ink underline decoration-brand/50 underline-offset-4"
               href={FOMO_ENERGY_URL}

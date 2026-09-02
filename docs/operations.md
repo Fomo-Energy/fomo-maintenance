@@ -38,7 +38,7 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
 
 The public Testing option makes a real S$0.50 live-mode Stripe charge and then
 runs the normal signed-webhook and Microsoft Graph flow. It is mutually
-exclusive with cleaning and monitoring and carries service code `TESTING`, a
+exclusive with cleaning and carries service code `TESTING`, a
 single `Testing — no service offered` Stripe line item, and
 `fulfillmentStatus=no_service_offered` metadata.
 
@@ -54,11 +54,6 @@ work. The booking and calendar event mark this as pending; the application does
 not determine access eligibility. If access cannot be confirmed after payment,
 contact the customer and resolve the cleaning line item manually under the
 current operations policy.
-
-For monitoring selections, confirm equipment compatibility before activation.
-The UI restricts monitoring to FOMO-installed systems, but the application does
-not have an equipment registry. Resolve an incompatible paid selection manually
-under the current operations policy.
 
 Other-installer first-visit onboarding is not part of online checkout. Do not
 add it manually unless operations can establish that it is applicable and has a
@@ -77,8 +72,11 @@ separate approved collection process.
   Outlook event was not created; Stripe will retry the signed webhook. Monitor
   for recovery, then reconcile manually and investigate Graph if it remains
   failed.
-- Package metadata says a cleaning or monitoring status is pending: this is the
-  expected manual verification state, not a Graph or Stripe error.
+- Package metadata says a cleaning status is pending: this is the expected
+  manual verification state, not a Graph or Stripe error.
+- A new checkout request contains `monitoring=true`: the API rejects it because
+  continuous monitoring is no longer offered. Legacy paid-session metadata
+  remains supported by the webhook.
 - A `TESTING` event is present: validate its Stripe session and webhook result,
   then delete the calendar event. No customer service should be dispatched.
 

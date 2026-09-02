@@ -35,16 +35,15 @@ npm run verify
 - Essential Health Check: `max(199, 149 + 5 × kWp)`
 - Electrical Assurance upgrade: `150 + 5 × kWp`
 - Cleaning: `max(450, 390 + 6 × kWp)`
-- Continuous monitoring: S$120/year, FOMO-installed compatible systems only
 - Testing: S$0.50 live payment and integration check; no service offered
 - Rent-to-own: do not sell; no checkout; no calendar. Point to FOMO Energy support.
 - Other-installer first-visit onboarding is not charged automatically because
   the app has no durable customer/site visit history. See the rollback register.
 
-Essential includes inverter/fault-log review, accessible electrical checks,
-generation sanity checking, a remote pre-check when available, and a digital
-report. It requires no roof access and excludes panel cleaning, deeper DC
-testing, repairs, and parts.
+Essential includes checking the inverter area's physical integrity, switching
+and safety mechanisms; electrical checks in the inverter and DB areas; a
+remote pre-check when available; and report generation. It requires no roof
+access and excludes panel cleaning, deeper DC testing, repairs, and parts.
 
 Electrical Assurance includes Essential plus deeper DC-side safety and
 performance testing with professional solar testing equipment. Cleaning is an
@@ -54,8 +53,8 @@ independent add-on and is performed only after FOMO confirms safe roof access.
 
 Payment success is the only moment a Microsoft calendar event is created. The browser never writes the calendar.
 
-1. Calculator: system kWp, installer, service level, optional cleaning,
-   monitoring, or mutually exclusive Testing checkout
+1. Calculator: system kWp, installer, service level, optional cleaning, or a
+   mutually exclusive Testing checkout
 2. Name, phone, email, site address
 3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
 4. Pay → Stripe Checkout (hosted, SGD cents)
@@ -72,8 +71,9 @@ Payment success is the only moment a Microsoft calendar event is created. The br
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
 Checkout metadata includes pricing version, service code, service level, kWp,
-installer, cleaning, monitoring and Testing statuses, bounded pricing breakdown
-and scope, customer/site details, slot, and amount in SGD cents.
+installer, cleaning and Testing statuses, bounded pricing breakdown and scope,
+customer/site details, slot, and amount in SGD cents. Legacy monitoring fields
+remain fixed to not requested so older webhook records stay compatible.
 
 Testing is a distinct `TESTING` package, not a kWp pricing override. It creates
 a real S$0.50 live-mode Stripe charge and a clearly marked calendar event so the
@@ -97,15 +97,15 @@ event lookup remains a second idempotency check against duplicate retries.
 
 ### Eligibility limitations
 
-The app has no property eligibility, equipment compatibility, customer, or site
-history datastore. It therefore does not pretend to automate those decisions:
+The app has no property eligibility, customer, or site history datastore. It
+therefore does not pretend to automate those decisions:
 
 - A cleaning selection is recorded as pending safe-access confirmation. No roof
   work should proceed until operations confirms access.
-- Monitoring is selectable only for FOMO-installed systems, but equipment
-  compatibility still requires operational confirmation.
 - The S$120 other-installer first-visit onboarding charge is omitted until the
   app can reliably distinguish first and repeat visits.
+
+Continuous monitoring is not offered by the calculator or checkout API.
 
 ### Environment variables
 
