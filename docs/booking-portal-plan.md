@@ -129,12 +129,14 @@ request per booking. Graph is updated and reread before Postgres changes the
 authoritative booking time; an uncertain response is resumed with the same
 request key. Operations must reconcile an abandoned active request before
 Production activation. Reschedule confirmation emails and manage-link renewal
-remain Part 6 dependencies, so this flag must stay off until that stage passes.
+are implemented in Part 6; the flag is enabled only on `staging` for the
+bounded team stress test and must stay off in Production until rollout approval.
 
 ### Part 6 — Transactional email
 
-Status: Implemented locally behind `TRANSACTIONAL_EMAIL_ENABLED=1`; Resend DNS,
-Preview migration, delivery, replay, and inbox verification remain in progress.
+Status: Implemented on `staging` behind `TRANSACTIONAL_EMAIL_ENABLED=1`.
+Resend DNS, Preview migration, and controlled customer/operations delivery pass;
+reschedule delivery, replay, and failed-delivery recovery checks remain.
 
 Use Resend and verified FOMO DNS records. Send the customer a payment/booking
 confirmation containing the service, Singapore appointment time, subtotal,

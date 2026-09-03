@@ -4,6 +4,18 @@ Status: Current
 
 ## 2026-09-03
 
+- Attached `maintenance.fomo.energy` to the existing `main` Production
+  deployment through a DNS-only Cloudflare CNAME, set the Production canonical
+  site URL, redeployed, and verified Vercel domain ownership, HTTPS, metadata,
+  and the disabled Production portal boundary.
+- Tightened environment isolation after an independent audit: live Stripe
+  variables are Production-only, and Preview Neon, Blob, Resend, Microsoft
+  client secret, sandbox Stripe, and feature settings are scoped to `staging`.
+  Generic Preview and Development live Stripe secrets were removed.
+- Changed the staging transactional sender and reply-to mailbox from the
+  provisional maintenance address to the existing shared
+  `service@fomo.energy` mailbox. Operations delivery remains
+  `ops@fomo.energy`.
 - Renamed the long-lived test branch to the organisation-owned `staging`
   branch and migrated all encrypted Vercel branch overrides in place. The
   sandbox Stripe, Preview Neon, private Blob, Resend, and Microsoft test-calendar
@@ -18,8 +30,8 @@ Status: Current
   expiry, including replacement of the authenticated browser cookie.
 - Provisioned a free Resend resource only for Vercel Preview in Tokyo. Sender
   DNS is verified, and controlled customer delivery to Gmail plus operations
-  delivery and reply-to at `ops@fomo.energy` passed on `staging`. Production
-  email is disabled and has no Resend resource.
+  delivery at `ops@fomo.energy` passed on `staging`. Production email is
+  disabled and has no Resend resource.
 - Added transactional email rendering/idempotency and schema-constraint checks;
   the full verification suite and production build pass locally.
 

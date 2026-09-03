@@ -6,12 +6,20 @@ This is a FOMO Energy program, not a sister company.
 
 ## Hosting
 
-Live site: https://fomo-maintenance.vercel.app
+Live site: https://maintenance.fomo.energy
+
+Staging site: https://fomo-maintenance-git-staging-fomo-energy.vercel.app
 
 Source repository: https://github.com/Fomo-Energy/fomo-maintenance
 
 The repository is owned by the `Fomo-Energy` GitHub organisation. Vercel's
 `fomo-energy/fomo-maintenance` project tracks its `main` branch.
+
+Production follows `main`, uses live Stripe, and is served on the custom
+domain. The `staging` branch uses its stable Vercel branch alias, Stripe
+sandbox, Preview Neon/Blob/Resend resources, and branch-scoped feature flags.
+The default `fomo-maintenance.vercel.app` address remains an additional
+Production alias because both environments share one Vercel project.
 
 The booking APIs need a Node server. The live app should run on **Vercel** (Next.js, not `output: 'export'`).
 
@@ -221,7 +229,10 @@ Continuous monitoring is not offered by the calculator or checkout API.
 
 ### Environment variables
 
-Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit secrets.
+Set these in the specific Vercel environment and branch that owns the matching
+external resources, and in `.env.local` only when local work needs them. Do not
+commit secrets. Live Stripe variables are Production-only; sandbox and Preview
+state credentials are scoped to the `staging` branch.
 
 | Variable | Used for |
 | --- | --- |
@@ -244,9 +255,9 @@ Set these in Vercel (Production + Preview) and in `.env.local`. Do not commit se
 | `RESCHEDULING_ENABLED` | Exact value `1` enables customer date/time changes. Keep `0` until Preview contention, Graph-update recovery, notifications, and operational reconciliation pass. |
 | `RESEND_API_KEY` | Server-only Resend key provisioned by the Vercel Marketplace integration. Scope Preview and Production resources separately. |
 | `TRANSACTIONAL_EMAIL_ENABLED` | Exact value `1` enables paid-booking and reschedule messages. Keep disabled until the matching database migration, sender DNS, and recipients are verified. |
-| `EMAIL_FROM` | Verified FOMO sender identity, for example `Fomo Maintenance <maintenance@fomo.energy>`. |
-| `EMAIL_REPLY_TO` | Monitored reply-to mailbox. |
-| `EMAIL_OPERATIONS_TO` | Comma-separated operations/finance recipients; initially limited to the approved maintenance mailbox. |
+| `EMAIL_FROM` | Verified FOMO sender identity; staging uses `Fomo Maintenance <service@fomo.energy>`. |
+| `EMAIL_REPLY_TO` | Monitored reply-to mailbox; staging uses `service@fomo.energy`. |
+| `EMAIL_OPERATIONS_TO` | Comma-separated operations/finance recipients; staging sends to `ops@fomo.energy`. |
 | `EMAIL_CUSTOMER_OVERRIDE_TO` | Optional controlled Preview recipient. Forbidden when `VERCEL_ENV=production`. |
 
 Microsoft Graph app registration:
