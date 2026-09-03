@@ -2,20 +2,34 @@
 
 Status: Current
 
+## 2026-09-03
+
+- Attached `maintenance.fomo.energy` to the existing `main` Production
+  deployment through a DNS-only Cloudflare CNAME, set the Production canonical
+  site URL, redeployed, and verified Vercel ownership, HTTPS, metadata, and the
+  disabled Production portal boundary.
+- Established the organisation-owned `staging` branch and stable Vercel Preview
+  alias for the team stress test. Live Stripe is Production-only; Preview Neon,
+  Blob, Resend, Microsoft client secret, sandbox Stripe, and feature variables
+  are scoped to `staging`.
+- Changed the staging transactional sender and reply-to mailbox to the existing
+  shared `service@fomo.energy` mailbox. Operations delivery remains
+  `ops@fomo.energy`.
+
 ## 2026-09-02
 
 - Corrected the manage-link exchange to issue one root-path HttpOnly cookie.
   Preview E2E testing showed that two same-name path-scoped cookies collapsed
   to the API cookie, preventing `/manage` from seeing the authenticated session.
 - Provisioned an isolated Stripe sandbox, Preview-only Neon database, and
-  private Singapore-region Blob store for the long-lived `e2e` branch. A paid
+  private Singapore-region Blob store for the long-lived `staging` branch. A paid
   S$0.55 sandbox checkout passed signed webhook handling and replay, durable
   booking fulfilment, the customer portal, private upload/download, and one
   supervised Graph/Postgres reschedule. Rescheduling was disabled afterward;
   Production resources, credentials, and feature flags remain unchanged.
 - Merged Parts 4 and 5 in pull requests #24 and #25. Their private-upload and
   customer-rescheduling flags were disabled at merge; subsequent provisioning
-  and activation is confined to the isolated `e2e` Preview described above.
+  and activation is confined to the isolated `staging` Preview described above.
 - Added the isolated Stripe sandbox/Vercel Preview runbook for controlled
   payment-to-webhook-to-database-to-calendar testing without changing live
   Stripe credentials or Production behavior.
