@@ -6,10 +6,10 @@ Status: Current
 
 ### Protect transactional booking email and manage credentials
 
-**Status:** In progress; database/provider idempotency, Preview recipient
-override, HTML escaping, and customer-only manage-link delivery are implemented.
-Sender DNS and controlled customer/operations inbox delivery are verified on
-`staging`; Production is disabled.
+**Status:** In progress; database idempotency, Preview recipient override, HTML
+escaping, and customer-only manage-link delivery are implemented. The Microsoft
+Graph transport is ready for a rotated secret and mailbox-restriction test;
+Production is disabled.
 
 **Why it matters:** Confirmation messages contain customer contact, address,
 appointment and payment-summary data. The customer message also carries a
@@ -17,18 +17,35 @@ bearer-style manage credential that grants private booking and document access.
 
 **Required end state:**
 
-1. Verify the FOMO sending domain and use a least-privilege Preview Resend key;
-   provision a distinct Production resource/key before rollout.
+1. Use a dedicated Entra app with only `Mail.Send`, restrict it to
+   `service@fomo.energy`, and provision distinct rotated Preview and Production
+   secrets before their respective rollouts.
 2. Keep the customer credential out of operations email, database email rows,
-   provider tags, application logs, and error messages.
+   Graph message headers, application logs, and error messages.
 3. Confirm the Preview-only customer-recipient override cannot operate in
    Production and remove it from Production configuration.
-4. Add delivery-event verification for delivered, bounced, complained, and
-   suppressed messages plus staff recovery for failed/uncertain deliveries.
-5. Decide approved email-data residency and retention before Production; the
-   initial Preview sender runs in Tokyo.
+4. Add Exchange/Graph delivery reconciliation for accepted, delivered,
+   rejected, and uncertain messages plus staff recovery. Graph `sendMail`
+   returns HTTP 202 without a server message ID.
+5. Confirm Microsoft 365 message retention and audit policy before Production.
 6. Add rate limits and staff-only credential revocation/reissue before broad
    portal activation.
+
+### Rotate exposed Entra client secrets
+
+**Status:** Open as of 2026-09-03.
+
+**Why it matters:** A local redaction command displayed the values from both
+candidate Entra credential records in task output. They must be treated as
+exposed even though neither value is committed to this repository.
+
+**Required end state:**
+
+1. Create replacement secrets for both affected app registrations.
+2. Update every known Vercel and monitoring consumer before revoking the old
+   values; do not interrupt the calendar or dark-site alert flows.
+3. Revoke both exposed values, test each consumer, and update this register
+   without recording any secret material.
 
 ### Protect customer manage links as credentials
 

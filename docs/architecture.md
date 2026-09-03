@@ -15,7 +15,7 @@ Status: Current
 | Customer manage access | `/api/manage/session` and `/manage` | Fragment credential is exchanged for an HttpOnly cookie; the read-only portal returns current booking data only after server-side digest, signature, expiry, and revocation checks |
 | Private PV documents | `/api/manage/documents/*`, `lib/portal/documents.ts`, and Vercel Blob | Short-lived direct-upload tokens target private opaque paths; Postgres owns metadata/quota state and authenticated downloads stream through the application |
 | Customer rescheduling | `/api/manage/reschedule*`, `lib/portal/rescheduling.ts`, and Microsoft Graph | Authenticated policy checks and database slot holds precede an idempotent Graph event update; Postgres changes the authoritative booking only after Graph verification |
-| Transactional email | `lib/portal/notifications.ts`, `email_deliveries`, and Resend | Feature-gated booking/reschedule confirmations use database and provider idempotency; only the customer message carries the private manage link |
+| Transactional email | `lib/email.ts`, `lib/portal/notifications.ts`, `email_deliveries`, and Microsoft Graph | Feature-gated booking/reschedule confirmations use a durable database claim and a mailbox-restricted `Mail.Send` app; only the customer message carries the private manage link |
 
 ## Pricing and package model
 
@@ -157,11 +157,22 @@ revokes that credential, issues a longer-lived replacement, updates the
 requesting browser cookie, and emails the replacement link. A Preview-only
 customer-recipient override fails closed in Production.
 
+Transactional mail uses a dedicated Microsoft Graph client-credentials app and
+`POST /v1.0/users/{sender}/sendMail` with `saveToSentItems=true`. The database
+claim is the duplicate-send boundary because Graph accepts the request with
+HTTP 202 but does not return a message ID or provide an idempotency key. A
+deterministic client request UUID and `x-fomo-*` message headers support
+reconciliation; `email_deliveries.provider_message_id` stores the corresponding
+opaque client reference. Historical `resend` delivery rows remain valid after
+the provider default changes to `microsoft_graph`.
+
 ## Authentication and storage
 
-Microsoft Graph uses OAuth client credentials and the application permission
-`Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
-the ID of a manually configured exclusive 9% GST tax rate. The active
+Microsoft Graph calendar access uses OAuth client credentials and the
+application permission `Calendars.ReadWrite`. Transactional email uses a
+separate client-credentials configuration with only `Mail.Send`, restricted by
+Exchange to `service@fomo.energy`. Stripe uses a secret API key, webhook signing
+secret, and the ID of a manually configured exclusive 9% GST tax rate. The active
 production flow still treats Stripe as the payment/booking record and Microsoft
 Calendar as the visit schedule. Neon is active only in the isolated `staging`
 Preview; Production remains dormant until its migration, secret, and server

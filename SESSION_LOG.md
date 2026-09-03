@@ -69,6 +69,17 @@ shared `service@fomo.energy` mailbox, while operations delivery remains
 `ops@fomo.energy`.
 Production has no Resend resource or email flag.
 
+Transactional email is being migrated from Resend to a dedicated Microsoft
+Graph `Mail.Send` transport on branch `juliustanch/graph-transactional-email`.
+The code, provider-preserving database migration, full verification suite,
+production build, and current documentation pass locally; staging has not been
+switched.
+The mail-only Entra registration has the required role, but both candidate
+client-secret values must be rotated because a failed local redaction exposed
+them in task output. Keep staging transactional email disabled until a fresh
+secret and the `service@fomo.energy` mailbox restriction are configured and
+tested.
+
 Production is now served at `https://maintenance.fomo.energy`, with a DNS-only
 Cloudflare CNAME to Vercel and `NEXT_PUBLIC_SITE_URL` set to the custom origin.
 The default Vercel project URL remains an additional Production alias; the
@@ -79,25 +90,35 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
 
 ## Next up
 
-1. Complete the bounded one-week team stress test on `staging`, including
+1. Rotate both exposed Entra client secrets without interrupting the existing
+   calendar or monitoring consumers; configure a fresh mail-only secret and
+   restrict its app to `service@fomo.energy`.
+2. Apply migration `0004_complete_kree.sql` to Preview Neon, switch the
+   branch-scoped Vercel email variables to `EMAIL_GRAPH_*`, deploy, and repeat
+   the controlled customer/operations delivery and replay tests.
+3. Remove the unused Preview Resend integration/resource and DNS only after
+   retained records are reconciled and Graph passes.
+4. Complete the bounded one-week team stress test on `staging`, including
    booking, upload/download, rescheduling, and email observations.
-2. Verify reschedule-message delivery, Stripe replay idempotency, and
+5. Verify reschedule-message delivery, Stripe replay idempotency, and
    failed-email recovery in the isolated Preview stack.
-3. Confirm malware scanning, retention, deletion, and data-residency policy.
-4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon.
-5. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
-   retention/deletion jobs, and Graph/database reconciliation tooling.
-6. Provision a distinct Production database, Blob store, mail configuration,
-   and dedicated Microsoft production calendar ID only after approval and
-   complete a controlled rollout without reusing Preview secrets.
-7. Decide whether customer receipts remain Stripe receipts or whether the paid
-   Checkout webhook should create formal invoices through Xero; first confirm
-   the target organisation, GST details, existing Stripe feed, and OAuth storage.
 
 ## Session entries
 
 ### 2026-09-03
 
+- Began replacing Resend with Microsoft Graph `sendMail` from the existing
+  `service@fomo.energy` shared mailbox. The dedicated email configuration is
+  separate from the calendar app, and new delivery rows use
+  `microsoft_graph` while retaining historical `resend` rows.
+- Verified safely from token claims that the mail candidate has only
+  `Mail.Send`; the calendar candidate does not have that role. No token,
+  identifier, or secret is recorded in this repository.
+- Recorded a security incident after a local output-redaction command exposed
+  both candidate client-secret values in task output. Treat both as exposed,
+  rotate all consumers, and do not deploy either value to staging.
+- Added deterministic Graph request references and reconciliation headers,
+  status-only provider failures, and local payload/database/idempotency tests.
 - Renamed the long-lived test branch from `juliustanch/e2e` to the
   organisation-owned `staging` branch. Migrated all 14 encrypted Vercel
   branch-scoped overrides in place without reading or rotating their values,

@@ -45,10 +45,10 @@ deployment profiles in the same Vercel project:
 | Profile | Git ref and URL | External resources |
 | --- | --- | --- |
 | Production | `main`; `maintenance.fomo.energy` | Live Stripe and Production Microsoft configuration. Portal, uploads, rescheduling, and email remain disabled until distinct Production resources are approved. |
-| Staging | `staging`; stable `git-staging` Vercel alias | Stripe sandbox, Preview Neon, private Blob, Preview Resend, Microsoft test-calendar configuration, and enabled portal features. |
+| Staging | `staging`; stable `git-staging` Vercel alias | Stripe sandbox, Preview Neon, private Blob, Microsoft test-calendar and Graph email configurations, and enabled portal features. |
 
-All live Stripe variables are Production-only. Preview database, Blob, Resend,
-Microsoft client secret, sandbox Stripe variables, site URL, and feature flags
+All live Stripe variables are Production-only. Preview database, Blob,
+Microsoft calendar/email secrets, sandbox Stripe variables, site URL, and feature flags
 are branch-scoped to `staging`; ordinary pull-request Previews inherit none of
 those credentials. Promote reviewed code by pull request rather than copying or
 retargeting secrets. Provision and migrate separate Production resources before
@@ -77,26 +77,29 @@ server quote. The application uses the tax-rate ID directly so the restricted
 Stripe key does not need `tax_rate_read`; preserve that least-privilege setup.
 Do not deploy a pricing change before the matching tax-rate ID is configured.
 
-## Required Resend setup
+## Required Microsoft Graph email setup
 
-1. Provision the Resend resource through Vercel Marketplace on the free plan
-   for Preview first. The approved initial sending region is Tokyo
-   (`ap-northeast-1`); reassess residency before Production.
-2. Add only the exact DKIM TXT, sending-subdomain MX, and SPF TXT records
-   generated for `fomo.energy` to its authoritative Cloudflare DNS zone. Do not
-   replace nameservers or modify the existing inbound-mail MX records.
-3. Wait until Resend reports the domain verified before using
-   `service@fomo.energy` as `EMAIL_FROM` and `EMAIL_REPLY_TO`.
-4. Scope `RESEND_API_KEY` to Preview. On `staging`, set
+1. Create or select a dedicated Entra app registration and grant only Microsoft
+   Graph `Mail.Send` application permission. Obtain administrator consent.
+2. Restrict the app to `service@fomo.energy` using Exchange Online Application
+   RBAC or an application access policy. Verify that sending as an unrelated
+   mailbox is denied before enabling the app.
+3. Create a fresh secret for the intended deployment profile. Configure
+   `EMAIL_GRAPH_TENANT_ID`, `EMAIL_GRAPH_CLIENT_ID`,
+   `EMAIL_GRAPH_CLIENT_SECRET`, and
+   `EMAIL_GRAPH_SENDER_USER=service@fomo.energy` as server-only Vercel values.
+   Never reuse an exposed or expired value.
+4. On `staging`, set
    `EMAIL_OPERATIONS_TO=ops@fomo.energy`, set the controlled customer inbox
    through `EMAIL_CUSTOMER_OVERRIDE_TO`, and only then set
    `TRANSACTIONAL_EMAIL_ENABLED=1`.
 5. Never set `EMAIL_CUSTOMER_OVERRIDE_TO` in Production. The application rejects
    it there, but the environment must still be clean before rollout.
 
-Apply the email-delivery migration before enabling the flag. Verify one paid
+Apply migration `0004_complete_kree.sql` before enabling the flag. Verify one paid
 sandbox booking produces exactly one `booking_customer` and one
-`booking_operations` delivery, with provider IDs and `sent` status. Replay the
+`booking_operations` delivery, with provider `microsoft_graph`, opaque client
+references, and `sent` status. Replay the
 Stripe event and confirm neither message is duplicated. Complete one supervised
 reschedule and verify exactly one customer and one operations change message.
 The customer email must contain the working private manage/upload link; the
@@ -104,11 +107,11 @@ operations email must not contain it.
 
 Email rollback is to remove `TRANSACTIONAL_EMAIL_ENABLED` and redeploy. This
 stops new mail but preserves payment, calendar, portal, and existing delivery
-audit state. Do not delete the Resend resource or DNS records until retained
-delivery records have been reconciled. A booking email failure remains
-retryable through the signed Stripe webhook; a failed reschedule notification
-is recorded for operational recovery and must not reverse the confirmed
-calendar change.
+audit state. Revoke the Graph app secret or mailbox assignment only after
+retained delivery records and other known consumers have been reconciled. A
+booking email failure remains retryable through the signed Stripe webhook; a
+failed reschedule notification is recorded for operational recovery and must
+not reverse the confirmed calendar change.
 
 Before production use, perform a paid Stripe test-mode booking and confirm:
 

@@ -47,10 +47,8 @@ async function deliver(input: {
           to: input.to,
           message: input.message,
           idempotencyKey,
-          tags: [
-            { name: "booking_reference", value: input.booking.reference },
-            { name: "message_kind", value: input.messageKind },
-          ],
+          bookingReference: input.booking.reference,
+          messageKind: input.messageKind,
         }),
     },
   );
