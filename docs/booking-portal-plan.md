@@ -134,22 +134,25 @@ bounded team stress test and must stay off in Production until rollout approval.
 
 ### Part 6 — Transactional email
 
-Status: Implemented on `staging` behind `TRANSACTIONAL_EMAIL_ENABLED=1`.
-Resend DNS, Preview migration, and controlled customer/operations delivery pass;
-reschedule delivery, replay, and failed-delivery recovery checks remain.
+Status: Microsoft Graph transport implemented behind
+`TRANSACTIONAL_EMAIL_ENABLED=1`; the new migration and rotated mailbox-scoped
+credential must be applied to `staging` before controlled delivery is repeated.
 
-Use Resend and verified FOMO DNS records. Send the customer a payment/booking
-confirmation containing the service, Singapore appointment time, subtotal,
-GST, total paid, address, booking reference, and manage link. Send operations a
-separate message. After a reschedule, notify the customer and operations with
-both the previous and new time. Deterministic idempotency keys prevent duplicate
-messages during retries.
+Use Microsoft Graph and a dedicated `Mail.Send` application restricted to the
+`service@fomo.energy` mailbox. Send the customer a payment/booking confirmation
+containing the service, Singapore appointment time, subtotal, GST, total paid,
+address, booking reference, and manage link. Send operations a separate
+message. After a reschedule, notify the customer and operations with both the
+previous and new time. Deterministic database claims prevent duplicate messages
+during retries.
 
-The implementation stores delivery state and provider message IDs without
-storing rendered bodies or raw manage tokens. The customer receives the private
-link; operations does not. Preview can force customer messages into one
-controlled test inbox, while Production rejects that override. A later
-appointment renews the manage credential before notification when required.
+The implementation stores delivery state and an opaque Graph client-request
+reference without storing rendered bodies or raw manage tokens. Graph returns
+HTTP 202 without a server message ID, so the database—not the provider—is the
+idempotency boundary. The customer receives the private link; operations does
+not. Preview can force customer messages into one controlled test inbox, while
+Production rejects that override. A later appointment renews the manage
+credential before notification when required.
 
 This confirmation is not, by itself, an IRAS tax invoice. Xero receipt/tax
 invoice generation remains a separate integration decision.
@@ -178,7 +181,8 @@ Next.js pages, API routes, token checks, upload authorization, Stripe webhook
 handling, Graph calls, and workflow steps run in Vercel's Node.js runtime.
 Durable state never lives in a function instance: Neon stores relational state,
 Vercel Blob stores private files, Stripe stores payment records, Microsoft
-stores calendar events, and Resend performs mail delivery.
+stores calendar events, and Microsoft Graph sends mail from the dedicated
+Microsoft 365 mailbox.
 
 ## Decisions required before later parts
 
@@ -186,5 +190,5 @@ stores calendar events, and Resend performs mail delivery.
 2. Accepted file types, per-file size, file count, and retention period.
 3. Whether uploaded files require Singapore-only data residency.
 4. Operations and finance notification recipients.
-5. FOMO sending domain and reply-to address.
+5. Production transactional-email app, mailbox restriction, and reply-to address.
 6. Microsoft Entra group allowed into the staff portal.

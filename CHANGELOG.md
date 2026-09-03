@@ -4,6 +4,14 @@ Status: Current
 
 ## 2026-09-03
 
+- Replaced the Resend application dependency with Microsoft Graph `sendMail`
+  from `service@fomo.energy`. New delivery rows identify
+  `microsoft_graph`; historical Resend rows remain valid, and the database
+  remains the authoritative duplicate-send guard because Graph returns HTTP
+  202 without a provider message ID.
+- Added dedicated `EMAIL_GRAPH_*` configuration, deterministic client request
+  references and `x-fomo-*` reconciliation headers, safe status-only provider
+  errors, payload tests, and migration `0004_complete_kree.sql`.
 - Attached `maintenance.fomo.energy` to the existing `main` Production
   deployment through a DNS-only Cloudflare CNAME, set the Production canonical
   site URL, redeployed, and verified Vercel domain ownership, HTTPS, metadata,

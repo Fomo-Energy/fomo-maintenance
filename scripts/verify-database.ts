@@ -58,6 +58,7 @@ async function main() {
     "0001_rare_hammerhead.sql",
     "0002_ancient_chronomancer.sql",
     "0003_jazzy_firelord.sql",
+    "0004_complete_kree.sql",
   ]) {
     await database.exec(await migrationSql(filename));
   }
@@ -413,12 +414,26 @@ async function main() {
     "Stripe webhook event IDs must be idempotent",
   );
 
-  await database.query(
+  const delivery = await database.query<{ provider: string }>(
     `insert into email_deliveries (
       booking_id, message_kind, recipient, idempotency_key,
       status, attempt_count
     ) values ($1, 'booking_customer', 'customer@example.com',
-      'fm-booking-customer-test-v1', 'sent', 1)`,
+      'fm-booking-customer-test-v1', 'sent', 1)
+    returning provider`,
+    [bookingId],
+  );
+  assert.equal(
+    delivery.rows[0]?.provider,
+    "microsoft_graph",
+    "new delivery records must default to Microsoft Graph",
+  );
+  await database.query(
+    `insert into email_deliveries (
+      booking_id, message_kind, recipient, idempotency_key,
+      provider, status, attempt_count
+    ) values ($1, 'booking_operations', 'ops@example.com',
+      'fm-booking-operations-historical-v1', 'resend', 'sent', 1)`,
     [bookingId],
   );
   await expectConstraintFailure(
@@ -442,6 +457,17 @@ async function main() {
         [bookingId],
       ),
     "only approved transactional message kinds may be stored",
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into email_deliveries (
+          booking_id, message_kind, recipient, idempotency_key, provider
+        ) values ($1, 'booking_operations', 'ops@example.com',
+          'fm-invalid-provider', 'smtp')`,
+        [bookingId],
+      ),
+    "only the historical Resend and current Microsoft Graph providers may be stored",
   );
 
   await database.close();

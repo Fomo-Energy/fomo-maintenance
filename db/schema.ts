@@ -369,7 +369,7 @@ export const emailDeliveries = pgTable(
     messageKind: text("message_kind").notNull(),
     recipient: text("recipient").notNull(),
     idempotencyKey: text("idempotency_key").notNull(),
-    provider: text("provider").default("resend").notNull(),
+    provider: text("provider").default("microsoft_graph").notNull(),
     providerMessageId: text("provider_message_id"),
     status: text("status").default("pending").notNull(),
     attemptCount: integer("attempt_count").default(0).notNull(),
@@ -396,7 +396,7 @@ export const emailDeliveries = pgTable(
     ),
     check(
       "email_deliveries_provider_check",
-      sql`${table.provider} = 'resend'`,
+      sql`${table.provider} in ('resend', 'microsoft_graph')`,
     ),
     check(
       "email_deliveries_status_check",

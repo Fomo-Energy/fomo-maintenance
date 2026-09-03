@@ -11,6 +11,11 @@ import {
   rescheduleCustomerEmail,
   rescheduleOperationsEmail,
 } from "../lib/portal/email-templates";
+import {
+  graphClientRequestId,
+  graphProviderReference,
+  graphSendMailPayload,
+} from "../lib/graph-email";
 
 const booking: Booking = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -106,16 +111,16 @@ async function verifyDeliveryIdempotency() {
     store,
     send: async () => {
       sends += 1;
-      return "resend-message-1";
+      return "microsoft-graph-message-1";
     },
   };
   assert.deepEqual(await deliverEmailOnce(input, services), {
     status: "sent",
-    providerMessageId: "resend-message-1",
+    providerMessageId: "microsoft-graph-message-1",
   });
   assert.deepEqual(await deliverEmailOnce(input, services), {
     status: "duplicate",
-    providerMessageId: "resend-message-1",
+    providerMessageId: "microsoft-graph-message-1",
   });
   assert.equal(sends, 1, "a completed delivery must not be sent twice");
 
@@ -139,12 +144,67 @@ async function verifyDeliveryIdempotency() {
       store,
       send: async () => {
         attempts += 1;
-        return "resend-message-recovered";
+        return "microsoft-graph-message-recovered";
       },
     }),
-    { status: "sent", providerMessageId: "resend-message-recovered" },
+    { status: "sent", providerMessageId: "microsoft-graph-message-recovered" },
   );
   assert.equal(attempts, 2);
+}
+
+function verifyGraphRequest() {
+  const idempotencyKey = `fm-booking-customer-${booking.id}-v1`;
+  const rendered = bookingCustomerEmail(
+    booking,
+    "https://example.com/manage#access=fake-token-for-rendering-only",
+  );
+  const payload = graphSendMailPayload({
+    to: ["customer@example.com"],
+    replyTo: "service@fomo.energy",
+    message: rendered,
+    idempotencyKey,
+    bookingReference: booking.reference,
+    messageKind: "booking_customer",
+  });
+  assert.equal(payload.saveToSentItems, true);
+  assert.equal(payload.message.body.contentType, "HTML");
+  assert.equal(
+    payload.message.toRecipients[0]?.emailAddress.address,
+    "customer@example.com",
+  );
+  assert.equal(
+    payload.message.replyTo[0]?.emailAddress.address,
+    "service@fomo.energy",
+  );
+  assert.deepEqual(
+    payload.message.internetMessageHeaders.map(({ name }) => name),
+    [
+      "x-fomo-idempotency-key",
+      "x-fomo-booking-reference",
+      "x-fomo-message-kind",
+    ],
+  );
+  assert.match(
+    graphClientRequestId(idempotencyKey),
+    /^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+  );
+  assert.equal(
+    graphProviderReference(idempotencyKey),
+    graphProviderReference(idempotencyKey),
+    "the accepted Graph request reference must be deterministic for a retry",
+  );
+  assert.throws(
+    () =>
+      graphSendMailPayload({
+        to: ["customer@example.com"],
+        replyTo: "service@fomo.energy",
+        message: rendered,
+        idempotencyKey: "unsafe\r\nheader",
+        bookingReference: booking.reference,
+        messageKind: "booking_customer",
+      }),
+    /ASCII value/,
+  );
 }
 
 function verifyTemplates() {
@@ -196,6 +256,7 @@ function verifyTemplates() {
 
 async function main() {
   verifyTemplates();
+  verifyGraphRequest();
   await verifyDeliveryIdempotency();
   console.log("Transactional email rendering and idempotency verification passed.");
 }

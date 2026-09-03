@@ -1,10 +1,25 @@
 import "server-only";
 
-import { Resend } from "resend";
 import type { RenderedEmail } from "@/lib/portal/email-templates";
+import {
+  graphClientRequestId,
+  graphProviderReference,
+  graphSendMailPayload,
+  type TransactionalMessageKind,
+} from "@/lib/graph-email";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-let resendClient: Resend | undefined;
+const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
+const GRAPH_TIMEOUT_MS = 30_000;
+
+type TokenCache = {
+  tenantId: string;
+  clientId: string;
+  accessToken: string;
+  expiresAt: number;
+};
+
+let tokenCache: TokenCache | undefined;
 
 export class EmailProviderError extends Error {
   constructor(public readonly code: string) {
@@ -22,19 +37,24 @@ function singleEmail(name: string, value: string | undefined): string {
 }
 
 function senderOnFomoDomain(value: string | undefined): string {
-  const sender = value?.trim() || "";
-  const namedSender = sender.match(/^[^<>\r\n]+<([^<>\s]+)>$/);
-  const address = singleEmail("EMAIL_FROM", namedSender?.[1] || sender);
+  const address = singleEmail("EMAIL_GRAPH_SENDER_USER", value);
   if (!address.endsWith("@fomo.energy")) {
-    throw new Error("EMAIL_FROM must use an address on fomo.energy.");
+    throw new Error("EMAIL_GRAPH_SENDER_USER must use an address on fomo.energy.");
   }
-  return sender;
+  return address;
+}
+
+function requiredEnv(name: string): string {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`${name} is required.`);
+  return value;
 }
 
 export function emailConfiguration() {
-  const apiKey = process.env.RESEND_API_KEY?.trim();
-  if (!apiKey) throw new Error("RESEND_API_KEY is required.");
-  const from = senderOnFomoDomain(process.env.EMAIL_FROM);
+  const tenantId = requiredEnv("EMAIL_GRAPH_TENANT_ID");
+  const clientId = requiredEnv("EMAIL_GRAPH_CLIENT_ID");
+  const clientSecret = requiredEnv("EMAIL_GRAPH_CLIENT_SECRET");
+  const sender = senderOnFomoDomain(process.env.EMAIL_GRAPH_SENDER_USER);
   const replyTo = singleEmail("EMAIL_REPLY_TO", process.env.EMAIL_REPLY_TO);
   const configuredOperationsTo = process.env.EMAIL_OPERATIONS_TO?.trim();
   const operationsTo = configuredOperationsTo
@@ -49,7 +69,14 @@ export function emailConfiguration() {
   if (operationsTo.length === 0 || operationsTo.length > 10) {
     throw new Error("EMAIL_OPERATIONS_TO must contain one to ten recipients.");
   }
-  return { apiKey, from, replyTo, operationsTo };
+  return {
+    tenantId,
+    clientId,
+    clientSecret,
+    sender,
+    replyTo,
+    operationsTo,
+  };
 }
 
 export function customerEmailRecipient(intendedRecipient: string): string {
@@ -61,31 +88,102 @@ export function customerEmailRecipient(intendedRecipient: string): string {
   return singleEmail("EMAIL_CUSTOMER_OVERRIDE_TO", override);
 }
 
+async function graphEmailAccessToken(
+  config: ReturnType<typeof emailConfiguration>,
+): Promise<string> {
+  if (
+    tokenCache?.tenantId === config.tenantId &&
+    tokenCache.clientId === config.clientId &&
+    tokenCache.expiresAt > Date.now() + 30_000
+  ) {
+    return tokenCache.accessToken;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://login.microsoftonline.com/${encodeURIComponent(config.tenantId)}/oauth2/v2.0/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: config.clientId,
+          client_secret: config.clientSecret,
+          scope: GRAPH_SCOPE,
+          grant_type: "client_credentials",
+        }),
+        signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
+      },
+    );
+  } catch {
+    throw new EmailProviderError("graph_token_network_error");
+  }
+
+  const payload = (await response.json().catch(() => ({}))) as {
+    access_token?: string;
+    expires_in?: number;
+  };
+  if (!response.ok) {
+    throw new EmailProviderError(`graph_token_http_${response.status}`);
+  }
+  if (!payload.access_token) {
+    throw new EmailProviderError("graph_token_invalid_response");
+  }
+
+  tokenCache = {
+    tenantId: config.tenantId,
+    clientId: config.clientId,
+    accessToken: payload.access_token,
+    expiresAt: Date.now() + (Number(payload.expires_in) || 3_600) * 1_000,
+  };
+  return tokenCache.accessToken;
+}
+
 export async function sendEmail(input: {
   to: string[];
   message: RenderedEmail;
   idempotencyKey: string;
-  tags: Array<{ name: string; value: string }>;
+  bookingReference: string;
+  messageKind: TransactionalMessageKind;
 }): Promise<string> {
   const config = emailConfiguration();
-  resendClient ??= new Resend(config.apiKey);
-  const { data, error } = await resendClient.emails.send(
-    {
-      from: config.from,
-      to: input.to,
-      replyTo: config.replyTo,
-      subject: input.message.subject,
-      text: input.message.text,
-      html: input.message.html,
-      tags: input.tags,
-    },
-    { idempotencyKey: input.idempotencyKey },
-  );
-  if (error) {
-    throw new EmailProviderError(error.name || "provider_error");
+  const to = input.to.map((value) => singleEmail("recipient", value));
+  if (to.length === 0 || to.length > 10) {
+    throw new Error("Email must contain one to ten recipients.");
   }
-  if (!data?.id) {
-    throw new EmailProviderError("provider_response_missing_id");
+  const accessToken = await graphEmailAccessToken(config);
+  const clientRequestId = graphClientRequestId(input.idempotencyKey);
+  let response: Response;
+  try {
+    response = await fetch(
+      `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(config.sender)}/sendMail`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+          "client-request-id": clientRequestId,
+          "return-client-request-id": "true",
+        },
+        body: JSON.stringify(
+          graphSendMailPayload({
+            to,
+            replyTo: config.replyTo,
+            message: input.message,
+            idempotencyKey: input.idempotencyKey,
+            bookingReference: input.bookingReference,
+            messageKind: input.messageKind,
+          }),
+        ),
+        signal: AbortSignal.timeout(GRAPH_TIMEOUT_MS),
+      },
+    );
+  } catch {
+    throw new EmailProviderError("graph_send_network_error");
   }
-  return data.id;
+  if (response.status !== 202) {
+    throw new EmailProviderError(`graph_send_http_${response.status}`);
+  }
+
+  return graphProviderReference(input.idempotencyKey);
 }
