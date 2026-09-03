@@ -81,7 +81,7 @@ export const bookings = pgTable(
     ),
     check(
       "bookings_calendar_status_check",
-      sql`${table.calendarStatus} in ('pending', 'processing', 'created', 'failed')`,
+      sql`${table.calendarStatus} in ('pending', 'processing', 'created', 'failed', 'cancelled')`,
     ),
     check(
       "bookings_customer_email_status_check",
@@ -260,6 +260,7 @@ export const slotReservations = pgTable(
       () => rescheduleRequests.id,
       { onDelete: "cascade" },
     ),
+    checkoutRequestKey: text("checkout_request_key"),
     stripeCheckoutSessionId: text("stripe_checkout_session_id"),
     resourceKey: text("resource_key").default("fomo-maintenance").notNull(),
     slotStart: timestamp("slot_start", { withTimezone: true }).notNull(),
@@ -277,6 +278,9 @@ export const slotReservations = pgTable(
     uniqueIndex("slot_reservations_checkout_session_unique")
       .on(table.stripeCheckoutSessionId)
       .where(sql`${table.stripeCheckoutSessionId} is not null`),
+    uniqueIndex("slot_reservations_checkout_request_unique")
+      .on(table.checkoutRequestKey)
+      .where(sql`${table.checkoutRequestKey} is not null`),
     index("slot_reservations_booking_idx").on(table.bookingId),
     index("slot_reservations_expiry_idx").on(table.holdExpiresAt),
     check("slot_reservations_slot_order_check", sql`${table.slotEnd} > ${table.slotStart}`),
@@ -290,7 +294,7 @@ export const slotReservations = pgTable(
     ),
     check(
       "slot_reservations_owner_check",
-      sql`${table.bookingId} is not null or ${table.stripeCheckoutSessionId} is not null`,
+      sql`${table.bookingId} is not null or ${table.stripeCheckoutSessionId} is not null or ${table.checkoutRequestKey} is not null`,
     ),
   ],
 );
@@ -392,7 +396,7 @@ export const emailDeliveries = pgTable(
     ),
     check(
       "email_deliveries_message_kind_check",
-      sql`${table.messageKind} in ('booking_customer', 'booking_operations', 'reschedule_customer', 'reschedule_operations')`,
+      sql`${table.messageKind} in ('booking_customer', 'booking_operations', 'reschedule_customer', 'reschedule_operations', 'partial_refund_operations', 'dispute_operations')`,
     ),
     check(
       "email_deliveries_provider_check",
@@ -405,6 +409,34 @@ export const emailDeliveries = pgTable(
     check(
       "email_deliveries_attempt_count_check",
       sql`${table.attemptCount} >= 0`,
+    ),
+  ],
+);
+
+export const apiRateLimits = pgTable(
+  "api_rate_limits",
+  {
+    action: text("action").notNull(),
+    identifierDigest: char("identifier_digest", { length: 64 }).notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    requestCount: integer("request_count").default(1).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt,
+    updatedAt,
+  },
+  (table) => [
+    primaryKey({
+      columns: [table.action, table.identifierDigest, table.windowStart],
+    }),
+    index("api_rate_limits_expiry_idx").on(table.expiresAt),
+    check(
+      "api_rate_limits_action_check",
+      sql`${table.action} in ('availability', 'checkout')`,
+    ),
+    check("api_rate_limits_count_positive", sql`${table.requestCount} > 0`),
+    check(
+      "api_rate_limits_expiry_after_window",
+      sql`${table.expiresAt} > ${table.windowStart}`,
     ),
   ],
 );

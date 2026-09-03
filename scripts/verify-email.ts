@@ -8,6 +8,7 @@ import {
 import {
   bookingCustomerEmail,
   bookingOperationsEmail,
+  paymentLifecycleOperationsEmail,
   rescheduleCustomerEmail,
   rescheduleOperationsEmail,
 } from "../lib/portal/email-templates";
@@ -252,6 +253,28 @@ function verifyTemplates() {
   assert.match(rescheduleCustomer.text, /New visit: Tuesday/);
   assert.match(rescheduleCustomer.text, /fake-token-for-rendering-only/);
   assert.doesNotMatch(rescheduleOperations.text, /fake-token/);
+
+  const partialRefund = paymentLifecycleOperationsEmail({
+    booking,
+    kind: "partial_refund",
+    amountCents: 5000,
+    chargeId: "ch_test_partial",
+  });
+  assert.match(partialRefund.subject, /Partial refund/);
+  assert.match(partialRefund.text, /Refunded amount: S\$50\.00/);
+  assert.match(partialRefund.text, /appointment remains confirmed/i);
+  assert.doesNotMatch(partialRefund.text + partialRefund.html, /fake-token/);
+
+  const dispute = paymentLifecycleOperationsEmail({
+    booking,
+    kind: "dispute",
+    amountCents: 21691,
+    chargeId: "ch_test_dispute",
+    disputeId: "dp_test_dispute",
+  });
+  assert.match(dispute.subject, /Payment dispute/);
+  assert.match(dispute.text, /Disputed amount: S\$216\.91/);
+  assert.match(dispute.text, /dp_test_dispute/);
 
   const historicalTestingBooking = {
     ...booking,

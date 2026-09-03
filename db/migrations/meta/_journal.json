@@ -36,6 +36,13 @@
       "when": 1788405718215,
       "tag": "0004_complete_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788450483030,
+      "tag": "0005_heavy_warhawk",
+      "breakpoints": true
     }
   ]
 }

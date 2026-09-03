@@ -243,3 +243,45 @@ export function rescheduleOperationsEmail(input: {
     }),
   };
 }
+
+export function paymentLifecycleOperationsEmail(input: {
+  booking: BookingEmailData;
+  kind: "partial_refund" | "dispute";
+  amountCents: number;
+  chargeId: string;
+  disputeId?: string;
+  appointmentRetained?: boolean;
+}): RenderedEmail {
+  const isDispute = input.kind === "dispute";
+  const heading = isDispute
+    ? "Payment dispute requires attention"
+    : "Partial refund requires attention";
+  const rows: EmailRow[] = [
+    ["Booking reference", input.booking.reference],
+    ["Customer", input.booking.customerName],
+    ["Customer email", input.booking.customerEmail],
+    ["Service", input.booking.packageName],
+    ["Visit time", formatSlotRange(input.booking.slotStart.toISOString(), input.booking.slotEnd.toISOString())],
+    ["Site address", input.booking.siteAddress],
+    [isDispute ? "Disputed amount" : "Refunded amount", money(input.amountCents)],
+    ["Stripe charge", input.chargeId],
+  ];
+  if (input.disputeId) rows.push(["Stripe dispute", input.disputeId]);
+  const instruction = isDispute && input.appointmentRetained === false
+    ? "This booking was already fully refunded and its appointment was cancelled before the dispute arrived. Check Stripe and coordinate any financial response manually."
+    : isDispute
+      ? "The appointment remains confirmed while the dispute is reviewed. Check Stripe and coordinate any operational decision manually."
+    : "The appointment remains confirmed because this was not a full refund. Check Stripe and coordinate any operational decision manually.";
+  return {
+    subject: `${isDispute ? "Payment dispute" : "Partial refund"} — ${input.booking.reference}`,
+    text: `${heading}.\n\n${rowsText(rows)}\n\n${instruction}`,
+    html: shell({
+      preview: `${heading} for ${input.booking.reference}`,
+      heading,
+      intro: instruction,
+      rows,
+      footer:
+        "This is an internal operations alert. The customer manage credential is intentionally excluded.",
+    }),
+  };
+}

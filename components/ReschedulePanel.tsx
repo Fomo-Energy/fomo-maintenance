@@ -342,8 +342,14 @@ export default function ReschedulePanel({
             </>
           ) : (
             <p className="text-sm text-slate-600">
-              No replacement times are currently available. Contact the FOMO
-              team if the booking needs attention.
+              No replacement times are currently available. Email{" "}
+              <a
+                className="font-semibold text-ink underline underline-offset-2"
+                href="mailto:service@fomo.energy"
+              >
+                service@fomo.energy
+              </a>{" "}
+              if the booking needs attention.
             </p>
           )}
         </form>

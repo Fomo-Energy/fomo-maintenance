@@ -18,8 +18,9 @@ payment states are never trusted.
 
 ### Part 1 — Durable data foundation
 
-Status: Complete and merged in pull request #22. Migrated in the isolated
-`staging` Preview; Production is not provisioned.
+Status: Complete and merged in pull request #22. Migrated in isolated
+`staging` and Production Neon databases; Production activation is limited to
+the durable booking/lifecycle foundation.
 
 Add Neon Postgres and Drizzle without connecting it to the live checkout yet.
 Define bookings, hashed access tokens, document metadata, reschedule history,
@@ -38,7 +39,8 @@ Exit criteria:
 ### Part 2 — Post-payment fulfilment state machine
 
 Status: Complete and merged in pull request #23 behind a server-side feature
-flag. Enabled and payment/replay tested in `staging`; Production remains disabled.
+flag. Enabled and payment/replay tested in `staging`; Production enables this
+durable fulfilment foundation after its isolated database migration.
 
 Refactor the signed Stripe webhook so it verifies the raw event, records the
 event idempotently, and advances a durable database-backed state machine.
@@ -58,7 +60,8 @@ Exit criteria:
 
 Status: Complete and merged in pull request #23 behind the same feature flag.
 The `staging` portal passed credential exchange and booking-isolation checks;
-Production remains disabled.
+Production creates the private credential but does not distribute it while
+production transactional email remains disabled.
 
 Add `/manage#access=…` as the customer entrypoint. The URL fragment is not sent
 in HTTP request paths; the page exchanges it for a same-origin HttpOnly cookie
@@ -159,10 +162,17 @@ invoice generation remains a separate integration decision.
 
 ### Part 7 — Staff access, hardening, and rollout
 
-Protect staff booking/document access with Microsoft Entra ID. Add rate limits,
-audit visibility, upload scanning, retention jobs, delivery monitoring, and
-operational reconciliation. Use distinct Preview and Production databases,
-Blob stores, webhook secrets, and email settings.
+Status: In progress. Separate Preview and Production databases are provisioned;
+atomic pre-Checkout slot reservations, public availability/checkout rate
+limits, refund/dispute lifecycle handling, security headers, stricter callback
+errors, and a full CI release gate are implemented. The staging operations
+guide maps these behaviors for the team stress test.
+
+Protect staff booking/document access with Microsoft Entra ID. Complete
+manage-action limits, audit visibility, upload scanning, retention jobs,
+delivery monitoring, and operational reconciliation. Continue using distinct
+Preview and Production databases, Blob stores, webhook secrets, and email
+settings.
 
 Roll out in this order:
 

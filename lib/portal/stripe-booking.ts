@@ -141,6 +141,9 @@ export function paidBookingFromSession(
     slotStart,
     slotEnd,
     paidAt,
+    ...(metadata(session, "checkoutRequestKey")
+      ? { checkoutRequestKey: metadata(session, "checkoutRequestKey") }
+      : {}),
   };
 }
 

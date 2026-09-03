@@ -36,6 +36,24 @@ export class SlotConflictError extends Error {
   }
 }
 
+function isUniqueConstraintViolation(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current; depth += 1) {
+    if (
+      typeof current === "object" &&
+      "code" in current &&
+      (current as { code?: unknown }).code === "23505"
+    ) {
+      return true;
+    }
+    current =
+      typeof current === "object" && "cause" in current
+        ? (current as { cause?: unknown }).cause
+        : undefined;
+  }
+  return false;
+}
+
 export type PreparedReschedule = {
   request: RescheduleRequest;
   booking: Booking;
@@ -76,7 +94,10 @@ export async function releaseExpiredSlotReservations(
 export async function listActiveReservedPeriods(
   rangeStart: Date,
   rangeEnd: Date,
-  options: { excludeBookingId?: string } = {},
+  options: {
+    excludeBookingId?: string;
+    excludeCheckoutRequestKey?: string;
+  } = {},
 ): Promise<BusyPeriod[]> {
   const now = new Date();
   const records = await getDatabase()
@@ -103,13 +124,22 @@ export async function listActiveReservedPeriods(
               ne(slotReservations.bookingId, options.excludeBookingId),
             )
           : undefined,
+        options.excludeCheckoutRequestKey
+          ? or(
+              isNull(slotReservations.checkoutRequestKey),
+              ne(
+                slotReservations.checkoutRequestKey,
+                options.excludeCheckoutRequestKey,
+              ),
+            )
+          : undefined,
       ),
     );
   return records;
 }
 
 export async function reserveCheckoutSlot(input: {
-  stripeCheckoutSessionId: string;
+  checkoutRequestKey: string;
   slot: VisitSlot;
   expiresAt: Date;
 }): Promise<void> {
@@ -119,82 +149,216 @@ export async function reserveCheckoutSlot(input: {
     .select()
     .from(slotReservations)
     .where(
-      eq(
-        slotReservations.stripeCheckoutSessionId,
-        input.stripeCheckoutSessionId,
-      ),
+      eq(slotReservations.checkoutRequestKey, input.checkoutRequestKey),
     )
     .limit(1);
   if (existing) {
     if (
       existing.slotStart.getTime() === new Date(input.slot.start).getTime() &&
       existing.slotEnd.getTime() === new Date(input.slot.end).getTime() &&
-      ["held", "confirmed"].includes(existing.status)
+      existing.status === "held"
     ) {
       return;
     }
-    throw new SlotConflictError("This Checkout Session has a different slot hold.");
+    throw new SlotConflictError(
+      "This checkout request cannot be reused. Refresh and try again.",
+    );
   }
 
   try {
     await database.insert(slotReservations).values({
-      stripeCheckoutSessionId: input.stripeCheckoutSessionId,
+      checkoutRequestKey: input.checkoutRequestKey,
       slotStart: new Date(input.slot.start),
       slotEnd: new Date(input.slot.end),
       status: "held",
       holdExpiresAt: input.expiresAt,
     });
-  } catch {
-    throw new SlotConflictError();
+  } catch (error) {
+    if (isUniqueConstraintViolation(error)) {
+      throw new SlotConflictError();
+    }
+    throw error;
   }
 }
 
-export async function confirmPaidCheckoutSlot(input: {
-  bookingId: string;
+export async function bindCheckoutSlot(input: {
+  checkoutRequestKey: string;
   stripeCheckoutSessionId: string;
-  slotStart: Date;
-  slotEnd: Date;
+  expiresAt: Date;
 }): Promise<void> {
-  const database = getDatabase();
-  const now = new Date();
-  const confirmed = await database
+  const bound = await getDatabase()
     .update(slotReservations)
     .set({
-      bookingId: input.bookingId,
-      status: "confirmed",
-      holdExpiresAt: null,
-      updatedAt: now,
+      stripeCheckoutSessionId: input.stripeCheckoutSessionId,
+      holdExpiresAt: input.expiresAt,
+      updatedAt: new Date(),
     })
+    .where(
+      and(
+        eq(slotReservations.checkoutRequestKey, input.checkoutRequestKey),
+        inArray(slotReservations.status, ["held", "confirmed"]),
+        or(
+          isNull(slotReservations.stripeCheckoutSessionId),
+          eq(
+            slotReservations.stripeCheckoutSessionId,
+            input.stripeCheckoutSessionId,
+          ),
+        ),
+      ),
+    )
+    .returning({ id: slotReservations.id });
+  if (bound.length !== 1) {
+    throw new SlotConflictError(
+      "The checkout session could not be linked to its visit time.",
+    );
+  }
+}
+
+export async function releaseCheckoutSlot(input: {
+  checkoutRequestKey?: string;
+  stripeCheckoutSessionId?: string;
+  reason: "released" | "expired";
+}): Promise<void> {
+  if (!input.checkoutRequestKey && !input.stripeCheckoutSessionId) {
+    throw new Error("A checkout request key or Stripe Session ID is required.");
+  }
+  const now = new Date();
+  await getDatabase()
+    .update(slotReservations)
+    .set({ status: input.reason, releasedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(slotReservations.status, "held"),
+        or(
+          input.checkoutRequestKey
+            ? eq(
+                slotReservations.checkoutRequestKey,
+                input.checkoutRequestKey,
+              )
+            : undefined,
+          input.stripeCheckoutSessionId
+            ? eq(
+                slotReservations.stripeCheckoutSessionId,
+                input.stripeCheckoutSessionId,
+              )
+            : undefined,
+        ),
+      ),
+    );
+}
+
+export async function extendCheckoutSlotForAsyncPayment(input: {
+  stripeCheckoutSessionId: string;
+  expiresAt: Date;
+}): Promise<void> {
+  await getDatabase()
+    .update(slotReservations)
+    .set({ holdExpiresAt: input.expiresAt, updatedAt: new Date() })
     .where(
       and(
         eq(
           slotReservations.stripeCheckoutSessionId,
           input.stripeCheckoutSessionId,
         ),
-        eq(slotReservations.slotStart, input.slotStart),
-        eq(slotReservations.slotEnd, input.slotEnd),
+        eq(slotReservations.status, "held"),
+      ),
+    );
+}
+
+export async function confirmCheckoutSlotWithoutBooking(
+  stripeCheckoutSessionId: string,
+): Promise<void> {
+  const confirmed = await getDatabase()
+    .update(slotReservations)
+    .set({ status: "confirmed", holdExpiresAt: null, updatedAt: new Date() })
+    .where(
+      and(
+        eq(
+          slotReservations.stripeCheckoutSessionId,
+          stripeCheckoutSessionId,
+        ),
         inArray(slotReservations.status, ["held", "confirmed"]),
       ),
     )
     .returning({ id: slotReservations.id });
-  if (confirmed.length === 1) {
+  if (confirmed.length !== 1) {
+    throw new SlotConflictError(
+      "The paid checkout no longer has an active visit-time reservation.",
+    );
+  }
+}
+
+export async function confirmPaidCheckoutSlot(input: {
+  bookingId: string;
+  stripeCheckoutSessionId: string;
+  checkoutRequestKey?: string;
+  slotStart: Date;
+  slotEnd: Date;
+}): Promise<void> {
+  const database = getDatabase();
+  const now = new Date();
+  const confirmed = await database.execute<{ id: string }>(sql`
+    with eligible_booking as (
+      select id from bookings
+      where id = ${input.bookingId}::uuid
+        and payment_status = 'paid'
+        and calendar_status <> 'cancelled'
+      for update
+    ), confirmed_reservation as (
+      update slot_reservations
+      set booking_id = ${input.bookingId}::uuid,
+          stripe_checkout_session_id = ${input.stripeCheckoutSessionId},
+          status = 'confirmed', hold_expires_at = null, updated_at = ${now}
+      where (
+          stripe_checkout_session_id = ${input.stripeCheckoutSessionId}
+          or (${input.checkoutRequestKey ?? null}::text is not null
+              and checkout_request_key = ${input.checkoutRequestKey ?? null})
+        )
+        and slot_start = ${input.slotStart}
+        and slot_end = ${input.slotEnd}
+        and status in ('held', 'confirmed')
+        and exists (select 1 from eligible_booking)
+      returning id
+    )
+    select id from confirmed_reservation
+  `);
+  if (confirmed.rows.length === 1) {
     return;
   }
 
   await releaseExpiredSlotReservations(now);
   try {
-    await database.insert(slotReservations).values({
-      bookingId: input.bookingId,
-      stripeCheckoutSessionId: input.stripeCheckoutSessionId,
-      slotStart: input.slotStart,
-      slotEnd: input.slotEnd,
-      status: "confirmed",
-      holdExpiresAt: null,
-    });
-  } catch {
-    throw new SlotConflictError(
-      "The paid booking slot conflicts with another active reservation.",
-    );
+    const inserted = await database.execute<{ id: string }>(sql`
+      with eligible_booking as (
+        select id from bookings
+        where id = ${input.bookingId}::uuid
+          and payment_status = 'paid'
+          and calendar_status <> 'cancelled'
+        for update
+      )
+      insert into slot_reservations (
+        booking_id, checkout_request_key, stripe_checkout_session_id,
+        slot_start, slot_end, status, hold_expires_at
+      )
+      select id, ${input.checkoutRequestKey ?? null},
+             ${input.stripeCheckoutSessionId}, ${input.slotStart},
+             ${input.slotEnd}, 'confirmed', null
+      from eligible_booking
+      returning id
+    `);
+    if (!inserted.rows[0]) {
+      throw new SlotConflictError(
+        "The paid booking is no longer eligible for a visit-time reservation.",
+      );
+    }
+  } catch (error) {
+    if (error instanceof SlotConflictError) throw error;
+    if (isUniqueConstraintViolation(error)) {
+      throw new SlotConflictError(
+        "The paid booking slot conflicts with another active reservation.",
+      );
+    }
+    throw error;
   }
 }
 
@@ -361,6 +525,9 @@ export async function completeCustomerReschedule(input: {
           record_version = record_version + 1,
           updated_at = now()
       where id = ${input.bookingId}::uuid
+        and payment_status in ('paid', 'partially_refunded', 'disputed')
+        and calendar_status = 'created'
+        and graph_event_id is not null
         and slot_start = ${input.previousSlotStart}
         and slot_end = ${input.previousSlotEnd}
         and record_version = ${input.expectedRecordVersion}

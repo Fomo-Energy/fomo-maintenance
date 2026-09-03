@@ -147,8 +147,10 @@ export async function fulfillPaidCheckout(
     const permanent = error instanceof PermanentFulfillmentError;
     const failureCode = permanent ? error.code : `${activeStep || "booking"}_failed`;
 
-    if (booking && activeStep) {
-      await services.store.failStep(booking.id, activeStep, failureCode);
+    if (booking) {
+      if (activeStep) {
+        await services.store.failStep(booking.id, activeStep, failureCode);
+      }
       await services.store.failBooking(booking.id, failureCode);
     }
     await services.store.failEvent(input.eventId, failureCode, booking?.id);

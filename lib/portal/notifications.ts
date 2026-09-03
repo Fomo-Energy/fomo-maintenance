@@ -13,6 +13,7 @@ import {
   bookingOperationsEmail,
   rescheduleCustomerEmail,
   rescheduleOperationsEmail,
+  paymentLifecycleOperationsEmail,
 } from "@/lib/portal/email-templates";
 import { SITE_URL } from "@/lib/site";
 
@@ -27,7 +28,9 @@ async function deliver(input: {
     | "booking_customer"
     | "booking_operations"
     | "reschedule_customer"
-    | "reschedule_operations";
+    | "reschedule_operations"
+    | "partial_refund_operations"
+    | "dispute_operations";
   to: string[];
   message: ReturnType<typeof bookingCustomerEmail>;
   idempotencyKey: string;
@@ -52,6 +55,29 @@ async function deliver(input: {
         }),
     },
   );
+}
+
+export async function deliverPaymentLifecycleOperationsNotification(input: {
+  booking: Booking;
+  eventId: string;
+  kind: "partial_refund" | "dispute";
+  amountCents: number;
+  chargeId: string;
+  disputeId?: string;
+  appointmentRetained?: boolean;
+}) {
+  const operationsTo = emailConfiguration().operationsTo;
+  const messageKind =
+    input.kind === "partial_refund"
+      ? ("partial_refund_operations" as const)
+      : ("dispute_operations" as const);
+  return deliver({
+    booking: input.booking,
+    messageKind,
+    to: operationsTo,
+    message: paymentLifecycleOperationsEmail(input),
+    idempotencyKey: `fm-${messageKind}-${input.eventId}-v1`,
+  });
 }
 
 export async function deliverBookingCustomerNotification(input: {

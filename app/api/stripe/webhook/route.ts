@@ -4,22 +4,41 @@ import { databaseIsConfigured } from "@/lib/database";
 import {
   createMaintenanceVisitRecordWithRetry,
   createMaintenanceVisitWithRetry,
+  deleteMaintenanceVisitWithRetry,
 } from "@/lib/microsoft";
-import { databaseFulfillmentStore } from "@/lib/portal/bookings";
+import {
+  databaseFulfillmentStore,
+  databasePaymentLifecycleStore,
+} from "@/lib/portal/bookings";
 import {
   bookingPortalEnabled,
+  checkoutReservationsEnabled,
   manageLinkSecret,
+  paymentLifecycleEnabled,
   transactionalEmailEnabled,
 } from "@/lib/portal/config";
 import { fulfillPaidCheckout } from "@/lib/portal/fulfillment";
 import {
   deliverBookingCustomerNotification,
   deliverBookingOperationsNotification,
+  deliverPaymentLifecycleOperationsNotification,
 } from "@/lib/portal/notifications";
+import { processPaymentLifecycleEvent } from "@/lib/portal/payment-lifecycle";
+import {
+  confirmCheckoutSlotWithoutBooking,
+  extendCheckoutSlotForAsyncPayment,
+  releaseCheckoutSlot,
+} from "@/lib/portal/rescheduling";
+import {
+  checkoutLifecycleAction,
+  type CheckoutLifecycleAction,
+} from "@/lib/portal/stripe-lifecycle";
 import { getStripe, stripeWebhookSecret } from "@/lib/stripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+const ASYNC_PAYMENT_HOLD_MS = 7 * 24 * 60 * 60 * 1_000;
 
 function meta(session: Stripe.Checkout.Session, key: string): string {
   return session.metadata?.[key]?.trim() || "";
@@ -62,7 +81,7 @@ async function markCalendarStatus(
   }
 }
 
-async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
+async function handlePaidCheckout(session: Stripe.Checkout.Session) {
   if (session.payment_status !== "paid") {
     console.info(
       "[fomo-maintenance] skipping calendar; payment_status is",
@@ -88,7 +107,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   if (!slotStart || !slotEnd || !address || !email) {
     console.error(
-      "[fomo-maintenance] checkout.session.completed missing booking metadata",
+      "[fomo-maintenance] paid Checkout Session missing booking metadata",
       { sessionId: session.id },
     );
     await markCalendarStatus(session, "failed");
@@ -138,7 +157,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   }
 }
 
-async function handleDurableCheckoutCompleted(
+async function handleDurablePaidCheckout(
   event: Stripe.Event,
   session: Stripe.Checkout.Session,
 ) {
@@ -191,6 +210,101 @@ async function handleDurableCheckoutCompleted(
   return result;
 }
 
+async function handleReservationLifecycle(
+  action: CheckoutLifecycleAction,
+  session: Stripe.Checkout.Session,
+): Promise<"released" | "expired" | "awaiting_payment" | null> {
+  if (!checkoutReservationsEnabled()) {
+    return null;
+  }
+  if (!databaseIsConfigured()) {
+    throw new Error(
+      "CHECKOUT_RESERVATIONS_ENABLED is set but DATABASE_URL is not configured.",
+    );
+  }
+
+  if (action === "expire") {
+    await releaseCheckoutSlot({
+      stripeCheckoutSessionId: session.id,
+      reason: "expired",
+    });
+    return "expired";
+  }
+  if (action === "release") {
+    await releaseCheckoutSlot({
+      stripeCheckoutSessionId: session.id,
+      reason: "released",
+    });
+    return "released";
+  }
+  if (action === "await_payment") {
+    // A delayed payment has left Checkout but has not settled. Keep the slot
+    // until Stripe reports async success/failure instead of letting the normal
+    // Checkout expiry release a potentially paid appointment.
+    await extendCheckoutSlotForAsyncPayment({
+      stripeCheckoutSessionId: session.id,
+      expiresAt: new Date(Date.now() + ASYNC_PAYMENT_HOLD_MS),
+    });
+    return "awaiting_payment";
+  }
+  return null;
+}
+
+async function handlePaymentLifecycle(event: Stripe.Event) {
+  if (!bookingPortalEnabled() || !paymentLifecycleEnabled()) {
+    throw new Error(
+      "Payment lifecycle handling requires BOOKING_PORTAL_ENABLED=1 and PAYMENT_LIFECYCLE_ENABLED=1.",
+    );
+  }
+  if (!databaseIsConfigured()) {
+    throw new Error("Payment lifecycle database is not configured.");
+  }
+  const object = event.data.object as { id?: string };
+  if (!object.id) {
+    throw new Error("Stripe lifecycle event is missing its object ID.");
+  }
+  const result = await processPaymentLifecycleEvent(
+    {
+      eventId: event.id,
+      eventType: event.type as
+        | "charge.refunded"
+        | "charge.dispute.created",
+      objectId: object.id,
+    },
+    {
+      store: databasePaymentLifecycleStore,
+      loadCharge: (chargeId) => getStripe().charges.retrieve(chargeId),
+      loadDispute: (disputeId) => getStripe().disputes.retrieve(disputeId),
+      async paymentBelongsToApplication(paymentIntentId) {
+        const paymentIntent = await getStripe().paymentIntents.retrieve(
+          paymentIntentId,
+        );
+        if (paymentIntent.metadata.application === "fomo-maintenance") {
+          return true;
+        }
+        const sessions = await getStripe().checkout.sessions.list({
+          payment_intent: paymentIntentId,
+          limit: 3,
+        });
+        return sessions.data.some(
+          (session) =>
+            session.metadata?.application === "fomo-maintenance" ||
+            Boolean(session.metadata?.pricingVersion) ||
+            session.metadata?.fulfillmentStatus === "service_booked",
+        );
+      },
+      cancelCalendar: deleteMaintenanceVisitWithRetry,
+      ...(transactionalEmailEnabled()
+        ? {
+            sendOperationsAlert:
+              deliverPaymentLifecycleOperationsNotification,
+          }
+        : {}),
+    },
+  );
+  return result;
+}
+
 export async function POST(request: Request) {
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
@@ -210,14 +324,80 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid Stripe signature." }, { status: 400 });
   }
 
-  if (event.type !== "checkout.session.completed") {
-    return NextResponse.json({ received: true });
+  if (
+    event.type === "charge.refunded" ||
+    event.type === "charge.dispute.created"
+  ) {
+    try {
+      const result = await handlePaymentLifecycle(event);
+      if (result.status === "busy" || result.status === "failed") {
+        return NextResponse.json(
+          { received: true, paymentLifecycle: result.status },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({
+        received: true,
+        paymentLifecycle: result.status,
+      });
+    } catch (error) {
+      console.error("[fomo-maintenance] payment lifecycle failed", {
+        eventId: event.id,
+        eventType: event.type,
+        error: loggableError(error),
+      });
+      return NextResponse.json(
+        { received: true, paymentLifecycle: "failed" },
+        { status: 503 },
+      );
+    }
   }
 
   const session = event.data.object as Stripe.Checkout.Session;
+  const action = checkoutLifecycleAction(event.type, session.payment_status);
+  if (action === "ignore") {
+    return NextResponse.json({ received: true });
+  }
+  try {
+    const reservation = await handleReservationLifecycle(action, session);
+    if (reservation) {
+      return NextResponse.json({ received: true, reservation });
+    }
+  } catch (error) {
+    console.error("[fomo-maintenance] checkout reservation lifecycle failed", {
+      eventId: event.id,
+      eventType: event.type,
+      sessionId: session.id,
+      error: loggableError(error),
+    });
+    return NextResponse.json(
+      { received: true, reservation: "failed" },
+      { status: 503 },
+    );
+  }
+
+  // Deployments without durable reservations still acknowledge non-payment
+  // lifecycle events; only paid events should proceed to fulfilment.
+  if (action !== "fulfill") {
+    return NextResponse.json({ received: true });
+  }
+
+  if (session.payment_status !== "paid") {
+    console.error("[fomo-maintenance] paid Checkout event is not marked paid", {
+      eventId: event.id,
+      eventType: event.type,
+      sessionId: session.id,
+      paymentStatus: session.payment_status,
+    });
+    return NextResponse.json(
+      { received: true, fulfillment: "payment_not_paid" },
+      { status: 503 },
+    );
+  }
+
   if (bookingPortalEnabled()) {
     try {
-      const result = await handleDurableCheckoutCompleted(event, session);
+      const result = await handleDurablePaidCheckout(event, session);
       if (result.status === "busy" || result.status === "failed") {
         return NextResponse.json(
           { received: true, fulfillment: result.status },
@@ -238,7 +418,24 @@ export async function POST(request: Request) {
     }
   }
 
-  const result = await handleCheckoutCompleted(session);
+  if (checkoutReservationsEnabled()) {
+    try {
+      await confirmCheckoutSlotWithoutBooking(session.id);
+    } catch (error) {
+      console.error("[fomo-maintenance] paid slot confirmation failed", {
+        eventId: event.id,
+        eventType: event.type,
+        sessionId: session.id,
+        error: loggableError(error),
+      });
+      return NextResponse.json(
+        { received: true, reservation: "failed" },
+        { status: 503 },
+      );
+    }
+  }
+
+  const result = await handlePaidCheckout(session);
   if (result.calendar === "failed") {
     return NextResponse.json(
       { received: true, ...result },

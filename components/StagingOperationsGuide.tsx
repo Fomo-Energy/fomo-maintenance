@@ -4,7 +4,7 @@ const flowSteps = [
   {
     title: "Customer completes sandbox Checkout",
     detail:
-      "Stripe validates a sandbox card and records a test payment. No card is charged and no live Stripe funds move.",
+      "The app briefly reserves the chosen slot before creating Stripe Checkout. Stripe then validates a sandbox card and records a test payment; no real card is charged and no live Stripe funds move.",
   },
   {
     title: "The signed webhook fulfils the booking",
@@ -20,6 +20,11 @@ const flowSteps = [
     title: "The customer can manage the visit",
     detail:
       "The private link lets the customer upload PV documents and request an available replacement date and time. A confirmed change updates the real Microsoft calendar event and triggers customer and operations reschedule messages.",
+  },
+  {
+    title: "Refunds and disputes update operations",
+    detail:
+      "A full refund blocks private customer access immediately, then cancels the Microsoft calendar event and releases the slot once Microsoft confirms deletion. A partial refund or dispute keeps the appointment and access in place and sends an operations alert for manual review.",
   },
 ] as const;
 
@@ -52,6 +57,12 @@ const emailRoutes = [
     destination: "No email is sent currently.",
     contents:
       "Operations must inspect the booking record or private document store during testing.",
+  },
+  {
+    audience: "Partial refund or dispute alert",
+    destination: "Sent to ops@fomo.energy.",
+    contents:
+      "The appointment remains confirmed until operations decides otherwise. A full refund does not send this alert; it immediately blocks customer access and removes the calendar event after Microsoft confirms deletion.",
   },
 ] as const;
 
@@ -143,6 +154,16 @@ export function StagingOperationsGuide() {
             </h3>
             <ul className="mt-4 list-disc space-y-3 rounded-2xl border border-amber-300 bg-amber-50 p-6 pl-10 text-sm leading-6 text-slate-700">
               <li>
+                Availability is limited to 120 requests per minute per network
+                address. Checkout is limited to 12 attempts per 10 minutes;
+                exceeding either limit returns a temporary retry message.
+              </li>
+              <li>
+                Cancelling Stripe Checkout does not release the slot
+                immediately because that Session may still be payable in
+                another tab. An abandoned hold clears after roughly 36 minutes.
+              </li>
+              <li>
                 A failed initial booking email remains retryable through the
                 signed Stripe webhook; duplicate sends are guarded by the
                 staging database.
@@ -155,6 +176,12 @@ export function StagingOperationsGuide() {
                 There is no staff dashboard or automatic escalation for a
                 stuck notification yet. Check delivery records and Vercel logs
                 during testing.
+              </li>
+              <li>
+                Full refunds immediately block customer access. Calendar
+                deletion and slot release retry safely if Microsoft is
+                temporarily unavailable. Partial refunds and disputes retain
+                access and the appointment for manual operations review.
               </li>
               <li>
                 Reconcile test bookings and remove synthetic calendar events
