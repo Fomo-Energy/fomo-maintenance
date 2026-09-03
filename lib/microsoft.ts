@@ -488,6 +488,60 @@ export async function updateMaintenanceVisitTimeWithRetry(
   }
 }
 
+function graphStatusCode(error: unknown): number | null {
+  if (!error || typeof error !== "object") return null;
+  for (const key of ["statusCode", "status"] as const) {
+    const value = (error as Record<string, unknown>)[key];
+    if (typeof value === "number") return value;
+    if (typeof value === "string" && /^\d{3}$/.test(value)) {
+      return Number(value);
+    }
+  }
+  return "cause" in error
+    ? graphStatusCode((error as { cause?: unknown }).cause)
+    : null;
+}
+
+export function graphDeletionWasAlreadyComplete(error: unknown): boolean {
+  return graphStatusCode(error) === 404;
+}
+
+async function deleteMaintenanceVisitOnce(eventId: string): Promise<void> {
+  const mailbox = calendarMailbox();
+  const client = await getGraphClient();
+  const maintenanceCalendarId = await resolveMaintenanceCalendarId(
+    client,
+    mailbox,
+  );
+  const eventPath = `${maintenanceCalendarPath(mailbox, maintenanceCalendarId)}/events/${encodeURIComponent(eventId)}`;
+  try {
+    await client.api(eventPath).delete();
+  } catch (error) {
+    if (graphDeletionWasAlreadyComplete(error)) return;
+    throw error;
+  }
+}
+
+export async function deleteMaintenanceVisitWithRetry(
+  eventId: string,
+): Promise<void> {
+  try {
+    await deleteMaintenanceVisitOnce(eventId);
+  } catch (firstError) {
+    console.error(
+      "[fomo-maintenance] Graph event deletion failed, retrying once",
+      {
+        eventId,
+        error:
+          firstError instanceof Error ? firstError.message : "unknown_error",
+      },
+    );
+    // If the first DELETE succeeded but its response was lost, the retry sees
+    // 404 and confirms that the calendar event is absent.
+    await deleteMaintenanceVisitOnce(eventId);
+  }
+}
+
 async function findEventBySessionId(
   client: Client,
   mailbox: string,

@@ -4,11 +4,24 @@ Status: Current
 
 ## Current state
 
+As of 2026-09-04, the hardening and polish release is QA-approved on
+`juliustanch/hardening-polish-staging`. It adds database-first Checkout holds,
+public API limits, full Checkout/refund/dispute lifecycle handling, baseline
+security headers, mobile and validation polish, and the refreshed staging-only
+operations guide. Preview migration `0005` is applied to the isolated staging
+Neon project and the three new staging activation flags are configured. The
+code is not yet merged or deployed. Matching six-event Stripe webhook edits and
+the live restricted-key dispute permission are prepared but deliberately not
+saved pending action-time owner confirmation. Production has a distinct,
+unmigrated Neon database and customer uploads, rescheduling, and transactional
+email remain disabled there.
+
 Production includes the approved Essential Health Check scope wording,
-Electrical Assurance, and independent cleaning. The current release removes
-the temporary public S$0.50 Testing checkout, rejects its retired request
-field, and keeps historical paid records read-only for reconciliation. It also
-upgrades Next.js to 16.3.4; the production dependency audit is clean.
+Electrical Assurance, and independent cleaning. This release retires the
+temporary public S$0.50 Testing checkout from both deployment tracks while
+retaining historical paid-session compatibility in a read-only, explicitly
+labelled state. The current branch also upgrades Next.js to 16.3.4; its
+production dependency audit is clean.
 Pull request #10 was merged as `9d70665`: customer-facing onboarding notices
 and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
@@ -46,7 +59,7 @@ third-party access costs.
 
 Pull requests #22 through #25 are merged as `9120067`, `6419bc3`, `3802119`,
 and `1ffb4a8`, completing Parts 1–5 of the phased customer Manage Booking
-portal. The organisation-owned `staging` Preview uses a Stripe sandbox,
+portal. The organisation-owned `staging` branch uses a Stripe sandbox,
 migrated Preview Neon database, and private Singapore-region Blob store. Its
 S$0.55 paid sandbox checkout, signed webhook and replay, durable fulfilment,
 portal, authenticated upload/download, and one supervised reschedule passed.
@@ -54,68 +67,173 @@ Portal, uploads, rescheduling, and transactional email are enabled there for a
 bounded team stress test. Production resources, credentials, and feature flags
 remain unchanged.
 
-Production is served at `https://maintenance.fomo.energy`, with a DNS-only
-Cloudflare CNAME to Vercel and the canonical site URL set to that origin. The
-default Vercel project URL remains an additional Production alias; the stable
-`git-staging` Preview alias is the development/test URL. An independent audit
-confirmed the runtime portal boundary. Live Stripe variables are
-Production-only, while Preview Neon, Blob, Resend, Microsoft secret, sandbox
-Stripe, and feature settings are branch-scoped to `staging`. Staging mail sends
-from and replies to the shared `service@fomo.energy` mailbox; operations
-delivery remains `ops@fomo.energy`.
-
 Preview testing exposed a cookie-delivery defect: two same-name path-scoped
 cookies collapsed to the API-scoped cookie, so `/manage` could not authenticate.
-This change replaces them with one secure HttpOnly cookie at `Path=/`; the full
-verification/build and the real Preview browser flow pass.
+Pull request #27 is merged as `949a0a0`; it replaces them with one secure
+HttpOnly cookie at `Path=/`. Main CI, Production deployment, and the real
+Preview browser flow pass while all Production portal flags remain disabled.
+
+Part 6 is implemented behind `TRANSACTIONAL_EMAIL_ENABLED=1`. Durable
+customer/operations booking and reschedule messages, provider/database
+idempotency, Preview recipient override, and later-appointment manage-link
+renewal pass the full local verification and build. A free Preview-only Resend
+resource exists in Tokyo. Migration `0003` is applied to Preview Neon and the
+email variables are scoped to `staging`. Cloudflare sender DNS is verified;
+customer delivery to the approved Gmail inbox and operations delivery to
+`ops@fomo.energy` passed. Staging now sends from and replies to the existing
+shared `service@fomo.energy` mailbox, while operations delivery remains
+`ops@fomo.energy`.
+Production has no Resend resource or email flag.
+
+Pull request #32 migrated staging transactional email from Resend to a
+dedicated Microsoft Graph `Mail.Send` transport. Migration `0004` is applied to
+Preview Neon, the fresh mail-only credential is branch-scoped in Vercel, and an
+Exchange Application Access Policy grants the app access to
+`service@fomo.energy` while denying an unrelated mailbox. A paid sandbox
+Essential booking completed through Stripe, the signed webhook, Preview Neon,
+and the real Microsoft maintenance calendar. Its operations copy arrived at
+`ops@fomo.energy` with the correct data and no manage link, but the stored
+provider reference proves that particular run still used the preceding Resend
+deployment. A fresh post-Graph-deployment customer and operations delivery test
+is therefore still required.
+
+Microsoft's newer Exchange App RBAC setup is temporarily unavailable while the
+tenant upgrade blocks organisation customization. The supported legacy access
+policy is the current mailbox boundary; migrate it to App RBAC after the
+upgrade. The previously exposed calendar and earlier mail-app secrets still
+require coordinated rotation without interrupting their consumers.
+
+The current shared feature branch also includes a server-gated operations guide
+for the stable `staging` Preview. It explains the sandbox-payment versus real
+calendar/email boundary, recipient routing, manage/upload/reschedule flow, and
+manual recovery limits. Targeted environment, rendered-content, and TypeScript
+checks pass locally. It also removes the public Testing product and adds a fixed
+red staging warning banner; it is not yet merged or deployed.
+
+Production is now served at `https://maintenance.fomo.energy`, with a DNS-only
+Cloudflare CNAME to Vercel and `NEXT_PUBLIC_SITE_URL` set to the custom origin.
+The default Vercel project URL remains an additional Production alias; the
+stable `git-staging` Preview alias is the development/test URL. An independent
+audit verified the runtime portal boundary and led to tighter environment
+scoping: live Stripe is Production-only, while Preview state, email, Microsoft
+secret, sandbox Stripe, and feature settings are confined to `staging`.
 
 ## Next up
 
-1. Complete the bounded one-week team stress test on `staging`, including
-   booking, upload/download, rescheduling, and email observations.
-2. Verify reschedule-message delivery, Stripe replay idempotency, and
-   failed-email recovery in the isolated Preview stack.
-3. Confirm malware scanning, retention, deletion, and data-residency policy.
-4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon.
-5. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
-   retention/deletion jobs, and Graph/database reconciliation tooling.
-6. Provision a distinct Production database, Blob store, mail configuration,
-   and dedicated Microsoft production calendar ID only after approval and
-   complete a controlled rollout without reusing Preview secrets.
-7. Decide whether customer receipts remain Stripe receipts or whether the paid
-   Checkout webhook should create formal invoices through Xero; first confirm
-   the target organisation, GST details, existing Stripe feed, and OAuth storage.
+1. Merge the approved release to `staging`, wait for CI/Vercel, and smoke-test
+   its banner, guide, calculator, API headers, and portal boundary.
+2. With action-time owner confirmation, save the six-event sandbox webhook and
+   then run a controlled sandbox lifecycle check.
+3. Migrate the distinct Production database, merge `staging` to `main`, save
+   the live Stripe webhook/key changes, enable only the production foundation
+   flags, and verify `maintenance.fomo.energy`.
+4. Continue the bounded team stress test, including Graph email delivery,
+   upload/download, rescheduling, replay, abandoned holds, and recovery.
+5. Rotate the remaining exposed Entra secrets and migrate the mail app to
+   Exchange App RBAC when the tenant upgrade permits it.
 
 ## Session entries
 
+### 2026-09-04
+
+- Completed independent QA/QC and UI/UX audits of the customer journey,
+  server-authoritative pricing, Stripe lifecycle, Microsoft calendar flow,
+  portal, uploads, rescheduling, email, and environment separation.
+- Added database-first Checkout reservations, stable Stripe idempotency,
+  Checkout expiry/async handling, public API rate limits, and refund/dispute
+  operations with recoverable event ownership.
+- Fixed every blocking audit finding before release: retained manage access for
+  partial refunds/disputes, immediate denial after full refund, Graph cleanup
+  retry safety, refund/fulfilment/reschedule races, malformed upload handling,
+  and abandoned lifecycle recovery.
+- Polished the existing UI without restructuring it: responsive weekday grid,
+  field-level errors, correctly disabled payment action, quote persistence,
+  direct recovery links, and clearer manage-page ordering and copy.
+- Refreshed the staging operations guide with current reservation, email,
+  refund/dispute, rate-limit, and recovery behavior. The guide remains absent
+  from Production and unrelated Preview branches by server-side gating.
+- Provisioned the separate Production Neon foundation and applied migration
+  `0005` to staging only. Added independent rate-limit secrets and configured
+  the staging activation flags after migration.
+- Prepared, but did not save, the six-event Stripe webhook changes and live
+  dispute-read permission; these browser actions require immediate owner
+  confirmation when the release is ready.
+- Final QA, UI/UX review, full verification, TypeScript, build, dependency
+  audit, and diff checks passed.
+
 ### 2026-09-03
 
-- Removed the public Testing selector, pricing branch, and Stripe line item
-  from the Production release. Any submitted `testing` field fails closed.
-  Historical paid Testing records remain compatible with delayed fulfilment
-  and display, but upload and reschedule actions are denied in the portal,
-  APIs, and upload-completion authorization check.
-- Changed the package summary from `final annual price` to `final visit price`
-  so the annual Essential and two-year Electrical Assurance recommendations
-  are consistent.
-- Upgraded Next.js to 16.3.4 after the release security review identified the
+- Removed the public Testing selection and all new `TESTING` pricing/checkout
+  branches. Any request carrying the retired field now fails closed;
+  historical paid sessions remain compatible for delayed fulfilment and
+  display, but their upload and reschedule actions are denied in the UI, API,
+  and upload-completion authorization check.
+- Upgraded Next.js to 16.3.4 after the release security audit identified the
   vulnerable PostCSS version pinned by Next.js 15.5.24. The full verification
-  suite, TypeScript check, production build, and production-only npm audit pass.
-- Renamed the long-lived test branch to the organisation-owned `staging`
-  branch, migrated its encrypted Vercel overrides without reading or rotating
-  them, verified the stable Preview deployment, and removed the old remote
-  branch.
-- Tightened Vercel environment isolation after an independent audit: removed
-  generic Preview and Development live Stripe secrets, made the live Stripe
-  public key and tax rate Production-only, and scoped Preview stateful/sensitive
-  resources to `staging`.
-- Added and verified `maintenance.fomo.energy` in Vercel, created the DNS-only
+  suite, TypeScript check, Turbopack production build, and production-only npm
+  audit pass.
+- Added a fixed red stable-staging banner and placed the staging operations
+  guide after the public homepage content. Both use the same exact server-only
+  Preview/branch predicate. The banner links to the guide, its fixed offset is
+  coordinated with the site header, and the focused skip link clears it.
+- Changed the booking summary label from `final annual price` to `final visit
+  price` so the annual Essential and two-year Electrical Assurance
+  recommendations are consistent.
+- Added a stable-staging-only operations guide for the team stress test. It
+  warns that sandbox Stripe payments do not move money but still cause real
+  Microsoft calendar and email side effects, maps customer/operations/reply
+  routing, and documents retry and manual recovery boundaries without exposing
+  the controlled customer inbox or any deployment identifiers.
+- Kept the guide behind an exact server-only Vercel environment predicate and
+  added targeted checks for both the environment matrix and rendered content.
+- Began replacing Resend with Microsoft Graph `sendMail` from the existing
+  `service@fomo.energy` shared mailbox. The dedicated email configuration is
+  separate from the calendar app, and new delivery rows use
+  `microsoft_graph` while retaining historical `resend` rows.
+- Verified safely from token claims that the mail candidate has only
+  `Mail.Send`; the calendar candidate does not have that role. No token,
+  identifier, or secret is recorded in this repository.
+- Recorded a security incident after a local output-redaction command exposed
+  both candidate client-secret values in task output. Treat both as exposed,
+  rotate all consumers, and do not deploy either value to staging.
+- Added deterministic Graph request references and reconciliation headers,
+  status-only provider failures, and local payload/database/idempotency tests.
+- Renamed the long-lived test branch from `juliustanch/e2e` to the
+  organisation-owned `staging` branch. Migrated all 14 encrypted Vercel
+  branch-scoped overrides in place without reading or rotating their values,
+  including the sandbox Stripe, Preview feature, and email configuration.
+  `main` and Production remained unchanged. The old remote branch was removed
+  after the replacement `staging` Preview passed deployment checks.
+- Confirmed Cloudflare is authoritative for `fomo.energy` and verified the
+  exact Resend sender records without altering inbound-mail MX records.
+- Accepted the owner-completed Resend Marketplace terms and provisioned the
+  free `fomo-maintenance-preview-email` resource for Vercel Preview only in
+  Tokyo. Production received no resource or email key.
+- Implemented customer and operations booking confirmations plus reschedule
+  messages with Singapore times, payment breakdown, reference, address, and a
+  customer-only private manage/upload link.
+- Added durable per-message audit/idempotency state and a Preview-only customer
+  recipient override that fails closed in Production. Rendered bodies and raw
+  manage credentials are not stored.
+- Added later-appointment manage-link renewal and replacement of the requesting
+  browser's secure cookie before reschedule notification.
+- Verified controlled customer confirmation delivery to the controlled staging
+  customer inbox
+  and operations delivery to `ops@fomo.energy`. The later mailbox decision sets
+  both `EMAIL_FROM` and `EMAIL_REPLY_TO` to the existing shared
+  `service@fomo.energy` address.
+- Completed an independent environment audit. Removed generic Preview and
+  Development live Stripe secrets, restricted the live publishable key and GST
+  rate to Production, and branch-scoped Preview Neon, Blob, Resend, Microsoft
+  client secret, sandbox Stripe, and portal flags to `staging`.
+- Added and verified `maintenance.fomo.energy` in Vercel, created its DNS-only
   Cloudflare CNAME, set the Production canonical site URL, and redeployed
   `main`. HTTPS, page metadata, and the Production-disabled/staging-enabled
   portal API boundary passed.
-- Updated staging sender and reply-to configuration to the existing shared
-  `service@fomo.energy` mailbox; operations notifications continue to
-  `ops@fomo.energy`.
+- Transactional email, schema, portal, pricing, slots, calendar, documents,
+  rescheduling, TypeScript, and production-build checks pass locally. Preview
+  migration, deployment, customer/operations delivery, and paid booking have
+  passed; reschedule-email replay and recovery checks remain.
 
 ### 2026-09-02
 

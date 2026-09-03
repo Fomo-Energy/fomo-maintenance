@@ -10,11 +10,13 @@ Status: Current
 | Pricing | `lib/pricing.ts` | Shared by the browser and server-side checkout recomputation |
 | Booking slots | `lib/slots.ts` | Asia/Singapore weekday candidates; two four-hour windows per day |
 | Payments | Stripe Checkout and `app/api/stripe/webhook/route.ts` | Stripe metadata carries the booking record; signed webhook is the booking trigger |
+| Abuse limits | `lib/rate-limit.ts` and Neon/Drizzle | Fixed-window public API counters store only an environment-keyed HMAC digest of the client address; availability and checkout fail closed when enabled limits cannot be enforced |
 | Calendar integration | `lib/microsoft.ts` | Microsoft Graph application authentication, conflict checks, and event creation |
 | Portal fulfilment | `lib/portal/`, `app/api/stripe/webhook/route.ts`, and Neon/Drizzle | Feature-gated database state machine claims signed Stripe events, persists paid bookings, records step recovery state, and creates/finds the Graph event |
 | Customer manage access | `/api/manage/session` and `/manage` | Fragment credential is exchanged for an HttpOnly cookie; the read-only portal returns current booking data only after server-side digest, signature, expiry, and revocation checks |
 | Private PV documents | `/api/manage/documents/*`, `lib/portal/documents.ts`, and Vercel Blob | Short-lived direct-upload tokens target private opaque paths; Postgres owns metadata/quota state and authenticated downloads stream through the application |
 | Customer rescheduling | `/api/manage/reschedule*`, `lib/portal/rescheduling.ts`, and Microsoft Graph | Authenticated policy checks and database slot holds precede an idempotent Graph event update; Postgres changes the authoritative booking only after Graph verification |
+| Transactional email | `lib/email.ts`, `lib/portal/notifications.ts`, `email_deliveries`, and Microsoft Graph | Feature-gated booking/reschedule confirmations use a durable database claim and a mailbox-restricted `Mail.Send` app; only the customer message carries the private manage link |
 
 ## Pricing and package model
 
@@ -58,6 +60,19 @@ Calendar creation uses the Stripe Checkout Session ID as the Microsoft Graph
 transaction ID and as an extended property. The webhook performs an existing
 event lookup before creation and returns a retryable error to Stripe when Graph
 fulfillment still fails after the immediate retry.
+
+Before Stripe Checkout is created, the server inserts a provisional slot hold
+under a client-generated request UUID. A database uniqueness constraint is the
+contention boundary; the same UUID is also passed as Stripe's idempotency key.
+Only the winning request creates a Checkout Session. The server then binds that
+Session to the hold, extends it through Checkout's payment window, and releases
+it on expiry or failed asynchronous payment. A completed payment confirms the
+same reservation during durable fulfilment.
+
+Public availability is limited to 120 requests per minute per keyed client
+address digest. Checkout is limited to 12 attempts per 10 minutes. The HMAC
+key differs by environment and raw IP addresses are never stored. These limits
+are an abuse-control boundary, not customer identity or authentication.
 
 ## Eligibility and state boundary
 
@@ -107,6 +122,9 @@ relational and read-only portal foundation:
 - `slot_reservations` prevents two active claims on the same standard slot.
 - `webhook_events` and `fulfillment_steps` provide idempotency and recovery
   state without storing raw webhook payloads.
+- `email_deliveries` provides durable per-message recipient, attempt, provider
+  identifier, status, and deterministic idempotency state without storing a
+  rendered body or manage credential.
 
 The database client is initialized lazily so builds remain safe before
 `DATABASE_URL` is provisioned. With `BOOKING_PORTAL_ENABLED` absent, the webhook
@@ -147,15 +165,51 @@ one PostgreSQL statement. If the Graph outcome is uncertain, the request stays
 active and the same authenticated request key resumes it; the database never
 claims a new slot merely because Graph returned an error.
 
+Part 6 adds customer and operations notification steps after calendar and
+manage-link fulfilment. Customer email contains the fragment-based private
+manage/upload link; operations receives contact, schedule, service, and payment
+details without that credential. Reschedule messages are keyed to the immutable
+reschedule request ID. Moving a visit later than the active credential permits
+revokes that credential, issues a longer-lived replacement, updates the
+requesting browser cookie, and emails the replacement link. A Preview-only
+customer-recipient override fails closed in Production.
+
+Transactional mail uses a dedicated Microsoft Graph client-credentials app and
+`POST /v1.0/users/{sender}/sendMail` with `saveToSentItems=true`. The database
+claim is the duplicate-send boundary because Graph accepts the request with
+HTTP 202 but does not return a message ID or provide an idempotency key. A
+deterministic client request UUID and `x-fomo-*` message headers support
+reconciliation; `email_deliveries.provider_message_id` stores the corresponding
+opaque client reference. Historical `resend` delivery rows remain valid after
+the provider default changes to `microsoft_graph`.
+
+Stripe refund and dispute events use the same durable event-claim boundary.
+They are explicitly gated by `PAYMENT_LIFECYCLE_ENABLED=1` in addition to the
+portal foundation so a deployment cannot acknowledge them without a persisted
+booking record.
+The handler reloads the authoritative Charge (and Dispute where applicable)
+and maps it to the persisted PaymentIntent. A full refund immediately marks the
+booking refunded so manage access is denied, then deletes the Graph event before
+atomically revoking the stored credential, releasing the slot, and cancelling
+pending reschedules. If Graph deletion is uncertain, the slot and credential
+row remain for retry and reconciliation, but the refunded booking cannot use
+that credential. Partial refunds and disputes mark the booking for attention
+but deliberately keep its event, slot, and access; when transactional email is
+enabled, operations receives an internal alert without a manage link.
+Unrelated account-wide Stripe events are acknowledged and ignored.
+
 ## Authentication and storage
 
-Microsoft Graph uses OAuth client credentials and the application permission
-`Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
-the ID of a manually configured exclusive 9% GST tax rate. The active
-production flow still treats Stripe as the payment/booking record and Microsoft
-Calendar as the visit schedule. Neon is active only in the isolated `staging`
-Preview; Production remains dormant until its migration, secret, and server
-feature flag are deliberately applied. Name, phone, email, and site
+Microsoft Graph calendar access uses OAuth client credentials and the
+application permission `Calendars.ReadWrite`. Transactional email uses a
+separate client-credentials configuration with only `Mail.Send`, restricted by
+Exchange to `service@fomo.energy`. Stripe uses a secret API key, webhook signing
+secret, and the ID of a manually configured exclusive 9% GST tax rate. Stripe
+remains the payment source of truth, Microsoft Calendar the operating schedule,
+and separate Preview and Production Neon databases hold each environment's
+durable application state. Production enables only the booking, reservation,
+and payment-lifecycle foundation; document upload, rescheduling, and
+transactional email retain independent disabled flags. Name, phone, email, and site
 address are cached in versioned `localStorage` in the customer's browser, with
 a form control to clear them; that cache is not an authoritative customer
 record. Database credentials, secrets, token material, and environment-specific
@@ -164,8 +218,9 @@ resource IDs belong only in Vercel or `.env.local` and must not be committed.
 ## Deployment
 
 The booking APIs require the Node.js runtime and are deployed on Vercel. The
-GitHub Actions workflow verifies the pricing and slot rules and runs a Next.js
-production build; GitHub Pages deployment is disabled. The canonical source is
+GitHub Actions workflow runs the complete repository verification suite,
+TypeScript, the production dependency audit, and a Next.js production build;
+GitHub Pages deployment is disabled. The canonical source is
 the `Fomo-Energy/fomo-maintenance` GitHub repository, linked by repository ID to
 the `fomo-energy/fomo-maintenance` Vercel project with `main` as its production
 branch. Production is served at `maintenance.fomo.energy`; the isolated

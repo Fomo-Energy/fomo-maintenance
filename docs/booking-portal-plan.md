@@ -18,8 +18,9 @@ payment states are never trusted.
 
 ### Part 1 — Durable data foundation
 
-Status: Complete and merged in pull request #22. Migrated in the isolated
-`e2e` Preview; Production is not provisioned.
+Status: Complete and merged in pull request #22. Migrated in isolated
+`staging` and Production Neon databases; Production activation is limited to
+the durable booking/lifecycle foundation.
 
 Add Neon Postgres and Drizzle without connecting it to the live checkout yet.
 Define bookings, hashed access tokens, document metadata, reschedule history,
@@ -38,7 +39,8 @@ Exit criteria:
 ### Part 2 — Post-payment fulfilment state machine
 
 Status: Complete and merged in pull request #23 behind a server-side feature
-flag. Enabled and payment/replay tested in `e2e`; Production remains disabled.
+flag. Enabled and payment/replay tested in `staging`; Production enables this
+durable fulfilment foundation after its isolated database migration.
 
 Refactor the signed Stripe webhook so it verifies the raw event, records the
 event idempotently, and advances a durable database-backed state machine.
@@ -57,8 +59,9 @@ Exit criteria:
 ### Part 3 — Secure Manage Booking portal
 
 Status: Complete and merged in pull request #23 behind the same feature flag.
-The `e2e` portal passed credential exchange and booking-isolation checks;
-Production remains disabled.
+The `staging` portal passed credential exchange and booking-isolation checks;
+Production creates the private credential but does not distribute it while
+production transactional email remains disabled.
 
 Add `/manage#access=…` as the customer entrypoint. The URL fragment is not sent
 in HTTP request paths; the page exchanges it for a same-origin HttpOnly cookie
@@ -102,9 +105,9 @@ a substitute for malware scanning.
 ### Part 5 — Customer rescheduling
 
 Status: Complete and merged in pull request #25 behind
-`RESCHEDULING_ENABLED=1`. One supervised `e2e` change passed across Postgres and
-Microsoft Graph; the Preview flag was returned to disabled and Production has
-never enabled it.
+`RESCHEDULING_ENABLED=1`. One supervised `staging` change passed across Postgres and
+Microsoft Graph; the flag is temporarily enabled on `staging` for the bounded
+team stress test, and Production has never enabled it.
 
 Show the current visit and available replacements in the portal. On submission,
 the server revalidates the token and policy, locks the booking record, reserves
@@ -129,26 +132,47 @@ request per booking. Graph is updated and reread before Postgres changes the
 authoritative booking time; an uncertain response is resumed with the same
 request key. Operations must reconcile an abandoned active request before
 Production activation. Reschedule confirmation emails and manage-link renewal
-remain Part 6 dependencies, so this flag must stay off until that stage passes.
+are implemented in Part 6; the flag is enabled only on `staging` for the
+bounded team stress test and must stay off in Production until rollout approval.
 
 ### Part 6 — Transactional email
 
-Use Resend and verified FOMO DNS records. Send the customer a payment/booking
-confirmation containing the service, Singapore appointment time, subtotal,
-GST, total paid, address, booking reference, and manage link. Send operations a
-separate message. After a reschedule, notify the customer and operations with
-both the previous and new time. Deterministic idempotency keys prevent duplicate
-messages during retries.
+Status: Microsoft Graph transport implemented behind
+`TRANSACTIONAL_EMAIL_ENABLED=1`; the new migration and rotated mailbox-scoped
+credential must be applied to `staging` before controlled delivery is repeated.
+
+Use Microsoft Graph and a dedicated `Mail.Send` application restricted to the
+`service@fomo.energy` mailbox. Send the customer a payment/booking confirmation
+containing the service, Singapore appointment time, subtotal, GST, total paid,
+address, booking reference, and manage link. Send operations a separate
+message. After a reschedule, notify the customer and operations with both the
+previous and new time. Deterministic database claims prevent duplicate messages
+during retries.
+
+The implementation stores delivery state and an opaque Graph client-request
+reference without storing rendered bodies or raw manage tokens. Graph returns
+HTTP 202 without a server message ID, so the database—not the provider—is the
+idempotency boundary. The customer receives the private link; operations does
+not. Preview can force customer messages into one controlled test inbox, while
+Production rejects that override. A later appointment renews the manage
+credential before notification when required.
 
 This confirmation is not, by itself, an IRAS tax invoice. Xero receipt/tax
 invoice generation remains a separate integration decision.
 
 ### Part 7 — Staff access, hardening, and rollout
 
-Protect staff booking/document access with Microsoft Entra ID. Add rate limits,
-audit visibility, upload scanning, retention jobs, delivery monitoring, and
-operational reconciliation. Use distinct Preview and Production databases,
-Blob stores, webhook secrets, and email settings.
+Status: In progress. Separate Preview and Production databases are provisioned;
+atomic pre-Checkout slot reservations, public availability/checkout rate
+limits, refund/dispute lifecycle handling, security headers, stricter callback
+errors, and a full CI release gate are implemented. The staging operations
+guide maps these behaviors for the team stress test.
+
+Protect staff booking/document access with Microsoft Entra ID. Complete
+manage-action limits, audit visibility, upload scanning, retention jobs,
+delivery monitoring, and operational reconciliation. Continue using distinct
+Preview and Production databases, Blob stores, webhook secrets, and email
+settings.
 
 Roll out in this order:
 
@@ -167,7 +191,8 @@ Next.js pages, API routes, token checks, upload authorization, Stripe webhook
 handling, Graph calls, and workflow steps run in Vercel's Node.js runtime.
 Durable state never lives in a function instance: Neon stores relational state,
 Vercel Blob stores private files, Stripe stores payment records, Microsoft
-stores calendar events, and Resend performs mail delivery.
+stores calendar events, and Microsoft Graph sends mail from the dedicated
+Microsoft 365 mailbox.
 
 ## Decisions required before later parts
 
@@ -175,5 +200,5 @@ stores calendar events, and Resend performs mail delivery.
 2. Accepted file types, per-file size, file count, and retention period.
 3. Whether uploaded files require Singapore-only data residency.
 4. Operations and finance notification recipients.
-5. FOMO sending domain and reply-to address.
+5. Production transactional-email app, mailbox restriction, and reply-to address.
 6. Microsoft Entra group allowed into the staff portal.

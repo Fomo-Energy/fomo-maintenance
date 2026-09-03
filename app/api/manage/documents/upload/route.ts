@@ -48,6 +48,39 @@ function requestIsSameOrigin(request: Request): boolean {
   return Boolean(origin && origin === new URL(request.url).origin);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function uploadBodyIsValid(value: unknown): value is HandleUploadBody {
+  if (!isRecord(value) || !isRecord(value.payload)) return false;
+  if (value.type === "blob.generate-client-token") {
+    return (
+      typeof value.payload.pathname === "string" &&
+      value.payload.pathname.length > 0 &&
+      typeof value.payload.multipart === "boolean" &&
+      (value.payload.clientPayload === null ||
+        typeof value.payload.clientPayload === "string")
+    );
+  }
+  if (value.type !== "blob.upload-completed") return false;
+  if (!isRecord(value.payload.blob)) return false;
+  const blob = value.payload.blob;
+  return (
+    [
+      blob.url,
+      blob.downloadUrl,
+      blob.pathname,
+      blob.contentType,
+      blob.contentDisposition,
+      blob.etag,
+    ].every((field) => typeof field === "string" && field.length > 0) &&
+    (value.payload.tokenPayload === undefined ||
+      value.payload.tokenPayload === null ||
+      typeof value.payload.tokenPayload === "string")
+  );
+}
+
 function parseCompletionPayload(value: string | null | undefined) {
   if (!value || value.length > 500) {
     return null;
@@ -121,7 +154,11 @@ export async function POST(request: Request) {
 
   let body: HandleUploadBody;
   try {
-    body = (await request.json()) as HandleUploadBody;
+    const parsed: unknown = await request.json();
+    if (!uploadBodyIsValid(parsed)) {
+      return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+    }
+    body = parsed;
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
@@ -252,7 +289,16 @@ export async function POST(request: Request) {
             ? "This booking already has the maximum of 10 documents."
             : "The document could not be uploaded.",
       },
-      { status: policyError ? 400 : limitReached ? 409 : 500 },
+      {
+        status:
+          policyError ||
+          (error instanceof Error &&
+            error.message === "invalid_upload_completion")
+            ? 400
+            : limitReached
+              ? 409
+              : 500,
+      },
     );
   }
 }

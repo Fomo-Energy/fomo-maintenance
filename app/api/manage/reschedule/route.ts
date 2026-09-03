@@ -6,13 +6,18 @@ import {
   maintenanceVisitTimeMatches,
   updateMaintenanceVisitTimeWithRetry,
 } from "@/lib/microsoft";
-import { findManageAccess } from "@/lib/portal/bookings";
+import {
+  ensureManageAccessForBooking,
+  findManageAccess,
+} from "@/lib/portal/bookings";
 import { customerBookingActionsAllowed } from "@/lib/portal/booking-actions";
 import {
   bookingPortalEnabled,
   MANAGE_COOKIE_NAME,
   reschedulingEnabled,
+  transactionalEmailEnabled,
 } from "@/lib/portal/config";
+import { deliverRescheduleNotifications } from "@/lib/portal/notifications";
 import {
   ReschedulePolicyError,
   validateRescheduleRequest,
@@ -111,12 +116,56 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
-    return NextResponse.json({
+    let notificationStatus: "disabled" | "sent" | "pending" = "disabled";
+    let renewedAccess:
+      | Awaited<ReturnType<typeof ensureManageAccessForBooking>>
+      | undefined;
+    if (transactionalEmailEnabled()) {
+      try {
+        renewedAccess = await ensureManageAccessForBooking(
+          prepared.booking.id,
+          prepared.request.requestedSlotEnd,
+        );
+        await deliverRescheduleNotifications({
+          booking: prepared.booking,
+          rescheduleRequestId: prepared.request.id,
+          previousSlotStart: prepared.request.previousSlotStart,
+          previousSlotEnd: prepared.request.previousSlotEnd,
+          newSlotStart: prepared.request.requestedSlotStart,
+          newSlotEnd: prepared.request.requestedSlotEnd,
+          manageToken: renewedAccess.token,
+        });
+        notificationStatus = "sent";
+      } catch (error) {
+        notificationStatus = "pending";
+        console.error("[fomo-maintenance] reschedule notification pending", {
+          bookingId: prepared.booking.id,
+          requestId: prepared.request.id,
+          code: error instanceof Error ? error.message : "unknown_error",
+        });
+      }
+    }
+    const response = NextResponse.json({
       changed: true,
       slotStart: prepared.request.requestedSlotStart.toISOString(),
       slotEnd: prepared.request.requestedSlotEnd.toISOString(),
       rescheduleCount: result.rescheduleCount,
+      notificationStatus,
     });
+    if (renewedAccess?.rotated) {
+      response.cookies.set(MANAGE_COOKIE_NAME, renewedAccess.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        path: "/",
+        maxAge: Math.max(
+          1,
+          Math.floor((renewedAccess.expiresAt.getTime() - Date.now()) / 1_000),
+        ),
+      });
+    }
+    response.headers.set("Cache-Control", "no-store");
+    return response;
   } catch (error) {
     if (error instanceof ReschedulePolicyError) {
       const conflictCodes = new Set([

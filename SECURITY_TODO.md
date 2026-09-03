@@ -12,11 +12,59 @@ Vercel runtime and remain tracked for a future Drizzle upgrade.
 
 ## Critical / High Priority
 
+### Protect transactional booking email and manage credentials
+
+**Status:** In progress; database idempotency, Preview recipient override, HTML
+escaping, and customer-only manage-link delivery are implemented. Staging uses
+a fresh dedicated Microsoft Graph credential and a verified mailbox-restricting
+Exchange Application Access Policy; Production is disabled.
+
+**Why it matters:** Confirmation messages contain customer contact, address,
+appointment and payment-summary data. The customer message also carries a
+bearer-style manage credential that grants private booking and document access.
+
+**Required end state:**
+
+1. Completed for Preview: use a dedicated Entra app with only `Mail.Send` and
+   restrict it to `service@fomo.energy`. Provision a separate rotated Production
+   secret before rollout.
+2. Keep the customer credential out of operations email, database email rows,
+   Graph message headers, application logs, and error messages.
+3. Confirm the Preview-only customer-recipient override cannot operate in
+   Production and remove it from Production configuration.
+4. Add Exchange/Graph delivery reconciliation for accepted, delivered,
+   rejected, and uncertain messages plus staff recovery. Graph `sendMail`
+   returns HTTP 202 without a server message ID.
+5. Confirm Microsoft 365 message retention and audit policy before Production.
+6. Public availability and Checkout rate limits are complete. Add manage-action
+   limits and staff-only credential revocation/reissue before broad portal
+   activation.
+7. Replace the legacy Exchange Application Access Policy with Exchange App RBAC
+   after Microsoft's tenant upgrade permits organisation customization. Re-test
+   allowed and denied mailboxes before retiring the fallback policy.
+
+### Rotate exposed Entra client secrets
+
+**Status:** Open as of 2026-09-03.
+
+**Why it matters:** A local redaction command displayed the values from both
+candidate Entra credential records in task output. They must be treated as
+exposed even though neither value is committed to this repository.
+
+**Required end state:**
+
+1. Create replacement secrets for both affected app registrations.
+2. Update every known Vercel and monitoring consumer before revoking the old
+   values; do not interrupt the calendar or dark-site alert flows.
+3. Revoke both exposed values, test each consumer, and update this register
+   without recording any secret material.
+
 ### Protect customer manage links as credentials
 
 **Status:** In progress; Preview credential exchange and the read-only view are
-validated, including a single root-path HttpOnly cookie. Production remains
-disabled.
+validated, including a single root-path HttpOnly cookie. Production enables
+only the durable foundation; no customer link is distributed while production
+transactional email remains disabled.
 
 **Why it matters:** Anyone possessing a bearer-style manage URL could otherwise
 view booking details, upload files, or request an appointment change.
@@ -52,9 +100,10 @@ details, personal data, and security-sensitive electrical information.
    validation, and ten database-enforced active quota slots per booking.
 3. Completed in code: every download revalidates the manage credential and
    booking ownership, then streams through a no-store application response.
-4. Before activation: add rate limiting and verify callback authenticity,
-   private access, signature rejection, concurrent quota, and log redaction in
-   a Preview Blob store.
+4. Before activation: add upload-action rate limiting and complete callback
+   authenticity, private access, signature rejection, concurrent quota, and log
+   redaction checks in a Preview Blob store. Malformed/unknown completion
+   payloads now fail as client errors rather than internal server errors.
 5. Establish malware scanning, retention, customer deletion, and data-residency
    policy before Production; basic signature checks do not detect malware.
 6. Protect future staff access with Microsoft Entra ID and retain an access
@@ -63,8 +112,10 @@ details, personal data, and security-sensitive electrical information.
 ### Harden customer rescheduling before activation
 
 **Status:** In progress; one supervised Preview reschedule passed across Graph
-and Postgres, then the flag was disabled again. Rate limiting, notifications,
-concurrency/failure-recovery exercises, and recovery operations remain open.
+and Postgres, and rescheduling is temporarily enabled on `staging` for team
+stress testing. Notifications are implemented and delivered in controlled
+tests; manage-action rate limiting, concurrency/failure-recovery exercises, and recovery
+operations remain open.
 
 **Why it matters:** A stolen manage credential or concurrent request could move
 an appointment, consume scarce visit capacity, or leave Graph and Postgres out
@@ -80,8 +131,10 @@ of sync.
    interrupted response without applying a second change.
 3. Before activation: add per-booking/IP rate limits and exercise concurrent
    Checkout/reschedule attempts against Preview Neon and Graph.
-4. Before activation: add customer/operations notifications and renew or reissue
-   the manage link when a later visit would outlive its current expiry.
+4. Implemented in code: customer/operations notifications and manage-link
+   renewal when a later visit would outlive its current expiry. Controlled
+   Preview delivery is verified; complete replay and failed-delivery recovery
+   checks before Production activation.
 5. Document and test staff reconciliation for an active request whose Graph
    outcome remains uncertain. Retain old/new times and failure state for audit.
 
@@ -89,8 +142,9 @@ of sync.
 
 ### Upgrade vulnerable framework and migration-tool dependencies
 
-**Status:** Open; production audit reports one high and one moderate advisory,
-and the migration CLI adds development-only moderate advisories.
+**Status:** Runtime complete; Next.js 16.3.4 and its patched PostCSS dependency
+pass the production audit. The migration CLI still adds development-only
+moderate advisories.
 
 **Why it matters:** The available production remediation requires a semver-major
 Next.js upgrade, while Drizzle Kit currently carries older development-only
@@ -99,8 +153,8 @@ would combine unrelated major-version risk with this feature.
 
 **Required end state:**
 
-1. Upgrade Next.js and its bundled PostCSS through a separately tested major
-   framework migration.
+1. Completed: upgrade Next.js and its bundled PostCSS through a separately
+   tested major framework migration.
 2. Recheck Drizzle Kit releases and remove its development-only advisory chain
    when an upstream-safe version is available.
 3. Keep migration tooling out of the production dependency set and never expose

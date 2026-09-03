@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { VisitCalendar } from "@/components/VisitCalendar";
 import { QUOTE_EMAIL } from "@/lib/site";
@@ -30,6 +30,8 @@ type FieldState = {
   address: string;
 };
 
+type TouchedFields = Partial<Record<keyof FieldState, boolean>>;
+
 const EMPTY_FIELDS: FieldState = {
   name: "",
   phone: "",
@@ -38,6 +40,25 @@ const EMPTY_FIELDS: FieldState = {
 };
 
 const SAVED_DETAILS_STORAGE_KEY = "fomo-maintenance:booking-details:v1";
+const PHONE_PATTERN = /^\+?[\d\s()-]+$/;
+
+function validateFields(fields: FieldState): Partial<Record<keyof FieldState, string>> {
+  const errors: Partial<Record<keyof FieldState, string>> = {};
+  if (!fields.name.trim()) {
+    errors.name = "Enter your name.";
+  }
+  const phoneDigits = fields.phone.replace(/\D/g, "");
+  if (!PHONE_PATTERN.test(fields.phone.trim()) || phoneDigits.length < 8) {
+    errors.phone = "Enter a phone number with at least 8 digits.";
+  }
+  if (!/^\S+@\S+\.\S+$/.test(fields.email.trim())) {
+    errors.email = "Enter a valid email address.";
+  }
+  if (fields.address.trim().length < 5) {
+    errors.address = "Enter the address where the visit will happen.";
+  }
+  return errors;
+}
 
 function parseSavedFields(value: string | null): FieldState | null {
   if (!value) {
@@ -75,6 +96,7 @@ export function VisitBooking({
   totalSgd,
 }: VisitBookingProps) {
   const [fields, setFields] = useState<FieldState>(EMPTY_FIELDS);
+  const [touchedFields, setTouchedFields] = useState<TouchedFields>({});
   const [savedDetailsReady, setSavedDetailsReady] = useState(false);
   const [slots, setSlots] = useState<VisitSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(true);
@@ -87,6 +109,7 @@ export function VisitBooking({
   const [payError, setPayError] = useState<string | null>(null);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const checkoutRequestKey = useRef<string | null>(null);
 
   const loadSlots = useCallback(async () => {
     setSlotsLoading(true);
@@ -171,17 +194,15 @@ export function VisitBooking({
   );
 
   const selected = slots.find((slot) => slot.start === selectedStart) ?? null;
+  const fieldErrors = validateFields(fields);
 
   function chooseDate(dateKey: string) {
     setSelectedDateKey(dateKey);
     setSelectedStart(null);
     setSelectionError(null);
+    checkoutRequestKey.current = null;
   }
-  const contactComplete =
-    fields.name.trim().length > 0 &&
-    fields.phone.trim().length >= 8 &&
-    fields.email.includes("@") &&
-    fields.address.trim().length >= 5;
+  const contactComplete = Object.keys(fieldErrors).length === 0;
   const completionMessage = !contactComplete
     ? "Complete all required contact and site fields."
     : !selectedDateKey
@@ -192,15 +213,31 @@ export function VisitBooking({
 
   function update<K extends keyof FieldState>(key: K, value: string) {
     setFields((current) => ({ ...current, [key]: value }));
+    checkoutRequestKey.current = null;
+  }
+
+  function touch(key: keyof FieldState) {
+    setTouchedFields((current) => ({ ...current, [key]: true }));
   }
 
   function clearSavedDetails() {
     setFields(EMPTY_FIELDS);
+    setTouchedFields({});
+    checkoutRequestKey.current = null;
   }
+
+  useEffect(() => {
+    checkoutRequestKey.current = null;
+  }, [cleaning, installer, kwp, serviceLevel, totalSgd]);
 
   async function pay(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) {
+      return;
+    }
+    if (!contactComplete) {
+      setTouchedFields({ name: true, phone: true, email: true, address: true });
+      setPayError("Complete all required contact and site fields.");
       return;
     }
     if (!selected) {
@@ -210,6 +247,10 @@ export function VisitBooking({
     setSelectionError(null);
     setPayError(null);
     setSubmitting(true);
+    if (!checkoutRequestKey.current) {
+      checkoutRequestKey.current = crypto.randomUUID();
+    }
+    const requestKey = checkoutRequestKey.current;
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
@@ -226,6 +267,7 @@ export function VisitBooking({
           address: fields.address,
           slotStart: selected.start,
           slotEnd: selected.end,
+          checkoutRequestKey: requestKey,
         }),
       });
       const data = (await response.json()) as { url?: string; error?: string };
@@ -233,10 +275,12 @@ export function VisitBooking({
         if (response.status === 409) {
           setSelectedStart(null);
           setSelectedDateKey(null);
+          checkoutRequestKey.current = null;
           void loadSlots();
         }
         throw new Error(data.error || "Checkout could not start.");
       }
+      checkoutRequestKey.current = null;
       window.location.href = data.url;
     } catch (error) {
       setPayError(
@@ -258,7 +302,10 @@ export function VisitBooking({
       </p>
 
       <div className="mt-3 flex items-center justify-between gap-4 text-xs text-slate-500">
-        <span>Your contact and site details are saved on this browser.</span>
+        <span>
+          Saved on this device as you type. Clear these details if you’re using
+          a shared device.
+        </span>
         <button
           type="button"
           className="shrink-0 font-semibold text-ink underline underline-offset-2"
@@ -276,11 +323,28 @@ export function VisitBooking({
             name="name"
             autoComplete="name"
             maxLength={120}
-            aria-describedby="booking-completion"
+            aria-invalid={Boolean(touchedFields.name && fieldErrors.name)}
+            aria-describedby={`booking-completion${
+              touchedFields.name && fieldErrors.name ? " booking-name-error" : ""
+            }`}
             value={fields.name}
             onChange={(event) => update("name", event.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none ring-brand focus:ring-2"
+            onBlur={() => touch("name")}
+            className={`mt-1 w-full rounded-xl border px-4 py-3 font-normal outline-none ring-brand focus:ring-2 ${
+              touchedFields.name && fieldErrors.name
+                ? "border-red-500"
+                : "border-slate-200"
+            }`}
           />
+          {touchedFields.name && fieldErrors.name ? (
+            <span
+              id="booking-name-error"
+              className="mt-1 block text-xs font-normal text-red-700"
+              role="alert"
+            >
+              {fieldErrors.name}
+            </span>
+          ) : null}
         </label>
         <label className="text-sm font-semibold">
           Phone
@@ -291,11 +355,28 @@ export function VisitBooking({
             autoComplete="tel"
             minLength={8}
             maxLength={32}
-            aria-describedby="booking-completion"
+            aria-invalid={Boolean(touchedFields.phone && fieldErrors.phone)}
+            aria-describedby={`booking-completion${
+              touchedFields.phone && fieldErrors.phone ? " booking-phone-error" : ""
+            }`}
             value={fields.phone}
             onChange={(event) => update("phone", event.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none ring-brand focus:ring-2"
+            onBlur={() => touch("phone")}
+            className={`mt-1 w-full rounded-xl border px-4 py-3 font-normal outline-none ring-brand focus:ring-2 ${
+              touchedFields.phone && fieldErrors.phone
+                ? "border-red-500"
+                : "border-slate-200"
+            }`}
           />
+          {touchedFields.phone && fieldErrors.phone ? (
+            <span
+              id="booking-phone-error"
+              className="mt-1 block text-xs font-normal text-red-700"
+              role="alert"
+            >
+              {fieldErrors.phone}
+            </span>
+          ) : null}
         </label>
         <label className="text-sm font-semibold">
           Email
@@ -305,11 +386,28 @@ export function VisitBooking({
             type="email"
             autoComplete="email"
             maxLength={254}
-            aria-describedby="booking-completion"
+            aria-invalid={Boolean(touchedFields.email && fieldErrors.email)}
+            aria-describedby={`booking-completion${
+              touchedFields.email && fieldErrors.email ? " booking-email-error" : ""
+            }`}
             value={fields.email}
             onChange={(event) => update("email", event.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none ring-brand focus:ring-2"
+            onBlur={() => touch("email")}
+            className={`mt-1 w-full rounded-xl border px-4 py-3 font-normal outline-none ring-brand focus:ring-2 ${
+              touchedFields.email && fieldErrors.email
+                ? "border-red-500"
+                : "border-slate-200"
+            }`}
           />
+          {touchedFields.email && fieldErrors.email ? (
+            <span
+              id="booking-email-error"
+              className="mt-1 block text-xs font-normal text-red-700"
+              role="alert"
+            >
+              {fieldErrors.email}
+            </span>
+          ) : null}
         </label>
         <label className="text-sm font-semibold">
           Site address
@@ -320,14 +418,36 @@ export function VisitBooking({
             rows={3}
             minLength={5}
             maxLength={500}
-            aria-describedby="booking-completion"
+            aria-invalid={Boolean(touchedFields.address && fieldErrors.address)}
+            aria-describedby={`booking-completion${
+              touchedFields.address && fieldErrors.address
+                ? " booking-address-help booking-address-error"
+                : " booking-address-help"
+            }`}
             value={fields.address}
             onChange={(event) => update("address", event.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 font-normal outline-none ring-brand focus:ring-2"
+            onBlur={() => touch("address")}
+            className={`mt-1 w-full rounded-xl border px-4 py-3 font-normal outline-none ring-brand focus:ring-2 ${
+              touchedFields.address && fieldErrors.address
+                ? "border-red-500"
+                : "border-slate-200"
+            }`}
           />
-          <span className="mt-1 block text-xs font-normal leading-5 text-slate-500">
+          <span
+            id="booking-address-help"
+            className="mt-1 block text-xs font-normal leading-5 text-slate-500"
+          >
             This is where the visit happens.
           </span>
+          {touchedFields.address && fieldErrors.address ? (
+            <span
+              id="booking-address-error"
+              className="mt-1 block text-xs font-normal text-red-700"
+              role="alert"
+            >
+              {fieldErrors.address}
+            </span>
+          ) : null}
         </label>
       </div>
 
@@ -387,6 +507,7 @@ export function VisitBooking({
                 ) {
                   setSelectedDateKey(null);
                   setSelectedStart(null);
+                  checkoutRequestKey.current = null;
                 }
               }}
             />
@@ -401,6 +522,7 @@ export function VisitBooking({
                   {
                     setSelectedStart(event.target.value || null);
                     setSelectionError(null);
+                    checkoutRequestKey.current = null;
                   }
                 }
                 className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 font-normal outline-none ring-brand focus:ring-2 disabled:bg-slate-50 disabled:text-slate-400"
@@ -457,7 +579,9 @@ export function VisitBooking({
           slots.length === 0 ||
           !Number.isFinite(kwp) ||
           kwp <= 0 ||
-          totalSgd <= 0
+          totalSgd <= 0 ||
+          !contactComplete ||
+          !selected
         }
         className="cta-pill mt-6 min-h-11 w-full px-7 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
       >

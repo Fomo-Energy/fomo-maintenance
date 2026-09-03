@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import {
   exclusionsSummary,
@@ -11,10 +12,13 @@ import {
 } from "@/lib/booking";
 import { databaseIsConfigured } from "@/lib/database";
 import { formatSgd } from "@/lib/pricing";
+import { checkApiRateLimit } from "@/lib/rate-limit";
 import { listBusyPeriods } from "@/lib/microsoft";
-import { bookingPortalEnabled } from "@/lib/portal/config";
+import { checkoutReservationsEnabled } from "@/lib/portal/config";
 import {
+  bindCheckoutSlot,
   listActiveReservedPeriods,
+  releaseCheckoutSlot,
   reserveCheckoutSlot,
   SlotConflictError,
 } from "@/lib/portal/rescheduling";
@@ -29,9 +33,33 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CHECKOUT_HOLD_SECONDS = 31 * 60;
-const CHECKOUT_WEBHOOK_GRACE_MS = 15 * 60 * 1_000;
+const CHECKOUT_WEBHOOK_GRACE_MS = 5 * 60 * 1_000;
+const PROVISIONAL_HOLD_MS = 5 * 60 * 1_000;
 
 export async function POST(request: Request) {
+  try {
+    const rateLimit = await checkApiRateLimit(request, {
+      action: "checkout",
+      limit: 12,
+      windowSeconds: 10 * 60,
+    });
+    if (rateLimit && !rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many checkout attempts. Try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        },
+      );
+    }
+  } catch (error) {
+    console.error("[fomo-maintenance] checkout rate limit failed", error);
+    return NextResponse.json(
+      { error: "Payment could not be started. Try again shortly." },
+      { status: 503 },
+    );
+  }
+
   let payload: unknown;
   try {
     payload = await request.json();
@@ -84,8 +112,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const durablePortal = bookingPortalEnabled();
-  if (durablePortal && !databaseIsConfigured()) {
+  const checkoutRequestKey = parsed.checkoutRequestKey || randomUUID();
+  const durableReservations = checkoutReservationsEnabled();
+  if (durableReservations && !databaseIsConfigured()) {
     return NextResponse.json(
       { error: "Visit times could not be confirmed. Try again shortly." },
       { status: 503 },
@@ -97,8 +126,10 @@ export async function POST(request: Request) {
     const rangeEnd = new Date(slot.end);
     const [calendarBusy, reservationBusy] = await Promise.all([
       listBusyPeriods(rangeStart, rangeEnd),
-      durablePortal
-        ? listActiveReservedPeriods(rangeStart, rangeEnd)
+      durableReservations
+        ? listActiveReservedPeriods(rangeStart, rangeEnd, {
+            excludeCheckoutRequestKey: checkoutRequestKey,
+          })
         : Promise.resolve([]),
     ]);
     const busy = [...calendarBusy, ...reservationBusy];
@@ -118,6 +149,33 @@ export async function POST(request: Request) {
 
   const site = publicSiteUrl();
   const description = `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
+  const stripeExpiresAt =
+    Math.floor(Date.now() / 1_000) + CHECKOUT_HOLD_SECONDS;
+
+  if (durableReservations) {
+    try {
+      // The unique active-slot index makes this the concurrency boundary. Stripe
+      // Checkout is created only after this insert wins.
+      await reserveCheckoutSlot({
+        checkoutRequestKey,
+        slot,
+        expiresAt: new Date(Date.now() + PROVISIONAL_HOLD_MS),
+      });
+    } catch (error) {
+      if (error instanceof SlotConflictError) {
+        return NextResponse.json(
+          { error: error.message },
+          { status: 409 },
+        );
+      }
+      console.error("[fomo-maintenance] checkout slot reservation failed", error);
+      return NextResponse.json(
+        { error: "Visit times could not be confirmed. Try again shortly." },
+        { status: 503 },
+      );
+    }
+  }
+
   try {
     const stripe = getStripe();
     const gstTaxRateId = stripeGstTaxRateId();
@@ -139,13 +197,17 @@ export async function POST(request: Request) {
       currency: "sgd",
       adaptive_pricing: { enabled: false },
       customer_email: parsed.email,
+      payment_intent_data: {
+        metadata: { application: "fomo-maintenance" },
+      },
       success_url: `${site}/book/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${site}/book/cancel`,
-      ...(durablePortal
-        ? { expires_at: Math.floor(Date.now() / 1_000) + CHECKOUT_HOLD_SECONDS }
+      ...(durableReservations
+        ? { expires_at: stripeExpiresAt }
         : {}),
       line_items: lineItems,
       metadata: {
+        application: "fomo-maintenance",
         pricingVersion: "packages-v3-gst",
         kwp: String(quoted.kwp),
         installer: quoted.installer,
@@ -175,7 +237,10 @@ export async function POST(request: Request) {
         testing: "0",
         fulfillmentStatus: "service_booked",
         amountSgd: formatSgd(quoted.totalSgd),
+        checkoutRequestKey,
       },
+    }, {
+      idempotencyKey: `fomo_checkout_${checkoutRequestKey}`,
     });
 
     if (
@@ -206,17 +271,23 @@ export async function POST(request: Request) {
           },
         );
       }
+      if (durableReservations) {
+        await releaseCheckoutSlot({
+          checkoutRequestKey,
+          reason: "released",
+        });
+      }
       return NextResponse.json(
         { error: "Payment total could not be verified. Try again shortly." },
         { status: 502 },
       );
     }
 
-    if (durablePortal) {
+    if (durableReservations) {
       try {
-        await reserveCheckoutSlot({
+        await bindCheckoutSlot({
+          checkoutRequestKey,
           stripeCheckoutSessionId: session.id,
-          slot,
           expiresAt: new Date(
             session.expires_at * 1_000 + CHECKOUT_WEBHOOK_GRACE_MS,
           ),
@@ -236,6 +307,10 @@ export async function POST(request: Request) {
             },
           );
         }
+        await releaseCheckoutSlot({
+          checkoutRequestKey,
+          reason: "released",
+        });
         if (error instanceof SlotConflictError) {
           return NextResponse.json(
             { error: "That visit time was just taken. Choose another slot." },
@@ -247,6 +322,12 @@ export async function POST(request: Request) {
     }
 
     if (!session.url) {
+      if (durableReservations) {
+        await releaseCheckoutSlot({
+          checkoutRequestKey,
+          reason: "released",
+        });
+      }
       return NextResponse.json(
         { error: "Checkout could not start. Try again." },
         { status: 502 },
@@ -255,6 +336,9 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ url: session.url, id: session.id });
   } catch (error) {
+    // An ambiguous Stripe transport failure may still have created the
+    // idempotent Session. Keep the short provisional hold so a retry with the
+    // same request key can recover it; it becomes inactive automatically.
     console.error("[fomo-maintenance] Stripe checkout failed", error);
     return NextResponse.json(
       { error: "Payment could not be started. Try again, or email hello@fomomaintenance.com." },

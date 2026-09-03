@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { calendarIdMatchingName } from "../lib/calendar";
-import { splitScheduleRange } from "../lib/microsoft";
+import {
+  graphDeletionWasAlreadyComplete,
+  splitScheduleRange,
+} from "../lib/microsoft";
 
 assert.equal(
   calendarIdMatchingName(
@@ -58,5 +61,14 @@ assert.throws(
     ),
   /More than one/,
 );
+
+assert.equal(graphDeletionWasAlreadyComplete({ statusCode: 404 }), true);
+assert.equal(
+  graphDeletionWasAlreadyComplete({ cause: { status: 404 } }),
+  true,
+  "a retry must treat a nested Graph 404 as confirmed deletion",
+);
+assert.equal(graphDeletionWasAlreadyComplete({ statusCode: "404" }), true);
+assert.equal(graphDeletionWasAlreadyComplete({ statusCode: 503 }), false);
 
 console.log("verify:calendar passed");
