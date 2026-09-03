@@ -6,6 +6,7 @@ import {
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { databaseIsConfigured } from "@/lib/database";
+import { customerBookingActionsAllowed } from "@/lib/portal/booking-actions";
 import { findManageAccess } from "@/lib/portal/bookings";
 import {
   DOCUMENT_CONTENT_TYPES,
@@ -143,6 +144,16 @@ export async function POST(request: Request) {
     : null;
   if (issuingToken && !manageAccess) {
     return NextResponse.json({ error: "Invalid booking session." }, { status: 401 });
+  }
+  if (
+    issuingToken &&
+    manageAccess &&
+    !customerBookingActionsAllowed(manageAccess.booking.serviceCode)
+  ) {
+    return NextResponse.json(
+      { error: "Uploads are disabled for historical test payments." },
+      { status: 403 },
+    );
   }
 
   try {

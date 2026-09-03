@@ -18,22 +18,24 @@ Status: Current
 
 ## Pricing and package model
 
-Customers provide kWp, installer, service level, optional cleaning or Testing
-selection, contact/site details, and a visit slot. The application
+Customers provide kWp, installer, service level, optional cleaning,
+contact/site details, and a visit slot. The application
 does not ask about PV strings or equipment models.
 
 The two service levels are Essential Health Check and Electrical Assurance.
 Cleaning is independent. Four service codes describe the service/cleaning
 combination: `ESSENTIAL`, `ELECTRICAL_ASSURANCE`, `ESSENTIAL_CLEAN`, and
-`ELECTRICAL_CLEAN`. `TESTING` is a mutually exclusive S$0.50 pre-GST / S$0.55
-final live-payment package whose operational scope is explicitly "no service
-offered."
+`ELECTRICAL_CLEAN`. The former public `TESTING` package is retired; crafted
+requests that try to select it are rejected before Checkout. Historical paid
+sessions remain readable so webhook replays and success pages are not stranded.
+Their manage portal is explicitly marked as historical testing and is
+read-only: upload-token issuance, upload completion, and rescheduling are
+denied server-side.
 Continuous monitoring is not exposed in the quote model and checkout rejects
 crafted requests that attempt to enable it.
 
-Maintenance line items are rounded to whole SGD before summation; Testing is the
-only S$0.50 pre-GST exception. Nine percent GST is then rounded to cents per
-taxable line item. The left-side selector displays the current pre-GST price
+Maintenance line items are rounded to whole SGD before summation. Nine percent
+GST is then rounded to cents per taxable line item. The left-side selector displays the current pre-GST price
 with `subject to GST`; the booking summary displays the pre-GST subtotal, GST,
 and GST-inclusive total. The browser uses the shared quote function for both,
 but `/api/checkout` parses the selection and recomputes every price, tax amount,
@@ -129,7 +131,8 @@ unrelated authenticated features from this origin.
 Part 4 keeps file bytes out of Vercel Function request bodies. The browser
 uploads directly to a private Blob store using a ten-minute, pathname-bound
 token issued only after the manage cookie and booking are revalidated. The
-completion callback verifies the active access record, actual private object,
+completion callback verifies the active access record belongs to a service
+booking rather than a historical `TESTING` payment, the actual private object,
 content type, size, and PDF/PNG/JPEG signature before marking metadata
 available. Each booking has ten database-enforced active quota slots. Downloads
 revalidate booking ownership and stream bytes from private storage; the Blob URL
@@ -165,5 +168,8 @@ GitHub Actions workflow verifies the pricing and slot rules and runs a Next.js
 production build; GitHub Pages deployment is disabled. The canonical source is
 the `Fomo-Energy/fomo-maintenance` GitHub repository, linked by repository ID to
 the `fomo-energy/fomo-maintenance` Vercel project with `main` as its production
-branch. Production is served at `maintenance.fomo.energy`; `staging` uses
-`fomo-maintenance-git-staging-fomo-energy.vercel.app`.
+branch. Production is served at `maintenance.fomo.energy`; the isolated
+`staging` branch uses the stable
+`fomo-maintenance-git-staging-fomo-energy.vercel.app` Preview alias.
+The runtime uses Next.js 16.3.4, which brings the deployed PostCSS dependency
+above the audited path-traversal disclosure versions.

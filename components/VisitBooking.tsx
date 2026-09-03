@@ -20,7 +20,6 @@ type VisitBookingProps = {
   installer: InstallerId;
   serviceLevel: ServiceLevel;
   cleaning: boolean;
-  testing: boolean;
   totalSgd: number;
 };
 
@@ -73,7 +72,6 @@ export function VisitBooking({
   installer,
   serviceLevel,
   cleaning,
-  testing,
   totalSgd,
 }: VisitBookingProps) {
   const [fields, setFields] = useState<FieldState>(EMPTY_FIELDS);
@@ -222,7 +220,6 @@ export function VisitBooking({
           serviceLevel,
           cleaning,
           monitoring: false,
-          testing,
           name: fields.name,
           phone: fields.phone,
           email: fields.email,
@@ -254,13 +251,10 @@ export function VisitBooking({
       className="mt-8 border-t border-orange-100 pt-8"
       onSubmit={(event) => void pay(event)}
     >
-      <h3 className="text-lg font-bold">
-        {testing ? "Run a live payment test" : "Book a visit"}
-      </h3>
+      <h3 className="text-lg font-bold">Book a visit</h3>
       <p className="mt-1 text-sm text-slate-500">
-        {testing
-          ? "Add sample contact and site details, then choose a slot to test Stripe and the calendar integration. No service is offered."
-          : "Add your contact and site details, then choose a four-hour weekday visit. Paying books the package at the final price above."}
+        Add your contact and site details, then choose a four-hour weekday
+        visit. Paying books the package at the final price above.
       </p>
 
       <div className="mt-3 flex items-center justify-between gap-4 text-xs text-slate-500">
@@ -469,14 +463,11 @@ export function VisitBooking({
       >
         {submitting
           ? "Opening payment…"
-          : testing
-            ? `Pay ${formatSgd(totalSgd)} and test`
-            : `Pay ${formatSgd(totalSgd)} and book`}
+          : `Pay ${formatSgd(totalSgd)} and book`}
       </button>
       <p className="mt-3 text-xs leading-5 text-slate-500">
-        {testing
-          ? "This is a real live-mode Stripe charge including 9% GST. Payment creates a TESTING calendar event but no service entitlement."
-          : "The displayed payment amount includes 9% GST. Your booking will be confirmed after payment succeeds."}
+        The displayed payment amount includes 9% GST. Your booking will be
+        confirmed after payment succeeds.
       </p>
     </form>
   );

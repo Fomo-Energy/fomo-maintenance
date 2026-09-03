@@ -179,6 +179,7 @@ export type ManageBookingView = Pick<
   | "reference"
   | "customerName"
   | "siteAddress"
+  | "serviceCode"
   | "packageName"
   | "kwp"
   | "currency"
@@ -411,6 +412,7 @@ export async function findManageAccess(token: string): Promise<ManageAccess | nu
         reference: bookings.reference,
         customerName: bookings.customerName,
         siteAddress: bookings.siteAddress,
+        serviceCode: bookings.serviceCode,
         packageName: bookings.packageName,
         kwp: bookings.kwp,
         currency: bookings.currency,

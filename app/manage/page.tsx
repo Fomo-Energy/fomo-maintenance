@@ -4,6 +4,7 @@ import ManageAccessBootstrap from "@/components/ManageAccessBootstrap";
 import DocumentUploadPanel from "@/components/DocumentUploadPanel";
 import ReschedulePanel from "@/components/ReschedulePanel";
 import { formatSgd } from "@/lib/pricing";
+import { customerBookingActionsAllowed } from "@/lib/portal/booking-actions";
 import { findManageBooking } from "@/lib/portal/bookings";
 import {
   blobStorageIsConfigured,
@@ -36,11 +37,14 @@ export default async function ManageBookingPage() {
     bookingPortalEnabled() && token
       ? await findManageBooking(token).catch(() => null)
       : null;
+  const historicalTestingBooking =
+    booking && !customerBookingActionsAllowed(booking.serviceCode);
   const documents = booking
     ? await listManageDocuments(booking.id).catch(() => [])
     : [];
   const storageReady = blobStorageIsConfigured();
-  const uploadsReady = storageReady && documentUploadsEnabled();
+  const uploadsReady =
+    !historicalTestingBooking && storageReady && documentUploadsEnabled();
   const reschedulePolicy = booking ? rescheduleEligibility(booking) : null;
   const activeReschedule =
     booking && reschedulingEnabled()
@@ -61,6 +65,13 @@ export default async function ManageBookingPage() {
             <p className="mt-4 text-slate-600">
               Your paid appointment is confirmed below.
             </p>
+            {historicalTestingBooking ? (
+              <p className="mt-5 rounded-2xl bg-amber-50 px-5 py-4 text-sm font-semibold leading-6 text-amber-900">
+                Historical test payment only — no inspection, maintenance,
+                cleaning, or other service is offered. Document uploads and
+                appointment changes are disabled.
+              </p>
+            ) : null}
             <dl className="mt-8 grid gap-6 text-sm sm:grid-cols-2">
               <BookingDetail label="Booking reference" value={booking.reference} />
               <BookingDetail label="Customer" value={booking.customerName} />
@@ -94,7 +105,12 @@ export default async function ManageBookingPage() {
                 documents. Do not include passwords, payment-card details, or
                 unrelated identity documents.
               </p>
-              {uploadsReady ? (
+              {historicalTestingBooking ? (
+                <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm text-slate-600">
+                  New document uploads are disabled for this historical test
+                  payment.
+                </p>
+              ) : uploadsReady ? (
                 <DocumentUploadPanel currentCount={documents.length} />
               ) : (
                 <p className="mt-4 rounded-xl bg-peach px-4 py-3 text-sm text-slate-600">
@@ -136,7 +152,8 @@ export default async function ManageBookingPage() {
                 </ul>
               ) : null}
             </section>
-            {reschedulingEnabled() &&
+            {!historicalTestingBooking &&
+            reschedulingEnabled() &&
             (reschedulePolicy?.allowed || activeReschedule) ? (
               <ReschedulePanel
                 bookingReference={booking.reference}
@@ -146,7 +163,9 @@ export default async function ManageBookingPage() {
               />
             ) : (
               <div className="mt-10 rounded-2xl bg-peach px-5 py-4 text-sm leading-6 text-slate-600">
-                {reschedulingEnabled() &&
+                {historicalTestingBooking
+                  ? "Online date/time changes are disabled for this historical test payment."
+                  : reschedulingEnabled() &&
                 reschedulePolicy &&
                 !reschedulePolicy.allowed
                   ? reschedulePolicy.reason
