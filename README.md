@@ -32,18 +32,19 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 The customer Manage Booking portal uses Neon Postgres through Drizzle. Parts 1
 through 5 are merged and provide durable paid-booking fulfilment, secure manage
 access, private Vercel Blob uploads, authenticated downloads, database-backed
-slot holds, and customer date/time changes. An isolated `e2e` Preview has a
+slot holds, and customer date/time changes. The organisation-owned `staging`
+branch has an isolated Vercel Preview with a
 migrated Neon database and private Blob store; its sandbox payment, signed
 webhook, replay, portal, upload/download, and supervised reschedule checks pass.
-Portal and uploads remain Preview-only, rescheduling was returned to disabled
-after its test, and all three features remain disabled in Production pending
-transactional email and the remaining security/operations work.
+Portal, uploads, rescheduling, and transactional email are enabled there for a
+bounded team stress-test period. They remain disabled in Production pending the
+remaining security and operations work.
 Part 6 transactional email is implemented behind
 `TRANSACTIONAL_EMAIL_ENABLED=1`. It records each customer/operations delivery
 with a durable idempotency key, sends payment and reschedule confirmations
 through Resend, and extends the private manage link when a later appointment
-would exceed its expiry. It remains disabled until Preview sender-domain and
-inbox verification pass.
+would exceed its expiry. Sender-domain verification and controlled customer and
+operations inbox delivery have passed on `staging`.
 
 ```bash
 npm run verify:database

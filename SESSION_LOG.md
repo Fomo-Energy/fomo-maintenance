@@ -42,13 +42,13 @@ third-party access costs.
 
 Pull requests #22 through #25 are merged as `9120067`, `6419bc3`, `3802119`,
 and `1ffb4a8`, completing Parts 1–5 of the phased customer Manage Booking
-portal. The isolated `juliustanch/e2e` Preview now uses a Stripe sandbox,
+portal. The organisation-owned `staging` branch uses a Stripe sandbox,
 migrated Preview Neon database, and private Singapore-region Blob store. Its
 S$0.55 paid sandbox checkout, signed webhook and replay, durable fulfilment,
 portal, authenticated upload/download, and one supervised reschedule passed.
-Portal and uploads are enabled only on that branch; rescheduling was returned
-to disabled. Production resources, credentials, and feature flags remain
-unchanged.
+Portal, uploads, rescheduling, and transactional email are enabled there for a
+bounded team stress test. Production resources, credentials, and feature flags
+remain unchanged.
 
 Preview testing exposed a cookie-delivery defect: two same-name path-scoped
 cookies collapsed to the API-scoped cookie, so `/manage` could not authenticate.
@@ -56,26 +56,25 @@ Pull request #27 is merged as `949a0a0`; it replaces them with one secure
 HttpOnly cookie at `Path=/`. Main CI, Production deployment, and the real
 Preview browser flow pass while all Production portal flags remain disabled.
 
-Part 6 is implemented on `juliustanch/booking-portal-email` behind
-`TRANSACTIONAL_EMAIL_ENABLED=1`. Durable customer/operations booking and
-reschedule messages, provider/database idempotency, Preview recipient override,
-and later-appointment manage-link renewal pass the full local verification and
-build. A free Preview-only Resend resource exists in Tokyo. Migration `0003`
-is applied to Preview Neon and branch-scoped email variables are configured on
-`juliustanch/e2e`. Cloudflare sender DNS, deployment, real inbox delivery, and
-replay testing are still pending; Production has no Resend resource or email
-flag.
+Part 6 is implemented behind `TRANSACTIONAL_EMAIL_ENABLED=1`. Durable
+customer/operations booking and reschedule messages, provider/database
+idempotency, Preview recipient override, and later-appointment manage-link
+renewal pass the full local verification and build. A free Preview-only Resend
+resource exists in Tokyo. Migration `0003` is applied to Preview Neon and the
+email variables are scoped to `staging`. Cloudflare sender DNS is verified;
+customer delivery to the approved Gmail inbox and operations delivery to
+`ops@fomo.energy` passed. Reply-to is `ops@fomo.energy` until the
+`maintenance@fomo.energy` mailbox exists. Production has no Resend resource or
+email flag.
 
 ## Next up
 
-1. Add the exact Resend DKIM/SPF/sending-subdomain records in Cloudflare and
-   verify `fomo.energy`.
-2. Deploy `juliustanch/e2e` and verify booking/reschedule delivery plus replay
-   idempotency in the approved Gmail and maintenance inboxes.
+1. Complete the bounded one-week team stress test on `staging`, including
+   booking, upload/download, rescheduling, and email observations.
+2. Verify reschedule-message delivery, Stripe replay idempotency, and
+   failed-email recovery in the isolated Preview stack.
 3. Confirm malware scanning, retention, deletion, and data-residency policy.
-4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon;
-   keep customer rescheduling disabled outside supervised tests until Part 6 is
-   complete.
+4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon.
 5. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
    retention/deletion jobs, and Graph/database reconciliation tooling.
 6. Provision a distinct Production database, Blob store, mail configuration,
@@ -89,8 +88,14 @@ flag.
 
 ### 2026-09-03
 
-- Confirmed Cloudflare is authoritative for `fomo.energy`; no DNS changes have
-  yet been submitted because the owner must complete the Cloudflare sign-in.
+- Renamed the long-lived test branch from `juliustanch/e2e` to the
+  organisation-owned `staging` branch. Migrated all 14 encrypted Vercel
+  branch-scoped overrides in place without reading or rotating their values,
+  including the sandbox Stripe, Preview feature, and email configuration.
+  `main` and Production remain unchanged. The old remote branch is retained
+  only until the replacement `staging` Preview passes deployment checks.
+- Confirmed Cloudflare is authoritative for `fomo.energy` and verified the
+  exact Resend sender records without altering inbound-mail MX records.
 - Accepted the owner-completed Resend Marketplace terms and provisioned the
   free `fomo-maintenance-preview-email` resource for Vercel Preview only in
   Tokyo. Production received no resource or email key.
@@ -102,17 +107,21 @@ flag.
   manage credentials are not stored.
 - Added later-appointment manage-link renewal and replacement of the requesting
   browser's secure cookie before reschedule notification.
+- Verified controlled customer confirmation delivery to `fomoenergysg@gmail.com`
+  and operations delivery to `ops@fomo.energy`. `EMAIL_REPLY_TO` is also
+  `ops@fomo.energy` until the `maintenance@fomo.energy` mailbox exists.
 - Transactional email, schema, portal, pricing, slots, calendar, documents,
   rescheduling, TypeScript, and production-build checks pass locally. Preview
-  migration, DNS, deployment, delivery and replay tests remain.
+  migration, deployment, customer/operations delivery, and paid booking have
+  passed; reschedule-email replay and recovery checks remain.
 
 ### 2026-09-02
 
 - Provisioned a free isolated Neon Preview database and private Singapore-region
-  Vercel Blob store for `juliustanch/e2e`; applied the reviewed Drizzle
+  Vercel Blob store for the branch now named `staging`; applied the reviewed Drizzle
   migrations without changing Production resources or secrets.
 - Configured a Stripe sandbox restricted key, exclusive 9% GST rate, and signed
-  webhook only for the stable `e2e` Preview alias.
+  webhook only for the stable Preview alias now attached to `staging`.
 - Completed one S$0.55 paid sandbox Testing checkout. Stripe reported paid, the
   signed webhook returned 200, and replay retained exactly one booking and one
   Microsoft event.
@@ -133,7 +142,7 @@ flag.
   flags remain off, no remote portal migration or storage provisioning occurred,
   and the legacy Production payment-to-calendar path remains authoritative.
 - Replaced the former all-live-environments assumption with an isolated Stripe
-  sandbox plan for a long-lived `e2e` Vercel Preview. The runbook keeps sandbox
+  sandbox plan for the long-lived `staging` Vercel Preview. The runbook keeps sandbox
   keys, tax rate, webhook, database, Blob store, and test calendar separate
   from Production.
 - Merged pull request #23 as `6419bc3`, completing the dormant Parts 2–3 code;
