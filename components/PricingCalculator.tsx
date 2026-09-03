@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { VisitBooking } from "@/components/VisitBooking";
 import { FOMO_ENERGY_CONTACT, QUOTE_EMAIL } from "@/lib/site";
 import {
@@ -15,6 +15,53 @@ import {
 } from "@/lib/pricing";
 
 const DEFAULT_KWP = 10;
+const SAVED_QUOTE_STORAGE_KEY = "fomo-maintenance:quote:v1";
+
+type SavedQuote = {
+  kwpInput: string;
+  installer: InstallerId;
+  serviceLevel: ServiceLevel;
+  cleaning: boolean;
+};
+
+function parseSavedQuote(value: string | null): SavedQuote | null {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<SavedQuote>;
+    const parsedKwp = Number.parseFloat(parsed.kwpInput ?? "");
+    const installer =
+      parsed.installer === "fomo" || parsed.installer === "rto"
+        ? parsed.installer
+        : null;
+    const serviceLevel =
+      parsed.serviceLevel === "essential" ||
+      parsed.serviceLevel === "electrical_assurance"
+        ? parsed.serviceLevel
+        : null;
+
+    if (
+      !Number.isFinite(parsedKwp) ||
+      parsedKwp <= 0 ||
+      parsedKwp > 10_000 ||
+      !installer ||
+      !serviceLevel
+    ) {
+      return null;
+    }
+
+    return {
+      kwpInput: String(parsedKwp),
+      installer,
+      serviceLevel,
+      cleaning: installer === "rto" ? false : parsed.cleaning === true,
+    };
+  } catch {
+    return null;
+  }
+}
 
 export function PricingCalculator() {
   const [kwpInput, setKwpInput] = useState(String(DEFAULT_KWP));
@@ -22,6 +69,40 @@ export function PricingCalculator() {
   const [serviceLevel, setServiceLevel] =
     useState<ServiceLevel>("essential");
   const [cleaning, setCleaning] = useState(false);
+  const [savedQuoteReady, setSavedQuoteReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = parseSavedQuote(
+        window.localStorage.getItem(SAVED_QUOTE_STORAGE_KEY),
+      );
+      if (saved) {
+        setKwpInput(saved.kwpInput);
+        setInstaller(saved.installer);
+        setServiceLevel(saved.serviceLevel);
+        setCleaning(saved.cleaning);
+      }
+    } catch {
+      // The quote builder remains usable when browser storage is unavailable.
+    } finally {
+      setSavedQuoteReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!savedQuoteReady) {
+      return;
+    }
+
+    try {
+      window.localStorage.setItem(
+        SAVED_QUOTE_STORAGE_KEY,
+        JSON.stringify({ kwpInput, installer, serviceLevel, cleaning }),
+      );
+    } catch {
+      // The quote builder remains usable when browser storage is unavailable.
+    }
+  }, [cleaning, installer, kwpInput, savedQuoteReady, serviceLevel]);
 
   const parsedKwp = Number.parseFloat(kwpInput);
   const kwp = Number.isFinite(parsedKwp) ? parsedKwp : 0;
@@ -188,11 +269,11 @@ export function PricingCalculator() {
                         Recommended once every 2 years.
                       </span>
                       <span className="mt-2 block text-xs leading-5 text-slate-600">
-                        Everything in Essential, plus a thorough DC-side safety
-                        and performance testing using professional solar testing
-                        equipment. This helps to identify deteriorated cabling
-                        and insulation which may lead to DC related electrical
-                        faults and fires.
+                        Everything in Essential, plus thorough DC-side safety and
+                        performance testing using professional solar testing
+                        equipment. This helps identify deteriorated cabling or
+                        insulation that could lead to DC electrical faults or
+                        fires.
                       </span>
                     </span>
                   </span>
@@ -216,9 +297,7 @@ export function PricingCalculator() {
                     to GST)
                   </span>
                   <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    Cleaning is performed only after safe roof access has been
-                    confirmed. If access cannot be confirmed, the team will
-                    contact you to resolve that charge.
+                    Available only after safe roof access is confirmed.
                   </span>
                 </span>
               </label>
@@ -252,7 +331,7 @@ export function PricingCalculator() {
                   {formatSgd(result.totalSgd)}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
-                  final visit price including 9% GST, SGD, for {kwp} kWp
+                  Final visit total for a {kwp} kWp system, including 9% GST.
                 </p>
 
                 <dl className="mt-6 space-y-2 text-sm">

@@ -5,7 +5,9 @@ export type TransactionalMessageKind =
   | "booking_customer"
   | "booking_operations"
   | "reschedule_customer"
-  | "reschedule_operations";
+  | "reschedule_operations"
+  | "partial_refund_operations"
+  | "dispute_operations";
 
 type GraphEmailAddress = {
   emailAddress: {

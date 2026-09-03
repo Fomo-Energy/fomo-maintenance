@@ -4,6 +4,18 @@ Status: Current
 
 ## Current state
 
+As of 2026-09-04, the hardening and polish release is QA-approved on
+`juliustanch/hardening-polish-staging`. It adds database-first Checkout holds,
+public API limits, full Checkout/refund/dispute lifecycle handling, baseline
+security headers, mobile and validation polish, and the refreshed staging-only
+operations guide. Preview migration `0005` is applied to the isolated staging
+Neon project and the three new staging activation flags are configured. The
+code is not yet merged or deployed. Matching six-event Stripe webhook edits and
+the live restricted-key dispute permission are prepared but deliberately not
+saved pending action-time owner confirmation. Production has a distinct,
+unmigrated Neon database and customer uploads, rescheduling, and transactional
+email remain disabled there.
+
 Production includes the approved Essential Health Check scope wording,
 Electrical Assurance, and independent cleaning. This release retires the
 temporary public S$0.50 Testing checkout from both deployment tracks while
@@ -108,23 +120,46 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
 
 ## Next up
 
-1. Verify the new Graph customer confirmation in the controlled staging inbox
-   and the operations copy at `ops@fomo.energy`; then exercise one reschedule
-   notification and webhook replay.
-2. Rotate the remaining exposed Entra client secrets without interrupting the
-   existing calendar or monitoring consumers.
-3. Migrate the mail app from the legacy Application Access Policy to Exchange
-   App RBAC after Microsoft completes the tenant upgrade.
-4. Remove the unused Preview Resend integration/resource and DNS only after
-   retained records are reconciled and Graph passes.
-5. Complete the bounded one-week team stress test on `staging`, including
-   booking, upload/download, rescheduling, and email observations.
-6. Verify reschedule-message delivery, Stripe replay idempotency, and
-   failed-email recovery in the isolated Preview stack.
-7. Merge and visually verify the staging-only operations guide; confirm it is
-   absent from Production and unrelated Preview deployments.
+1. Merge the approved release to `staging`, wait for CI/Vercel, and smoke-test
+   its banner, guide, calculator, API headers, and portal boundary.
+2. With action-time owner confirmation, save the six-event sandbox webhook and
+   then run a controlled sandbox lifecycle check.
+3. Migrate the distinct Production database, merge `staging` to `main`, save
+   the live Stripe webhook/key changes, enable only the production foundation
+   flags, and verify `maintenance.fomo.energy`.
+4. Continue the bounded team stress test, including Graph email delivery,
+   upload/download, rescheduling, replay, abandoned holds, and recovery.
+5. Rotate the remaining exposed Entra secrets and migrate the mail app to
+   Exchange App RBAC when the tenant upgrade permits it.
 
 ## Session entries
+
+### 2026-09-04
+
+- Completed independent QA/QC and UI/UX audits of the customer journey,
+  server-authoritative pricing, Stripe lifecycle, Microsoft calendar flow,
+  portal, uploads, rescheduling, email, and environment separation.
+- Added database-first Checkout reservations, stable Stripe idempotency,
+  Checkout expiry/async handling, public API rate limits, and refund/dispute
+  operations with recoverable event ownership.
+- Fixed every blocking audit finding before release: retained manage access for
+  partial refunds/disputes, immediate denial after full refund, Graph cleanup
+  retry safety, refund/fulfilment/reschedule races, malformed upload handling,
+  and abandoned lifecycle recovery.
+- Polished the existing UI without restructuring it: responsive weekday grid,
+  field-level errors, correctly disabled payment action, quote persistence,
+  direct recovery links, and clearer manage-page ordering and copy.
+- Refreshed the staging operations guide with current reservation, email,
+  refund/dispute, rate-limit, and recovery behavior. The guide remains absent
+  from Production and unrelated Preview branches by server-side gating.
+- Provisioned the separate Production Neon foundation and applied migration
+  `0005` to staging only. Added independent rate-limit secrets and configured
+  the staging activation flags after migration.
+- Prepared, but did not save, the six-event Stripe webhook changes and live
+  dispute-read permission; these browser actions require immediate owner
+  confirmation when the release is ready.
+- Final QA, UI/UX review, full verification, TypeScript, build, dependency
+  audit, and diff checks passed.
 
 ### 2026-09-03
 

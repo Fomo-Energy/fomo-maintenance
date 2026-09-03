@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { databaseIsConfigured } from "@/lib/database";
 import { listBusyPeriods } from "@/lib/microsoft";
-import { bookingPortalEnabled } from "@/lib/portal/config";
+import { checkoutReservationsEnabled } from "@/lib/portal/config";
 import { listActiveReservedPeriods } from "@/lib/portal/rescheduling";
+import { checkApiRateLimit } from "@/lib/rate-limit";
 import {
   filterFreeSlots,
   generateCandidateSlots,
@@ -11,8 +12,23 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
+    const rateLimit = await checkApiRateLimit(request, {
+      action: "availability",
+      limit: 120,
+      windowSeconds: 60,
+    });
+    if (rateLimit && !rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many availability requests. Try again shortly." },
+        {
+          status: 429,
+          headers: { "Retry-After": String(rateLimit.retryAfterSeconds) },
+        },
+      );
+    }
+
     const candidates = generateCandidateSlots();
     if (candidates.length === 0) {
       return NextResponse.json({ slots: [] });
@@ -22,12 +38,12 @@ export async function POST() {
     const last = candidates[candidates.length - 1];
     const rangeEnd = new Date(last.end);
 
-    if (bookingPortalEnabled() && !databaseIsConfigured()) {
-      throw new Error("Booking portal database is not configured.");
+    if (checkoutReservationsEnabled() && !databaseIsConfigured()) {
+      throw new Error("Checkout reservations database is not configured.");
     }
     const [calendarBusy, reservationBusy] = await Promise.all([
       listBusyPeriods(rangeStart, rangeEnd),
-      bookingPortalEnabled()
+      checkoutReservationsEnabled()
         ? listActiveReservedPeriods(rangeStart, rangeEnd)
         : Promise.resolve([]),
     ]);

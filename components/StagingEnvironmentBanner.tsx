@@ -16,7 +16,7 @@ export function StagingEnvironmentBanner() {
       </span>
       <a
         href="/#staging-operations"
-        className="shrink-0 rounded border border-white/70 px-2 py-1 text-[10px] uppercase tracking-wide underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-white sm:text-xs"
+        className="flex min-h-11 shrink-0 items-center rounded border border-white/70 px-2 py-1 text-[10px] uppercase tracking-wide underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-white sm:text-xs"
       >
         <span className="sm:hidden">Test flow ↓</span>
         <span className="hidden sm:inline">View test flow ↓</span>

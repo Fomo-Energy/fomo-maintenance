@@ -59,6 +59,7 @@ async function main() {
     "0002_ancient_chronomancer.sql",
     "0003_jazzy_firelord.sql",
     "0004_complete_kree.sql",
+    "0005_heavy_warhawk.sql",
   ]) {
     await database.exec(await migrationSql(filename));
   }
@@ -185,6 +186,30 @@ async function main() {
         ],
       ),
     "one Checkout Session cannot hold two visit times",
+  );
+  await database.query(
+    `insert into slot_reservations (
+      checkout_request_key, slot_start, slot_end, status, hold_expires_at
+    ) values ($1, $2, $3, 'held', now() + interval '5 minutes')`,
+    [
+      "7d85d3ba-1e2e-44b8-856d-8190801e00b4",
+      "2026-10-09T01:00:00.000Z",
+      "2026-10-09T05:00:00.000Z",
+    ],
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into slot_reservations (
+          checkout_request_key, slot_start, slot_end, status, hold_expires_at
+        ) values ($1, $2, $3, 'held', now() + interval '5 minutes')`,
+        [
+          "7d85d3ba-1e2e-44b8-856d-8190801e00b4",
+          "2026-10-10T01:00:00.000Z",
+          "2026-10-10T05:00:00.000Z",
+        ],
+      ),
+    "one checkout request key cannot own two visit times",
   );
   await expectConstraintFailure(
     () =>
@@ -414,6 +439,51 @@ async function main() {
     "Stripe webhook event IDs must be idempotent",
   );
 
+  const rateCounter = await database.query<{ request_count: number }>(
+    `insert into api_rate_limits (
+      action, identifier_digest, window_start, request_count, expires_at
+    ) values ('checkout', $1, $2, 1, $3)
+    on conflict (action, identifier_digest, window_start)
+    do update set request_count = api_rate_limits.request_count + 1
+    returning request_count`,
+    [
+      "c".repeat(64),
+      "2026-09-02T10:00:00.000Z",
+      "2026-09-02T10:20:00.000Z",
+    ],
+  );
+  assert.equal(rateCounter.rows[0]?.request_count, 1);
+  const incrementedRateCounter = await database.query<{
+    request_count: number;
+  }>(
+    `insert into api_rate_limits (
+      action, identifier_digest, window_start, request_count, expires_at
+    ) values ('checkout', $1, $2, 1, $3)
+    on conflict (action, identifier_digest, window_start)
+    do update set request_count = api_rate_limits.request_count + 1
+    returning request_count`,
+    [
+      "c".repeat(64),
+      "2026-09-02T10:00:00.000Z",
+      "2026-09-02T10:20:00.000Z",
+    ],
+  );
+  assert.equal(
+    incrementedRateCounter.rows[0]?.request_count,
+    2,
+    "rate-limit increments must be atomic within one fixed window",
+  );
+  await expectConstraintFailure(
+    () =>
+      database.query(
+        `insert into api_rate_limits (
+          action, identifier_digest, window_start, request_count, expires_at
+        ) values ('unknown', $1, now(), 1, now() + interval '2 minutes')`,
+        ["d".repeat(64)],
+      ),
+    "only known public API actions may create rate-limit counters",
+  );
+
   const delivery = await database.query<{ provider: string }>(
     `insert into email_deliveries (
       booking_id, message_kind, recipient, idempotency_key,
@@ -434,6 +504,20 @@ async function main() {
       provider, status, attempt_count
     ) values ($1, 'booking_operations', 'ops@example.com',
       'fm-booking-operations-historical-v1', 'resend', 'sent', 1)`,
+    [bookingId],
+  );
+  await database.query(
+    `insert into email_deliveries (
+      booking_id, message_kind, recipient, idempotency_key,
+      status, attempt_count
+    ) values ($1, 'partial_refund_operations', 'ops@example.com',
+      'fm-partial-refund-operations-test-v1', 'sent', 1)`,
+    [bookingId],
+  );
+  await database.query(
+    `update bookings
+     set payment_status = 'refunded', calendar_status = 'cancelled'
+     where id = $1`,
     [bookingId],
   );
   await expectConstraintFailure(

@@ -1,5 +1,5 @@
 # GitHub Pages cannot host the Stripe/Graph API routes.
-# This workflow only verifies pricing/slots and that `next build` succeeds.
+# This workflow runs the full application verification gate.
 # Do not upload `out/` — the app is no longer a static export.
 name: CI
 
@@ -26,12 +26,12 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      - name: Verify pricing
-        run: npm run verify:pricing
-      - name: Verify visit slots
-        run: npm run verify:slots
-      - name: Verify maintenance calendar selection
-        run: npm run verify:calendar
+      - name: Verify application behavior
+        run: npm run verify
+      - name: Type-check
+        run: npx tsc --noEmit
+      - name: Audit production dependencies
+        run: npm audit --omit=dev
       - name: Build
         run: npm run build
 

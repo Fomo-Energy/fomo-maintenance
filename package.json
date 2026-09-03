@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database && npm run verify:portal && npm run verify:documents && npm run verify:rescheduling && npm run verify:email && npm run verify:deployment-environment && npm run verify:staging-ui",
+    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database && npm run verify:portal && npm run verify:documents && npm run verify:rescheduling && npm run verify:email && npm run verify:deployment-environment && npm run verify:staging-ui && npm run verify:security",
     "verify:pricing": "tsx scripts/verify-pricing.ts",
     "verify:slots": "tsx scripts/verify-slots.ts",
     "verify:calendar": "tsx scripts/verify-calendar.ts",
@@ -18,6 +18,7 @@
     "verify:email": "tsx scripts/verify-email.ts",
     "verify:deployment-environment": "NODE_OPTIONS=--conditions=react-server tsx scripts/verify-deployment-environment.ts",
     "verify:staging-ui": "tsx scripts/verify-staging-ui.tsx",
+    "verify:security": "tsx scripts/verify-security.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate"
   },

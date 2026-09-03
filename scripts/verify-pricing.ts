@@ -194,6 +194,38 @@ assert.throws(
   /Choose a service level/,
 );
 assert.throws(
+  () => parseCheckoutRequest({ ...validCheckout, installer: "other" }),
+  /Choose who installed/,
+  "the removed other-installer option must also be rejected by the API parser",
+);
+assert.throws(
+  () => parseCheckoutRequest({ ...validCheckout, phone: "!!!!!!!!" }),
+  /Enter a phone number/,
+  "phone validation must reject punctuation-only input",
+);
+assert.throws(
+  () => parseCheckoutRequest({ ...validCheckout, address: "--- ---" }),
+  /Enter the site address/,
+  "address validation must require useful letters or digits",
+);
+assert.equal(
+  parseCheckoutRequest({
+    ...validCheckout,
+    phone: "+44 (0)20 7123-4567",
+    checkoutRequestKey: "7d85d3ba-1e2e-44b8-856d-8190801e00b4",
+  }).checkoutRequestKey,
+  "7d85d3ba-1e2e-44b8-856d-8190801e00b4",
+  "phone and request-key validation must remain internationally usable",
+);
+assert.throws(
+  () =>
+    parseCheckoutRequest({
+      ...validCheckout,
+      checkoutRequestKey: "too-short",
+    }),
+  /Invalid checkout request/,
+);
+assert.throws(
   () =>
     parseCheckoutRequest({
       ...validCheckout,

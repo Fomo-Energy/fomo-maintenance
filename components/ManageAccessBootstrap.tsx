@@ -6,6 +6,7 @@ export default function ManageAccessBootstrap() {
   const [message, setMessage] = useState(
     "Open the secure link from your booking confirmation email.",
   );
+  const [showContact, setShowContact] = useState(false);
 
   useEffect(() => {
     const parameters = new URLSearchParams(window.location.hash.slice(1));
@@ -28,10 +29,28 @@ export default function ManageAccessBootstrap() {
         return;
       }
       setMessage("This booking link is invalid, expired, or has been replaced.");
+      setShowContact(true);
     }).catch(() => {
       setMessage("The booking link could not be verified. Please try again.");
+      setShowContact(true);
     });
   }, []);
 
-  return <p role="status">{message}</p>;
+  return (
+    <div role="status">
+      <p>{message}</p>
+      {showContact ? (
+        <p className="mt-3">
+          Contact{" "}
+          <a
+            className="font-semibold text-ink underline underline-offset-2"
+            href="mailto:service@fomo.energy"
+          >
+            service@fomo.energy
+          </a>{" "}
+          for help.
+        </p>
+      ) : null}
+    </div>
+  );
 }

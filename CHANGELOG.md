@@ -2,6 +2,39 @@
 
 Status: Current
 
+## 2026-09-04
+
+- Polished the calculator and portal without changing their overall flow:
+  quote selections and contact details restore from versioned browser storage,
+  visit times remain fresh, the Pay action waits for valid contact details and
+  a selected slot, validation is field-specific, and the mobile calendar shows
+  a usable five-day workweek grid.
+- Added database-first Checkout reservations and a stable request UUID shared
+  with Stripe idempotency, closing the simultaneous-selection window before a
+  Checkout Session is created. Added expiry and asynchronous-payment lifecycle
+  handling for reservation release or fulfilment.
+- Added server-side public API limits backed by environment-keyed HMAC address
+  digests in Postgres: 120 availability requests per minute and 12 Checkout
+  attempts per 10 minutes. Raw client IP addresses are not stored.
+- Added idempotent full-refund, partial-refund, and dispute handling. Full
+  refunds block customer access immediately, then safely remove the Microsoft
+  event before revoking the credential record and releasing the slot; partial
+  refunds and disputes preserve the appointment and access and notify
+  operations when email is enabled. A separate lifecycle flag and booking-state
+  guards fail closed and serialize these events against fulfilment and
+  rescheduling.
+- Added global Content Security Policy, frame denial, MIME-sniffing protection,
+  referrer policy, and permissions policy headers. Upload completion now treats
+  malformed and unknown callbacks as client errors.
+- Expanded GitHub CI to run the complete verification suite, TypeScript,
+  production dependency audit, and production build.
+- Provisioned a distinct Production Neon database plus independent manage-link
+  and rate-limit secrets. Production activates only the durable booking,
+  reservation, and payment-lifecycle foundation; uploads, rescheduling, and
+  transactional email remain independently disabled.
+- Refreshed the staging-only operations guide with the latest slot-hold,
+  request-limit, refund/dispute, calendar, and email-routing behavior.
+
 ## 2026-09-03
 
 - Removed the public S$0.50 pre-GST Testing product from the calculator and

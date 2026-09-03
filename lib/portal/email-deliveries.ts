@@ -14,7 +14,9 @@ export type EmailMessageKind =
   | "booking_customer"
   | "booking_operations"
   | "reschedule_customer"
-  | "reschedule_operations";
+  | "reschedule_operations"
+  | "partial_refund_operations"
+  | "dispute_operations";
 
 function bookingStatusColumn(messageKind: string) {
   if (messageKind === "booking_customer") return "customer" as const;

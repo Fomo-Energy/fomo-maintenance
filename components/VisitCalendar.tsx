@@ -47,8 +47,8 @@ export function VisitCalendar({
   const canNext = visibleMonth < maxMonth;
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-orange-100 bg-peach/50 p-2 sm:p-3">
-      <div className="mb-2 flex min-w-[20rem] items-center justify-between gap-2">
+    <div className="rounded-2xl border border-orange-100 bg-peach/50 p-2 sm:p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <button
           type="button"
           aria-label="Previous month"
@@ -71,11 +71,13 @@ export function VisitCalendar({
           ›
         </button>
       </div>
-      <div className="grid min-w-[20rem] grid-cols-7 gap-0.5 text-center sm:gap-1">
-        {WEEKDAY_HEADERS.map((label) => (
+      <div className="grid grid-cols-5 gap-0.5 text-center sm:grid-cols-7 sm:gap-1">
+        {WEEKDAY_HEADERS.map((label, index) => (
           <div
             key={label}
-            className="py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500"
+            className={`py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 ${
+              index >= 5 ? "hidden sm:block" : ""
+            }`}
           >
             {label}
           </div>
@@ -87,6 +89,7 @@ export function VisitCalendar({
             bookableDates.has(cell.dateKey);
           const selected = selectedDateKey === cell.dateKey;
           const dateLabel = friendlyDate(cell.dateKey);
+          const weekday = isWeekdayDate(cell.dateKey);
           return (
             <button
               key={cell.dateKey}
@@ -98,6 +101,8 @@ export function VisitCalendar({
               }`}
               onClick={() => onSelectDate(cell.dateKey)}
               className={`h-11 min-w-0 rounded-lg text-sm font-semibold outline-none ring-brand focus:ring-2 ${
+                weekday ? "" : "hidden sm:block"
+              } ${
                 selected
                   ? "bg-brand text-ink"
                   : bookable

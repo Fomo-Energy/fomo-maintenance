@@ -38,7 +38,9 @@ export function rescheduleEligibility(
     MAX_CUSTOMER_RESCHEDULES - booking.rescheduleCount,
   );
   if (
-    booking.paymentStatus !== "paid" ||
+    !["paid", "partially_refunded", "disputed"].includes(
+      booking.paymentStatus,
+    ) ||
     booking.calendarStatus !== "created" ||
     !booking.graphEventId
   ) {
