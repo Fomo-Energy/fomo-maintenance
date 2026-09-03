@@ -4,6 +4,16 @@ Status: Current
 
 ## 2026-09-04
 
+- Merged and deployed the audited hardening/polish release to both the stable
+  `staging` branch and Production. Applied migration `0005` to both isolated
+  Neon databases and configured six-event Stripe webhook endpoints in sandbox
+  and live modes.
+- Verified the live restricted Stripe key's dispute-read permission, then
+  enabled only the Production booking portal, Checkout reservation, public API
+  rate-limit, and payment-lifecycle foundations. Customer uploads,
+  rescheduling, and transactional email remain disabled in Production; the
+  rollout created no live Checkout or payment.
+
 - Polished the calculator and portal without changing their overall flow:
   quote selections and contact details restore from versioned browser storage,
   visit times remain fresh, the Pay action waits for valid contact details and

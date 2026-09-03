@@ -162,11 +162,14 @@ invoice generation remains a separate integration decision.
 
 ### Part 7 — Staff access, hardening, and rollout
 
-Status: In progress. Separate Preview and Production databases are provisioned;
-atomic pre-Checkout slot reservations, public availability/checkout rate
-limits, refund/dispute lifecycle handling, security headers, stricter callback
-errors, and a full CI release gate are implemented. The staging operations
-guide maps these behaviors for the team stress test.
+Status: In progress. Separate Preview and Production databases are provisioned
+and migrated. Atomic pre-Checkout slot reservations, public
+availability/checkout rate limits, refund/dispute lifecycle handling, security
+headers, stricter callback errors, and a full CI release gate are implemented.
+The foundation flags are enabled in Production after the six-event live Stripe
+webhook and restricted-key dispute-read permission were verified. Customer
+uploads, rescheduling, and transactional email remain disabled in Production.
+The staging operations guide maps these behaviors for the team stress test.
 
 Protect staff booking/document access with Microsoft Entra ID. Complete
 manage-action limits, audit visibility, upload scanning, retention jobs,
