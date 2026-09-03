@@ -150,7 +150,7 @@ Microsoft Graph uses OAuth client credentials and the application permission
 `Calendars.ReadWrite`. Stripe uses a secret API key, webhook signing secret, and
 the ID of a manually configured exclusive 9% GST tax rate. The active
 production flow still treats Stripe as the payment/booking record and Microsoft
-Calendar as the visit schedule. Neon is active only in the isolated `e2e`
+Calendar as the visit schedule. Neon is active only in the isolated `staging`
 Preview; Production remains dormant until its migration, secret, and server
 feature flag are deliberately applied. Name, phone, email, and site
 address are cached in versioned `localStorage` in the customer's browser, with
@@ -165,4 +165,5 @@ GitHub Actions workflow verifies the pricing and slot rules and runs a Next.js
 production build; GitHub Pages deployment is disabled. The canonical source is
 the `Fomo-Energy/fomo-maintenance` GitHub repository, linked by repository ID to
 the `fomo-energy/fomo-maintenance` Vercel project with `main` as its production
-branch.
+branch. Production is served at `maintenance.fomo.energy`; `staging` uses
+`fomo-maintenance-git-staging-fomo-energy.vercel.app`.

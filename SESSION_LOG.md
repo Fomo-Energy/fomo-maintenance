@@ -13,7 +13,8 @@ live copy, and API checks passed at that deployment.
 
 Pull request #13 was merged as `64001b8`, and production displays the approved
 9% GST-inclusive prices. The live Stripe rate exists and
-`STRIPE_GST_TAX_RATE_ID` is configured in all Vercel environments. Pull request
+`STRIPE_GST_TAX_RATE_ID` is configured separately for Production and the
+`staging` Stripe sandbox. Pull request
 #14 was merged as `acdfb63`, allowing the restricted Stripe key to apply the
 configured rate without broader tax-rate read permission. Production Checkout
 was verified without payment: a 10 kWp Essential booking shows S$199.00
@@ -42,13 +43,23 @@ third-party access costs.
 
 Pull requests #22 through #25 are merged as `9120067`, `6419bc3`, `3802119`,
 and `1ffb4a8`, completing Parts 1–5 of the phased customer Manage Booking
-portal. The isolated `juliustanch/e2e` Preview now uses a Stripe sandbox,
+portal. The organisation-owned `staging` Preview uses a Stripe sandbox,
 migrated Preview Neon database, and private Singapore-region Blob store. Its
 S$0.55 paid sandbox checkout, signed webhook and replay, durable fulfilment,
 portal, authenticated upload/download, and one supervised reschedule passed.
-Portal and uploads are enabled only on that branch; rescheduling was returned
-to disabled. Production resources, credentials, and feature flags remain
-unchanged.
+Portal, uploads, rescheduling, and transactional email are enabled there for a
+bounded team stress test. Production resources, credentials, and feature flags
+remain unchanged.
+
+Production is served at `https://maintenance.fomo.energy`, with a DNS-only
+Cloudflare CNAME to Vercel and the canonical site URL set to that origin. The
+default Vercel project URL remains an additional Production alias; the stable
+`git-staging` Preview alias is the development/test URL. An independent audit
+confirmed the runtime portal boundary. Live Stripe variables are
+Production-only, while Preview Neon, Blob, Resend, Microsoft secret, sandbox
+Stripe, and feature settings are branch-scoped to `staging`. Staging mail sends
+from and replies to the shared `service@fomo.energy` mailbox; operations
+delivery remains `ops@fomo.energy`.
 
 Preview testing exposed a cookie-delivery defect: two same-name path-scoped
 cookies collapsed to the API-scoped cookie, so `/manage` could not authenticate.
@@ -57,30 +68,48 @@ verification/build and the real Preview browser flow pass.
 
 ## Next up
 
-1. Build Part 6 customer/operations confirmation and reschedule email, including
-   manage-link renewal for appointments moved beyond the original link expiry.
-2. Confirm malware scanning, retention, deletion, and data-residency policy.
-3. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon;
-   keep customer rescheduling disabled outside supervised tests until Part 6 is
-   complete.
-4. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
+1. Complete the bounded one-week team stress test on `staging`, including
+   booking, upload/download, rescheduling, and email observations.
+2. Verify reschedule-message delivery, Stripe replay idempotency, and
+   failed-email recovery in the isolated Preview stack.
+3. Confirm malware scanning, retention, deletion, and data-residency policy.
+4. Run the concurrent-slot and interrupted-Graph matrix against Preview Neon.
+5. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
    retention/deletion jobs, and Graph/database reconciliation tooling.
-5. Provision a distinct Production database, Blob store, mail configuration,
-   and dedicated Microsoft production calendar only after approval and complete
-   a controlled rollout without reusing Preview secrets.
-6. Decide whether customer receipts remain Stripe receipts or whether the paid
+6. Provision a distinct Production database, Blob store, mail configuration,
+   and dedicated Microsoft production calendar ID only after approval and
+   complete a controlled rollout without reusing Preview secrets.
+7. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create formal invoices through Xero; first confirm
    the target organisation, GST details, existing Stripe feed, and OAuth storage.
 
 ## Session entries
 
+### 2026-09-03
+
+- Renamed the long-lived test branch to the organisation-owned `staging`
+  branch, migrated its encrypted Vercel overrides without reading or rotating
+  them, verified the stable Preview deployment, and removed the old remote
+  branch.
+- Tightened Vercel environment isolation after an independent audit: removed
+  generic Preview and Development live Stripe secrets, made the live Stripe
+  public key and tax rate Production-only, and scoped Preview stateful/sensitive
+  resources to `staging`.
+- Added and verified `maintenance.fomo.energy` in Vercel, created the DNS-only
+  Cloudflare CNAME, set the Production canonical site URL, and redeployed
+  `main`. HTTPS, page metadata, and the Production-disabled/staging-enabled
+  portal API boundary passed.
+- Updated staging sender and reply-to configuration to the existing shared
+  `service@fomo.energy` mailbox; operations notifications continue to
+  `ops@fomo.energy`.
+
 ### 2026-09-02
 
 - Provisioned a free isolated Neon Preview database and private Singapore-region
-  Vercel Blob store for `juliustanch/e2e`; applied the reviewed Drizzle
+  Vercel Blob store for the branch now named `staging`; applied the reviewed Drizzle
   migrations without changing Production resources or secrets.
 - Configured a Stripe sandbox restricted key, exclusive 9% GST rate, and signed
-  webhook only for the stable `e2e` Preview alias.
+  webhook only for the stable Preview alias now attached to `staging`.
 - Completed one S$0.55 paid sandbox Testing checkout. Stripe reported paid, the
   signed webhook returned 200, and replay retained exactly one booking and one
   Microsoft event.
@@ -101,7 +130,7 @@ verification/build and the real Preview browser flow pass.
   flags remain off, no remote portal migration or storage provisioning occurred,
   and the legacy Production payment-to-calendar path remains authoritative.
 - Replaced the former all-live-environments assumption with an isolated Stripe
-  sandbox plan for a long-lived `e2e` Vercel Preview. The runbook keeps sandbox
+  sandbox plan for the long-lived `staging` Vercel Preview. The runbook keeps sandbox
   keys, tax rate, webhook, database, Blob store, and test calendar separate
   from Production.
 - Merged pull request #23 as `6419bc3`, completing the dormant Parts 2–3 code;

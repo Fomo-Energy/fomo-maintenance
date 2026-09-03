@@ -32,7 +32,18 @@ connect to any configured Neon database, Stripe account, or Microsoft calendar.
 The canonical repository is `Fomo-Energy/fomo-maintenance`. Pull requests and
 pushes should run the repository's `CI` workflow and create Vercel deployments
 in the `fomo-energy/fomo-maintenance` project. Production follows `main` and is
-served at https://fomo-maintenance.vercel.app.
+served at https://maintenance.fomo.energy. The project-default
+`fomo-maintenance.vercel.app` address remains an additional Production alias;
+`staging` uses https://fomo-maintenance-git-staging-fomo-energy.vercel.app.
+
+## Environment promotion model
+
+Keep live Stripe variables Production-only. Scope the Stripe sandbox, Preview
+database, private Blob, Resend, Microsoft Preview secret, site URL, and feature
+flags to `staging`; ordinary pull-request Previews must inherit none of those
+credentials. Promote reviewed code by pull request rather than retargeting
+secrets. Provision and migrate distinct Production resources before enabling
+the portal, uploads, rescheduling, or transactional email on `main`.
 
 ## Required Stripe GST setup
 
@@ -90,7 +101,7 @@ real appointment slot. The payment creates no service entitlement.
 
 ## Stripe sandbox end-to-end environment
 
-Use the existing Vercel project with a long-lived `e2e` branch and its stable
+Use the existing Vercel project with the long-lived `staging` branch and its stable
 Preview alias. This is not a second Vercel app: it is an isolated Preview
 environment for the same codebase. Do not replace Production Stripe variables
 or point a sandbox webhook at the Production domain.
@@ -104,10 +115,10 @@ Prepare the environment in this order:
    restricted key.
 2. In the sandbox, create an active, exclusive Singapore `GST` tax rate at 9%.
    Record its sandbox-only `txr_...` ID.
-3. Add a sandbox webhook endpoint at the stable `e2e` Preview alias plus
+3. Add a sandbox webhook endpoint at the stable `staging` Preview alias plus
    `/api/stripe/webhook`, subscribe to `checkout.session.completed`, and record
    that endpoint's sandbox-only `whsec_...` signing secret.
-4. Configure branch-scoped Preview variables for `e2e`: sandbox
+4. Configure branch-scoped Preview variables for `staging`: sandbox
    `STRIPE_SECRET_KEY`, matching `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, sandbox
    `STRIPE_WEBHOOK_SECRET`, sandbox `STRIPE_GST_TAX_RATE_ID`, and the stable
    Preview origin as `NEXT_PUBLIC_SITE_URL`. Mark every server secret as
@@ -115,11 +126,11 @@ Prepare the environment in this order:
 5. Use a separate Preview `DATABASE_URL`, `MANAGE_LINK_SECRET`, private
    `BLOB_READ_WRITE_TOKEN`, and a dedicated Microsoft test-calendar ID. Apply
    all reviewed migrations only to the Preview database.
-6. Enable `BOOKING_PORTAL_ENABLED=1` on `e2e`. Enable
+6. Enable `BOOKING_PORTAL_ENABLED=1` on `staging`. Enable
    `DOCUMENT_UPLOADS_ENABLED=1` only after the private Blob store is connected.
    Keep `RESCHEDULING_ENABLED=0` until Part 6 email/manage-link renewal exists,
    except during supervised rescheduling tests.
-7. Redeploy the `e2e` branch and run the low-cost `TESTING` package with Stripe
+7. Redeploy the `staging` branch and run the low-cost `TESTING` package with Stripe
    sandbox cards. `4242 4242 4242 4242`, any future expiry, and any CVC succeeds
    only in the sandbox; it is never valid for Production testing.
 
@@ -154,7 +165,7 @@ enable the flag merely because the code exists. The live flow remains the
 original Stripe-to-Microsoft path until Preview has passed the controlled
 rollout below.
 
-The isolated `e2e` Preview has completed the basic provisioning, payment,
+The isolated `staging` Preview has completed the basic provisioning, payment,
 credential, private-JPEG, and supervised-reschedule path. The full boundary,
 content-type, concurrency, failure-recovery, notification, and Production
 checklist still applies:

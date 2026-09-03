@@ -6,12 +6,20 @@ This is a FOMO Energy program, not a sister company.
 
 ## Hosting
 
-Live site: https://fomo-maintenance.vercel.app
+Live site: https://maintenance.fomo.energy
+
+Staging site: https://fomo-maintenance-git-staging-fomo-energy.vercel.app
 
 Source repository: https://github.com/Fomo-Energy/fomo-maintenance
 
 The repository is owned by the `Fomo-Energy` GitHub organisation. Vercel's
 `fomo-energy/fomo-maintenance` project tracks its `main` branch.
+
+Production follows `main`, uses live Stripe, and is served on the custom
+domain. The organisation-owned `staging` branch uses its stable Vercel branch
+alias and branch-scoped sandbox/Preview resources. The default
+`fomo-maintenance.vercel.app` address remains an additional Production alias
+because both environments share one Vercel project.
 
 The booking APIs need a Node server. The live app should run on **Vercel** (Next.js, not `output: 'export'`).
 
@@ -32,7 +40,7 @@ Open http://localhost:3000. `npm start` serves `next start` after `npm run build
 The customer Manage Booking portal uses Neon Postgres through Drizzle. Parts 1
 through 5 are merged and provide durable paid-booking fulfilment, secure manage
 access, private Vercel Blob uploads, authenticated downloads, database-backed
-slot holds, and customer date/time changes. An isolated `e2e` Preview has a
+slot holds, and customer date/time changes. The isolated `staging` Preview has a
 migrated Neon database and private Blob store; its sandbox payment, signed
 webhook, replay, portal, upload/download, and supervised reschedule checks pass.
 Portal and uploads remain Preview-only, rescheduling was returned to disabled
