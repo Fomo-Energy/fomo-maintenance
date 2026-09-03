@@ -5,7 +5,10 @@ Status: Current
 ## Current state
 
 Production includes the approved Essential Health Check scope wording,
-Electrical Assurance, independent cleaning, and the S$0.50 Testing checkout.
+Electrical Assurance, and independent cleaning. The current release removes
+the temporary public S$0.50 Testing checkout, rejects its retired request
+field, and keeps historical paid records read-only for reconciliation. It also
+upgrades Next.js to 16.3.4; the production dependency audit is clean.
 Pull request #10 was merged as `9d70665`: customer-facing onboarding notices
 and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
@@ -87,6 +90,17 @@ verification/build and the real Preview browser flow pass.
 
 ### 2026-09-03
 
+- Removed the public Testing selector, pricing branch, and Stripe line item
+  from the Production release. Any submitted `testing` field fails closed.
+  Historical paid Testing records remain compatible with delayed fulfilment
+  and display, but upload and reschedule actions are denied in the portal,
+  APIs, and upload-completion authorization check.
+- Changed the package summary from `final annual price` to `final visit price`
+  so the annual Essential and two-year Electrical Assurance recommendations
+  are consistent.
+- Upgraded Next.js to 16.3.4 after the release security review identified the
+  vulnerable PostCSS version pinned by Next.js 15.5.24. The full verification
+  suite, TypeScript check, production build, and production-only npm audit pass.
 - Renamed the long-lived test branch to the organisation-owned `staging`
   branch, migrated its encrypted Vercel overrides without reading or rotating
   them, verified the stable Preview deployment, and removed the old remote
