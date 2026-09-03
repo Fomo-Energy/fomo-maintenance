@@ -338,6 +338,17 @@ credential, private-JPEG, and supervised-reschedule path. The full boundary,
 content-type, concurrency, failure-recovery, notification, and Production
 checklist still applies:
 
+Execution record (2026-09-04): migration `0005` is applied to both isolated
+Neon projects. The sandbox and live Stripe webhook endpoints subscribe to the
+required six events, and the live restricted key's dispute-read permission was
+confirmed by an authenticated nonexistent-object request returning HTTP 404.
+Production enables `BOOKING_PORTAL_ENABLED`,
+`CHECKOUT_RESERVATIONS_ENABLED`, `API_RATE_LIMITING_ENABLED`, and
+`PAYMENT_LIFECYCLE_ENABLED`. Production continues to omit
+`DOCUMENT_UPLOADS_ENABLED`, `RESCHEDULING_ENABLED`, and
+`TRANSACTIONAL_EMAIL_ENABLED`. No live Checkout or payment was created during
+the rollout.
+
 1. Provision separate Neon Preview and Production databases through the Vercel Marketplace.
 2. Pull its environment variables into `.env.local` without committing them.
 3. Review every file in `db/migrations/`, including the Part 4 document-quota
