@@ -8,7 +8,8 @@ Status: Current
 
 **Status:** In progress; database/provider idempotency, Preview recipient
 override, HTML escaping, and customer-only manage-link delivery are implemented.
-Sender DNS and real inbox verification are pending; Production is disabled.
+Sender DNS and controlled customer/operations inbox delivery are verified on
+`staging`; Production is disabled.
 
 **Why it matters:** Confirmation messages contain customer contact, address,
 appointment and payment-summary data. The customer message also carries a
@@ -80,8 +81,10 @@ details, personal data, and security-sensitive electrical information.
 ### Harden customer rescheduling before activation
 
 **Status:** In progress; one supervised Preview reschedule passed across Graph
-and Postgres, then the flag was disabled again. Rate limiting, notifications,
-concurrency/failure-recovery exercises, and recovery operations remain open.
+and Postgres, and rescheduling is temporarily enabled on `staging` for team
+stress testing. Notifications are implemented and delivered in controlled
+tests; rate limiting, concurrency/failure-recovery exercises, and recovery
+operations remain open.
 
 **Why it matters:** A stolen manage credential or concurrent request could move
 an appointment, consume scarce visit capacity, or leave Graph and Postgres out
@@ -98,8 +101,9 @@ of sync.
 3. Before activation: add per-booking/IP rate limits and exercise concurrent
    Checkout/reschedule attempts against Preview Neon and Graph.
 4. Implemented in code: customer/operations notifications and manage-link
-   renewal when a later visit would outlive its current expiry. Complete real
-   Preview delivery/replay and failed-delivery recovery checks before activation.
+   renewal when a later visit would outlive its current expiry. Controlled
+   Preview delivery is verified; complete replay and failed-delivery recovery
+   checks before Production activation.
 5. Document and test staff reconciliation for an active request whose Graph
    outcome remains uncertain. Retain old/new times and failure state for audit.
 

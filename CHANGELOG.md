@@ -4,6 +4,10 @@ Status: Current
 
 ## 2026-09-03
 
+- Renamed the long-lived test branch to the organisation-owned `staging`
+  branch and migrated all encrypted Vercel branch overrides in place. The
+  sandbox Stripe, Preview Neon, private Blob, Resend, and Microsoft test-calendar
+  configuration is preserved; `main` and Production are unchanged.
 - Implemented Part 6 transactional booking and reschedule confirmations behind
   a disabled server flag. Customer messages contain the Singapore appointment,
   subtotal, GST, total, booking reference, address, and private manage/upload
@@ -13,8 +17,9 @@ Status: Current
 - Added manage-link renewal for appointments moved beyond the current link
   expiry, including replacement of the authenticated browser cookie.
 - Provisioned a free Resend resource only for Vercel Preview in Tokyo. Sender
-  DNS, Preview migration, inbox delivery, and replay verification remain pending;
-  Production email is disabled and has no Resend resource.
+  DNS is verified, and controlled customer delivery to Gmail plus operations
+  delivery and reply-to at `ops@fomo.energy` passed on `staging`. Production
+  email is disabled and has no Resend resource.
 - Added transactional email rendering/idempotency and schema-constraint checks;
   the full verification suite and production build pass locally.
 
@@ -24,14 +29,14 @@ Status: Current
   Preview E2E testing showed that two same-name path-scoped cookies collapsed
   to the API cookie, preventing `/manage` from seeing the authenticated session.
 - Provisioned an isolated Stripe sandbox, Preview-only Neon database, and
-  private Singapore-region Blob store for the long-lived `e2e` branch. A paid
+  private Singapore-region Blob store for the long-lived `staging` branch. A paid
   S$0.55 sandbox checkout passed signed webhook handling and replay, durable
   booking fulfilment, the customer portal, private upload/download, and one
   supervised Graph/Postgres reschedule. Rescheduling was disabled afterward;
   Production resources, credentials, and feature flags remain unchanged.
 - Merged Parts 4 and 5 in pull requests #24 and #25. Their private-upload and
   customer-rescheduling flags were disabled at merge; subsequent provisioning
-  and activation is confined to the isolated `e2e` Preview described above.
+  and activation is confined to the isolated `staging` Preview described above.
 - Added the isolated Stripe sandbox/Vercel Preview runbook for controlled
   payment-to-webhook-to-database-to-calendar testing without changing live
   Stripe credentials or Production behavior.
