@@ -4,6 +4,28 @@ Status: Current
 
 ## 2026-09-03
 
+- Removed the public S$0.50 pre-GST Testing product from the calculator and
+  server quote model. Any request that still supplies the retired field is
+  rejected. Delayed historical paid `TESTING` sessions retain
+  success/webhook/email compatibility, but their portal is read-only and every
+  notification remains explicitly marked as testing with no service offered.
+- Upgraded Next.js from 15.5.24 to 16.3.4, including its patched PostCSS
+  dependency and required TypeScript configuration. The production dependency
+  audit is now clean.
+- Added a fixed red warning banner to the stable `staging` deployment. It uses
+  the same server-only exact environment gate as the operations guide and is
+  absent from Production, local development, and unrelated Previews. The
+  banner links directly to the guide, and the keyboard skip link clears the
+  fixed warning.
+- Added a responsive operations guide to the stable `staging` homepage. It
+  explains which sandbox actions still have real Microsoft calendar and email
+  side effects, maps customer/operations/reply email delivery, describes the
+  manage/upload/reschedule flow, and records current retry and recovery limits.
+  A server-only exact environment check keeps the guide out of Production,
+  local development, and unrelated pull-request Previews.
+- Replaced the ambiguous `final annual price` summary with `final visit price`
+  so the Essential annual and Electrical Assurance two-year recommendations
+  do not imply the same billing cadence.
 - Replaced the Resend application dependency with Microsoft Graph `sendMail`
   from `service@fomo.energy`. New delivery rows identify
   `microsoft_graph`; historical Resend rows remain valid, and the database
@@ -12,6 +34,10 @@ Status: Current
 - Added dedicated `EMAIL_GRAPH_*` configuration, deterministic client request
   references and `x-fomo-*` reconciliation headers, safe status-only provider
   errors, payload tests, and migration `0004_complete_kree.sql`.
+- Deployed the Graph email transport to `staging` with a dedicated `Mail.Send`
+  app and a mailbox-restricting Exchange Application Access Policy for
+  `service@fomo.energy`. App RBAC migration remains pending while Microsoft
+  completes the tenant upgrade.
 - Attached `maintenance.fomo.energy` to the existing `main` Production
   deployment through a DNS-only Cloudflare CNAME, set the Production canonical
   site URL, redeployed, and verified Vercel domain ownership, HTTPS, metadata,

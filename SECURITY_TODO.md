@@ -2,14 +2,22 @@
 
 Status: Current
 
+## Dependency audit
+
+The deployed dependency tree is clean after upgrading to Next.js 16.3.4 and
+its patched PostCSS dependency. `npm audit --omit=dev` is a required release
+check. The full development-tree audit still reports moderate findings through
+`drizzle-kit` and its older build-tool dependency; these do not ship in the
+Vercel runtime and remain tracked for a future Drizzle upgrade.
+
 ## Critical / High Priority
 
 ### Protect transactional booking email and manage credentials
 
 **Status:** In progress; database idempotency, Preview recipient override, HTML
-escaping, and customer-only manage-link delivery are implemented. The Microsoft
-Graph transport is ready for a rotated secret and mailbox-restriction test;
-Production is disabled.
+escaping, and customer-only manage-link delivery are implemented. Staging uses
+a fresh dedicated Microsoft Graph credential and a verified mailbox-restricting
+Exchange Application Access Policy; Production is disabled.
 
 **Why it matters:** Confirmation messages contain customer contact, address,
 appointment and payment-summary data. The customer message also carries a
@@ -17,9 +25,9 @@ bearer-style manage credential that grants private booking and document access.
 
 **Required end state:**
 
-1. Use a dedicated Entra app with only `Mail.Send`, restrict it to
-   `service@fomo.energy`, and provision distinct rotated Preview and Production
-   secrets before their respective rollouts.
+1. Completed for Preview: use a dedicated Entra app with only `Mail.Send` and
+   restrict it to `service@fomo.energy`. Provision a separate rotated Production
+   secret before rollout.
 2. Keep the customer credential out of operations email, database email rows,
    Graph message headers, application logs, and error messages.
 3. Confirm the Preview-only customer-recipient override cannot operate in
@@ -30,6 +38,9 @@ bearer-style manage credential that grants private booking and document access.
 5. Confirm Microsoft 365 message retention and audit policy before Production.
 6. Add rate limits and staff-only credential revocation/reissue before broad
    portal activation.
+7. Replace the legacy Exchange Application Access Policy with Exchange App RBAC
+   after Microsoft's tenant upgrade permits organisation customization. Re-test
+   allowed and denied mailboxes before retiring the fallback policy.
 
 ### Rotate exposed Entra client secrets
 

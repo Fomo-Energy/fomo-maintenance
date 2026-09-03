@@ -1,17 +1,14 @@
 import assert from "node:assert/strict";
 import {
   parseCheckoutRequest,
-  priceBreakdown,
   priceLineItems,
   quoteForCheckout,
-  sgdToCents,
 } from "../lib/booking";
 import {
   INSTALLERS,
   cleaningPriceSgd,
   electricalUpgradePriceSgd,
   essentialPriceSgd,
-  formatSgd,
   gstSgdForLineItems,
   quote,
   quoteTotalSgd,
@@ -42,7 +39,6 @@ for (const expected of matrix) {
       installer: "fomo",
       serviceLevel: "electrical_assurance",
       cleaning: false,
-      testing: false,
     }).subtotalSgd,
     expected.electrical,
   );
@@ -52,7 +48,6 @@ for (const expected of matrix) {
       installer: "fomo",
       serviceLevel: "essential",
       cleaning: true,
-      testing: false,
     }).subtotalSgd,
     expected.essentialClean,
   );
@@ -62,7 +57,6 @@ for (const expected of matrix) {
       installer: "fomo",
       serviceLevel: "electrical_assurance",
       cleaning: true,
-      testing: false,
     }).subtotalSgd,
     expected.electricalClean,
   );
@@ -73,7 +67,6 @@ const essentialTenKwp = quote({
   installer: "fomo",
   serviceLevel: "essential",
   cleaning: false,
-  testing: false,
 });
 assert.equal(essentialTenKwp.subtotalSgd, 199);
 assert.equal(essentialTenKwp.gstSgd, 17.91);
@@ -115,7 +108,6 @@ for (const expected of codeCases) {
       installer: "fomo",
       serviceLevel: expected.serviceLevel,
       cleaning: expected.cleaning,
-      testing: false,
     }).serviceCode,
     expected.code,
   );
@@ -126,7 +118,6 @@ const complete = quote({
   installer: "fomo",
   serviceLevel: "electrical_assurance",
   cleaning: true,
-  testing: false,
 });
 assert.equal(complete.subtotalSgd, 1009);
 assert.equal(complete.gstSgd, 90.81);
@@ -143,7 +134,6 @@ const validCheckout = {
   serviceLevel: "essential",
   cleaning: false,
   monitoring: false,
-  testing: false,
   name: "Test Owner",
   phone: "+65 8123 4567",
   email: "owner@example.com",
@@ -172,36 +162,17 @@ assert.equal(
   216.91,
   "Browser-supplied totals must be ignored and recomputed on the server",
 );
-const testingCheckout = parseCheckoutRequest({
-  ...validCheckout,
-  testing: true,
-  totalSgd: 0.01,
-});
-const testingQuote = quoteForCheckout(testingCheckout);
-assert.equal(testingQuote.serviceCode, "TESTING");
-assert.equal(testingQuote.packageName, "Testing");
-assert.equal(testingQuote.subtotalSgd, 0.5);
-assert.equal(testingQuote.gstSgd, 0.05);
-assert.equal(testingQuote.totalSgd, 0.55);
-assert.equal(testingQuote.servicePackageSgd, 0);
-assert.equal(formatSgd(testingQuote.totalSgd), "S$0.55");
-assert.equal(sgdToCents(testingQuote.totalSgd), 55);
-assert.equal(
-  priceBreakdown(testingQuote),
-  "Testing=0.50; Subtotal=0.50; GST (9%)=0.05; Total incl. GST=0.55",
-);
-assert.deepEqual(priceLineItems(testingQuote), [
-  { name: "Testing — no service offered", amountSgd: 0.5 },
-]);
-assert.throws(
-  () =>
-    parseCheckoutRequest({
-      ...validCheckout,
-      testing: true,
-      cleaning: true,
-    }),
-  /Testing cannot be combined/,
-);
+for (const retiredTestingValue of [true, false, "true", "false", 1, "1", {}]) {
+  assert.throws(
+    () =>
+      parseCheckoutRequest({
+        ...validCheckout,
+        testing: retiredTestingValue,
+      }),
+    /Testing checkout is no longer available/,
+    "Any retired Testing field must be rejected rather than interpreted",
+  );
+}
 assert.throws(
   () => parseCheckoutRequest({ ...validCheckout, kwp: "10junk" }),
   /Enter a system size/,
@@ -246,7 +217,6 @@ assert.equal(
     installer: "rto",
     serviceLevel: "essential",
     cleaning: false,
-    testing: false,
   }).sellable,
   false,
 );
