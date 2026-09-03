@@ -189,15 +189,17 @@ export function rescheduleCustomerEmail(input: {
     ["New visit", formatSlotRange(input.newSlotStart.toISOString(), input.newSlotEnd.toISOString())],
     ["Site address", booking.siteAddress],
   ];
-  const subject = `Appointment changed — ${booking.reference}`;
+  const warning = testingWarning(booking);
+  const subject = `${warning ? "[TESTING] " : ""}Appointment changed — ${booking.reference}`;
   return {
     subject,
-    text: `Hello ${booking.customerName},\n\nYour Fomo Maintenance appointment has been changed.\n\n${rowsText(rows)}\n\nManage your booking and upload PV documents: ${input.manageUrl}\n\nKeep this private link secure.`,
+    text: `Hello ${booking.customerName},\n\nYour Fomo Maintenance appointment has been changed.${warning ? `\n\n${warning}` : ""}\n\n${rowsText(rows)}\n\nManage your booking and upload PV documents: ${input.manageUrl}\n\nKeep this private link secure.`,
     html: shell({
       preview: `Appointment ${booking.reference} has changed`,
       heading: "Your appointment has changed",
       intro: `Hello ${booking.customerName}. Your new appointment time is confirmed below.`,
       rows,
+      warning,
       action: {
         label: "Manage booking and upload documents",
         url: input.manageUrl,
@@ -225,15 +227,17 @@ export function rescheduleOperationsEmail(input: {
     ["New visit", formatSlotRange(input.newSlotStart.toISOString(), input.newSlotEnd.toISOString())],
     ["Site address", booking.siteAddress],
   ];
+  const warning = testingWarning(booking);
   return {
-    subject: `Appointment changed — ${booking.reference}`,
-    text: `A customer appointment has been changed and confirmed in Microsoft Calendar.\n\n${rowsText(rows)}\n\nThe customer manage credential is intentionally excluded from this operations email.`,
+    subject: `${warning ? "[TESTING] " : ""}Appointment changed — ${booking.reference}`,
+    text: `A customer appointment has been changed and confirmed in Microsoft Calendar.${warning ? `\n\n${warning}` : ""}\n\n${rowsText(rows)}\n\nThe customer manage credential is intentionally excluded from this operations email.`,
     html: shell({
       preview: `Appointment ${booking.reference} has changed`,
       heading: "Customer appointment changed",
       intro:
         "A customer appointment has been changed and confirmed in Microsoft Calendar.",
       rows,
+      warning,
       footer:
         "The customer manage credential is intentionally excluded from this operations email.",
     }),

@@ -10,6 +10,7 @@ import {
   ensureManageAccessForBooking,
   findManageAccess,
 } from "@/lib/portal/bookings";
+import { customerBookingActionsAllowed } from "@/lib/portal/booking-actions";
 import {
   bookingPortalEnabled,
   MANAGE_COOKIE_NAME,
@@ -51,6 +52,12 @@ export async function POST(request: Request) {
   const access = token ? await findManageAccess(token).catch(() => null) : null;
   if (!access) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+  if (!customerBookingActionsAllowed(access.booking.serviceCode)) {
+    return NextResponse.json(
+      { error: "Date/time changes are disabled for historical test payments." },
+      { status: 403 },
+    );
   }
 
   let body: Record<string, unknown>;

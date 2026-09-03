@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { databaseIsConfigured } from "@/lib/database";
 import { listBusyPeriods } from "@/lib/microsoft";
+import { customerBookingActionsAllowed } from "@/lib/portal/booking-actions";
 import { findManageAccess } from "@/lib/portal/bookings";
 import {
   bookingPortalEnabled,
@@ -34,6 +35,12 @@ export async function GET() {
   const access = token ? await findManageAccess(token).catch(() => null) : null;
   if (!access) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
+  }
+  if (!customerBookingActionsAllowed(access.booking.serviceCode)) {
+    return NextResponse.json(
+      { error: "Date/time changes are disabled for historical test payments." },
+      { status: 403 },
+    );
   }
   const activeRequest = await findActiveCustomerReschedule(access.booking.id);
   const eligibility = rescheduleEligibility(access.booking);

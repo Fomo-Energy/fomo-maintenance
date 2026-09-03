@@ -5,7 +5,6 @@ import { VisitBooking } from "@/components/VisitBooking";
 import { FOMO_ENERGY_CONTACT, QUOTE_EMAIL } from "@/lib/site";
 import {
   INSTALLERS,
-  TESTING_SGD,
   cleaningPriceSgd,
   electricalUpgradePriceSgd,
   essentialPriceSgd,
@@ -23,7 +22,6 @@ export function PricingCalculator() {
   const [serviceLevel, setServiceLevel] =
     useState<ServiceLevel>("essential");
   const [cleaning, setCleaning] = useState(false);
-  const [testing, setTesting] = useState(false);
 
   const parsedKwp = Number.parseFloat(kwpInput);
   const kwp = Number.isFinite(parsedKwp) ? parsedKwp : 0;
@@ -38,16 +36,15 @@ export function PricingCalculator() {
         installer,
         serviceLevel,
         cleaning,
-        testing,
       }),
-    [cleaning, installer, kwp, serviceLevel, testing],
+    [cleaning, installer, kwp, serviceLevel],
   );
 
   return (
     <section id="pricing" className="scroll-mt-24 bg-ink text-white">
       <div className="mx-auto max-w-6xl px-6 py-16 md:py-20">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-brand">
-          Singapore · annual · SGD · prices subject to 9% GST
+          Singapore · solar O&amp;M · SGD · prices subject to 9% GST
         </p>
         <h1 className="mt-4 max-w-4xl text-4xl font-bold tracking-tight md:text-5xl">
           Solar maintenance priced around what you actually need.
@@ -97,7 +94,6 @@ export function PricingCalculator() {
                         setInstaller(option.id);
                         if (option.id === "rto") {
                           setCleaning(false);
-                          setTesting(false);
                         }
                       }}
                     />
@@ -144,7 +140,6 @@ export function PricingCalculator() {
                       name="serviceLevel"
                       value="essential"
                       checked={serviceLevel === "essential"}
-                      disabled={testing}
                       onChange={() => setServiceLevel("essential")}
                       className="mt-1"
                     />
@@ -179,7 +174,6 @@ export function PricingCalculator() {
                       name="serviceLevel"
                       value="electrical_assurance"
                       checked={serviceLevel === "electrical_assurance"}
-                      disabled={testing}
                       onChange={() =>
                         setServiceLevel("electrical_assurance")
                       }
@@ -213,7 +207,7 @@ export function PricingCalculator() {
                   type="checkbox"
                   className="mt-1"
                   checked={cleaning}
-                  disabled={!result.sellable || testing}
+                  disabled={!result.sellable}
                   onChange={(event) => setCleaning(event.target.checked)}
                 />
                 <span>
@@ -228,59 +222,19 @@ export function PricingCalculator() {
                   </span>
                 </span>
               </label>
-              <label className="mt-2 flex items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  checked={testing}
-                  disabled={!result.sellable}
-                  onChange={(event) => {
-                    const selected = event.target.checked;
-                    setTesting(selected);
-                    if (selected) {
-                      setCleaning(false);
-                    }
-                  }}
-                />
-                <span>
-                  <span className="font-semibold">
-                    Testing · {formatSgd(TESTING_SGD)} (subject to GST)
-                  </span>
-                  <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    for testing purposes, no service offered
-                  </span>
-                  <span className="mt-1 block text-xs leading-5 text-slate-500">
-                    Replaces the maintenance package for this checkout and
-                    creates a clearly marked TESTING calendar event.
-                  </span>
-                </span>
-              </label>
             </fieldset>
 
-            {testing ? (
-              <div className="mt-8 rounded-2xl border border-orange-200 bg-peach p-5 text-sm leading-6 text-slate-700">
-                <p className="font-semibold text-ink">Testing payment only</p>
-                <p className="mt-1">
-                  No inspection, maintenance, cleaning, repair, or other service
-                  is included. Delete the TESTING calendar event after
-                  validation.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-8 rounded-2xl bg-peach p-5 text-sm leading-6 text-slate-700">
-                <p className="font-semibold text-ink">
-                  Roof access and safety
-                </p>
-                <p className="mt-1">
-                  This online tool does not determine roof eligibility. If you
-                  select cleaning, our team will confirm safe access before work
-                  begins. If only part of the roof is safely accessible, we will
-                  clean only the accessible panels. The cleaning fee does not
-                  include third-party access costs, such as scaffolding or
-                  specialist access equipment.
-                </p>
-              </div>
-            )}
+            <div className="mt-8 rounded-2xl bg-peach p-5 text-sm leading-6 text-slate-700">
+              <p className="font-semibold text-ink">Roof access and safety</p>
+              <p className="mt-1">
+                This online tool does not determine roof eligibility. If you
+                select cleaning, our team will confirm safe access before work
+                begins. If only part of the roof is safely accessible, we will
+                clean only the accessible panels. The cleaning fee does not
+                include third-party access costs, such as scaffolding or
+                specialist access equipment.
+              </p>
+            </div>
               </>
             )}
           </div>
@@ -298,21 +252,14 @@ export function PricingCalculator() {
                   {formatSgd(result.totalSgd)}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">
-                  {result.testingApplied
-                    ? "live payment test including 9% GST"
-                    : "final annual price including 9% GST"}
-                  , SGD, for {kwp} kWp
+                  final visit price including 9% GST, SGD, for {kwp} kWp
                 </p>
 
                 <dl className="mt-6 space-y-2 text-sm">
                   <div className="flex justify-between gap-4">
                     <dt>{result.packageName} (pre-GST)</dt>
                     <dd className="font-semibold">
-                      {formatSgd(
-                        result.testingApplied
-                          ? result.testingSgd
-                          : result.servicePackageSgd,
-                      )}
+                      {formatSgd(result.servicePackageSgd)}
                     </dd>
                   </div>
                   {result.cleaningSgd ? (
@@ -364,7 +311,6 @@ export function PricingCalculator() {
                   installer={installer}
                   serviceLevel={result.serviceLevel}
                   cleaning={result.cleaningApplied}
-                  testing={result.testingApplied}
                   totalSgd={result.totalSgd}
                 />
                 <p className="mt-4 text-sm text-slate-500">

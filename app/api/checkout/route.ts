@@ -117,9 +117,7 @@ export async function POST(request: Request) {
   }
 
   const site = publicSiteUrl();
-  const description = quoted.testingApplied
-    ? `Testing only · no service offered · ${slot.timeLabel} SGT`
-    : `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
+  const description = `${quoted.kwp} kWp · ${slot.timeLabel} SGT`;
   try {
     const stripe = getStripe();
     const gstTaxRateId = stripeGstTaxRateId();
@@ -174,10 +172,8 @@ export async function POST(request: Request) {
           : "not_requested",
         monitoring: "0",
         monitoringCompatibilityStatus: "not_requested",
-        testing: quoted.testingApplied ? "1" : "0",
-        fulfillmentStatus: quoted.testingApplied
-          ? "no_service_offered"
-          : "service_booked",
+        testing: "0",
+        fulfillmentStatus: "service_booked",
         amountSgd: formatSgd(quoted.totalSgd),
       },
     });

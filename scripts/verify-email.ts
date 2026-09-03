@@ -252,6 +252,33 @@ function verifyTemplates() {
   assert.match(rescheduleCustomer.text, /New visit: Tuesday/);
   assert.match(rescheduleCustomer.text, /fake-token-for-rendering-only/);
   assert.doesNotMatch(rescheduleOperations.text, /fake-token/);
+
+  const historicalTestingBooking = {
+    ...booking,
+    serviceCode: "TESTING",
+    packageName: "Testing — no service offered",
+  };
+  const testingCustomer = rescheduleCustomerEmail({
+    booking: historicalTestingBooking,
+    previousSlotStart,
+    previousSlotEnd,
+    newSlotStart,
+    newSlotEnd,
+    manageUrl,
+  });
+  const testingOperations = rescheduleOperationsEmail({
+    booking: historicalTestingBooking,
+    previousSlotStart,
+    previousSlotEnd,
+    newSlotStart,
+    newSlotEnd,
+  });
+  assert.match(testingCustomer.subject, /^\[TESTING\]/);
+  assert.match(testingCustomer.text, /no inspection, maintenance, cleaning/);
+  assert.match(testingCustomer.html, /no inspection, maintenance, cleaning/);
+  assert.match(testingOperations.subject, /^\[TESTING\]/);
+  assert.match(testingOperations.text, /no inspection, maintenance, cleaning/);
+  assert.match(testingOperations.html, /no inspection, maintenance, cleaning/);
 }
 
 async function main() {

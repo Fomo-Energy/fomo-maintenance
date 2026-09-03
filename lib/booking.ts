@@ -10,7 +10,6 @@ export type CheckoutRequest = {
   installer: InstallerId;
   serviceLevel: ServiceLevel;
   cleaning: boolean;
-  testing: boolean;
   name: string;
   phone: string;
   email: string;
@@ -55,19 +54,15 @@ function asNumber(value: unknown): number {
 export function extrasMetadata(input: {
   serviceLevel: ServiceLevel;
   cleaning: boolean;
-  testing: boolean;
 }): string {
   return [
     `serviceLevel=${input.serviceLevel}`,
     `cleaning=${input.cleaning ? "1" : "0"}`,
-    `testing=${input.testing ? "1" : "0"}`,
+    "testing=0",
   ].join(";");
 }
 
 export function priceBreakdown(result: QuoteResult): string {
-  if (result.testingApplied) {
-    return `Testing=${result.testingSgd.toFixed(2)}; Subtotal=${result.subtotalSgd.toFixed(2)}; GST (9%)=${result.gstSgd.toFixed(2)}; Total incl. GST=${result.totalSgd.toFixed(2)}`;
-  }
   const parts = [`Essential=${result.essentialSgd}`];
   if (result.electricalUpgradeSgd) {
     parts.push(`Electrical upgrade=${result.electricalUpgradeSgd}`);
@@ -87,14 +82,6 @@ export type PriceLineItem = {
 };
 
 export function priceLineItems(result: QuoteResult): PriceLineItem[] {
-  if (result.testingApplied) {
-    return [
-      {
-        name: "Testing — no service offered",
-        amountSgd: result.testingSgd,
-      },
-    ];
-  }
   const items: PriceLineItem[] = [
     { name: "Essential Health Check", amountSgd: result.essentialSgd },
   ];
@@ -137,7 +124,6 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   const kwp = asNumber(raw.kwp);
   const cleaning = asBoolean(raw.cleaning);
   const monitoring = asBoolean(raw.monitoring);
-  const testing = asBoolean(raw.testing);
 
   if (!Number.isFinite(kwp) || kwp <= 0 || kwp > 10000) {
     throw new Error("Enter a system size in kWp.");
@@ -145,8 +131,8 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   if (monitoring) {
     throw new Error("Continuous monitoring is not available for online booking.");
   }
-  if (testing && cleaning) {
-    throw new Error("Testing cannot be combined with cleaning.");
+  if (Object.hasOwn(raw, "testing")) {
+    throw new Error("Testing checkout is no longer available.");
   }
   if (name.length < 1 || name.length > 120) {
     throw new Error("Enter a name.");
@@ -169,7 +155,6 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
     installer,
     serviceLevel,
     cleaning,
-    testing,
     name,
     phone,
     email,
@@ -185,7 +170,6 @@ export function quoteForCheckout(input: CheckoutRequest): QuoteResult {
     installer: input.installer,
     serviceLevel: input.serviceLevel,
     cleaning: input.cleaning,
-    testing: input.testing,
   });
 }
 

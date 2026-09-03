@@ -12,8 +12,12 @@ import {
   type FulfillmentStore,
 } from "@/lib/portal/fulfillment";
 import type { PaidBookingInput } from "@/lib/portal/bookings";
+import { customerBookingActionsAllowed } from "@/lib/portal/booking-actions";
 
 const paidAt = new Date("2026-09-02T03:32:00.000Z");
+
+assert.equal(customerBookingActionsAllowed("ESSENTIAL"), true);
+assert.equal(customerBookingActionsAllowed("TESTING"), false);
 
 function checkoutSession(
   overrides: Partial<Stripe.Checkout.Session> = {},

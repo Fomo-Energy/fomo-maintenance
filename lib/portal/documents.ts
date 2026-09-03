@@ -8,9 +8,11 @@ import {
   inArray,
   isNull,
   lt,
+  ne,
 } from "drizzle-orm";
 import {
   bookingAccessTokens,
+  bookings,
   documents,
   type DocumentRecord,
 } from "@/db/schema";
@@ -178,12 +180,14 @@ export async function manageAccessRecordIsActive(
   const [record] = await getDatabase()
     .select({ id: bookingAccessTokens.id })
     .from(bookingAccessTokens)
+    .innerJoin(bookings, eq(bookings.id, bookingAccessTokens.bookingId))
     .where(
       and(
         eq(bookingAccessTokens.id, accessTokenId),
         eq(bookingAccessTokens.bookingId, bookingId),
         isNull(bookingAccessTokens.revokedAt),
         gt(bookingAccessTokens.expiresAt, new Date()),
+        ne(bookings.serviceCode, "TESTING"),
       ),
     )
     .limit(1);

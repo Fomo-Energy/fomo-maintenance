@@ -18,7 +18,9 @@ The repository is owned by the `Fomo-Energy` GitHub organisation. Vercel's
 Production follows `main`, uses live Stripe, and is served on the custom
 domain. The `staging` branch uses its stable Vercel branch alias, Stripe
 sandbox, Preview Neon/Blob resources, Microsoft Graph email, and branch-scoped
-feature flags.
+feature flags. That exact branch Preview also displays a fixed red environment
+banner and a public-safe operations flow guide; neither renders in Production
+or unrelated feature Previews.
 The default `fomo-maintenance.vercel.app` address remains an additional
 Production alias because both environments share one Vercel project.
 
@@ -75,8 +77,7 @@ for the phased implementation and pending product/security decisions.
 
 The package pricing (SGD) lives in `lib/pricing.ts`. The formulas below are
 pre-GST. Maintenance line items are rounded to the nearest whole dollar, then
-9% GST is calculated per Stripe line item to the nearest cent. The explicit
-Testing checkout is the only S$0.50 pre-GST exception:
+9% GST is calculated per Stripe line item to the nearest cent:
 
 ```bash
 npm run verify
@@ -85,8 +86,6 @@ npm run verify
 - Essential Health Check: `max(199, 149 + 5 × kWp)`
 - Electrical Assurance upgrade: `150 + 5 × kWp`
 - Cleaning: `max(450, 390 + 6 × kWp)`
-- Testing: S$0.50 before GST / S$0.55 final live payment and integration check;
-  no service offered
 - Rent-to-own: do not sell; no checkout; no calendar. Point to FOMO Energy support.
 - Other-installer first-visit onboarding is not charged automatically because
   the app has no durable customer/site visit history. See the rollback register.
@@ -116,8 +115,7 @@ and S$216.91 in total.
 
 Payment success is the only moment a Microsoft calendar event is created. The browser never writes the calendar.
 
-1. Calculator: system kWp, installer, service level, optional cleaning, or a
-   mutually exclusive Testing checkout
+1. Calculator: system kWp, installer, service level, and optional cleaning
 2. Name, phone, email, site address
 3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
 4. Pay → Stripe Checkout (hosted, pre-GST SGD line items plus 9% GST)
@@ -192,16 +190,11 @@ Production. These confirmations are not IRAS tax invoices.
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
 Checkout metadata includes pricing version, service code, service level, kWp,
-installer, cleaning and Testing statuses, bounded pricing/GST breakdown and
-scope, customer/site details, slot, and final GST-inclusive amount in SGD cents.
-Legacy monitoring fields remain fixed to not requested so older webhook records
-stay compatible.
-
-Testing is a distinct `TESTING` package, not a kWp pricing override. It creates
-a real S$0.55 GST-inclusive live-mode Stripe charge and a clearly marked
-calendar event so the payment-to-calendar integration can be validated. It
-grants no inspection, maintenance, cleaning, monitoring, repair, or other
-service entitlement.
+installer, cleaning status, bounded pricing/GST breakdown and scope,
+customer/site details, slot, and final GST-inclusive amount in SGD cents.
+Legacy monitoring and Testing compatibility fields remain fixed to not
+requested so older webhook records stay compatible. New requests that attempt
+to select the retired Testing checkout are rejected server-side.
 
 Calendar event (webhook only, written to the dedicated maintenance calendar):
 
