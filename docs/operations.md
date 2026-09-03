@@ -54,6 +54,35 @@ those credentials. Promote reviewed code by pull request rather than copying or
 retargeting secrets. Provision and migrate separate Production resources before
 enabling the portal flags on `main`.
 
+### On-page staging operations guide
+
+The homepage renders an operations guide only when both Vercel-provided values
+identify the long-lived staging deployment: `VERCEL_ENV=preview` and
+`VERCEL_GIT_COMMIT_REF=staging`. Production, local development, and ordinary
+pull-request Previews must not display it.
+
+The same predicate controls a fixed red banner at the top of every staging
+page. The layout reserves a fixed-height offset and moves the sticky site header
+below it so the warning never obscures navigation on desktop or mobile. The
+banner's `View test flow` link returns to the homepage guide, and the focused
+keyboard skip link also clears the warning.
+
+The guide is deliberately explicit about the mixed staging boundary: Stripe
+payments are sandbox objects and move no real money, while a successful webhook
+still writes to the configured Microsoft calendar and sends real email. It
+shows the booking, confirmation, manage/upload, and reschedule sequence; routes
+operations mail to `ops@fomo.energy`; and identifies `service@fomo.energy` as
+the sender and reply-to mailbox. It describes the controlled staging customer
+inbox without publishing its address and warns that the booking email remains
+the Microsoft calendar attendee.
+
+Treat the guide as operational orientation, not a monitoring dashboard. Initial
+booking fulfilment can be retried by Stripe and delivery rows prevent duplicate
+email sends. A failed reschedule email remains pending after the calendar change
+and requires operational recovery. There is not yet an automatic escalation or
+staff-facing recovery control, so testers must review delivery state and Vercel
+logs and reconcile synthetic calendar events after each run.
+
 ## Required Stripe GST setup
 
 Create the tax rate in every Stripe mode used by a deployment:
@@ -131,18 +160,19 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
    browser restores them. Use `Clear saved details`, reload again, and confirm
    the fields remain empty.
 
-## Live Testing checkout
+## Retired live Testing checkout
 
-The public Testing option has a S$0.50 pre-GST price and makes a real S$0.55
-GST-inclusive live-mode Stripe charge, then runs the normal signed-webhook and
-Microsoft Graph flow. It is mutually exclusive with cleaning and carries
-service code `TESTING`, a single `Testing — no service offered` Stripe line
-item, and `fulfillmentStatus=no_service_offered` metadata.
+The former public S$0.50 pre-GST Testing option is removed from both staging and
+Production. The checkout parser rejects attempts to restore it through a
+crafted request. Use the Stripe sandbox on the stable `staging` deployment for
+payment-flow testing; do not make low-value live charges for routine tests.
 
-Use unmistakably synthetic contact/site details. After payment, confirm the
-success page reports the TESTING calendar event, verify
-`calendarStatus=created` in Stripe, and delete the event so it does not block a
-real appointment slot. The payment creates no service entitlement.
+Historical paid `TESTING` sessions remain supported by the success page,
+webhook, calendar, and email compatibility paths so a delayed replay is not
+stranded. Their manage page is explicitly warned and read-only; upload-token
+issuance, upload completion, and rescheduling are denied server-side. Remove
+those compatibility branches only after all such sessions are outside the
+agreed fulfilment and replay window.
 
 ## Stripe sandbox end-to-end environment
 
@@ -176,9 +206,10 @@ Prepare the environment in this order:
    `DOCUMENT_UPLOADS_ENABLED=1` only after the private Blob store is connected.
    Keep `RESCHEDULING_ENABLED=0` until Part 6 email/manage-link renewal exists,
    except during supervised rescheduling tests.
-7. Redeploy the `staging` branch and run the low-cost `TESTING` package with Stripe
-   sandbox cards. `4242 4242 4242 4242`, any future expiry, and any CVC succeeds
-   only in the sandbox; it is never valid for Production testing.
+7. Redeploy the `staging` branch and book a normal Essential Health Check with
+   unmistakably synthetic contact/site details. `4242 4242 4242 4242`, any
+   future expiry, and any CVC succeeds only in the Stripe sandbox; it is never
+   valid for Production testing.
 
 Execution record (2026-09-02): by explicit owner instruction, the first
 controlled run used the current maintenance calendar instead of a separate test
@@ -188,7 +219,8 @@ still required before Production portal activation.
 
 Verify the complete chain, not only Stripe's success page:
 
-1. Checkout shows S$0.50 before GST, S$0.05 GST, and S$0.55 total.
+1. For a 10 kWp Essential booking, Checkout shows S$199.00 before GST, S$17.91
+   GST, and S$216.91 total.
 2. Stripe records a paid sandbox Session and sends a signed webhook that gets a
    2xx response.
 3. One webhook record, one booking, one confirmed slot reservation, one manage

@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useState } from "react";
 import { Logo } from "@/components/Logo";
 
-export function Header() {
+export function Header({ stagingOffset = false }: { stagingOffset?: boolean }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-orange-100 bg-peach">
+    <header
+      className={`sticky z-40 border-b border-orange-100 bg-peach ${stagingOffset ? "top-14" : "top-0"}`}
+    >
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-4">
         <Logo />
         <nav className="hidden items-center gap-8 text-sm font-semibold text-ink md:flex">

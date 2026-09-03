@@ -5,7 +5,11 @@ Status: Current
 ## Current state
 
 Production includes the approved Essential Health Check scope wording,
-Electrical Assurance, independent cleaning, and the S$0.50 Testing checkout.
+Electrical Assurance, and independent cleaning. This release retires the
+temporary public S$0.50 Testing checkout from both deployment tracks while
+retaining historical paid-session compatibility in a read-only, explicitly
+labelled state. The current branch also upgrades Next.js to 16.3.4; its
+production dependency audit is clean.
 Pull request #10 was merged as `9d70665`: customer-facing onboarding notices
 and the Continuous monitoring offer are removed, and crafted monitoring
 checkout requests are rejected. Main CI, the Vercel production deployment, the
@@ -69,16 +73,30 @@ shared `service@fomo.energy` mailbox, while operations delivery remains
 `ops@fomo.energy`.
 Production has no Resend resource or email flag.
 
-Transactional email is being migrated from Resend to a dedicated Microsoft
-Graph `Mail.Send` transport on branch `juliustanch/graph-transactional-email`.
-The code, provider-preserving database migration, full verification suite,
-production build, and current documentation pass locally; staging has not been
-switched.
-The mail-only Entra registration has the required role, but both candidate
-client-secret values must be rotated because a failed local redaction exposed
-them in task output. Keep staging transactional email disabled until a fresh
-secret and the `service@fomo.energy` mailbox restriction are configured and
-tested.
+Pull request #32 migrated staging transactional email from Resend to a
+dedicated Microsoft Graph `Mail.Send` transport. Migration `0004` is applied to
+Preview Neon, the fresh mail-only credential is branch-scoped in Vercel, and an
+Exchange Application Access Policy grants the app access to
+`service@fomo.energy` while denying an unrelated mailbox. A paid sandbox
+Essential booking completed through Stripe, the signed webhook, Preview Neon,
+and the real Microsoft maintenance calendar. Its operations copy arrived at
+`ops@fomo.energy` with the correct data and no manage link, but the stored
+provider reference proves that particular run still used the preceding Resend
+deployment. A fresh post-Graph-deployment customer and operations delivery test
+is therefore still required.
+
+Microsoft's newer Exchange App RBAC setup is temporarily unavailable while the
+tenant upgrade blocks organisation customization. The supported legacy access
+policy is the current mailbox boundary; migrate it to App RBAC after the
+upgrade. The previously exposed calendar and earlier mail-app secrets still
+require coordinated rotation without interrupting their consumers.
+
+The current shared feature branch also includes a server-gated operations guide
+for the stable `staging` Preview. It explains the sandbox-payment versus real
+calendar/email boundary, recipient routing, manage/upload/reschedule flow, and
+manual recovery limits. Targeted environment, rendered-content, and TypeScript
+checks pass locally. It also removes the public Testing product and adds a fixed
+red staging warning banner; it is not yet merged or deployed.
 
 Production is now served at `https://maintenance.fomo.energy`, with a DNS-only
 Cloudflare CNAME to Vercel and `NEXT_PUBLIC_SITE_URL` set to the custom origin.
@@ -90,23 +108,49 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
 
 ## Next up
 
-1. Rotate both exposed Entra client secrets without interrupting the existing
-   calendar or monitoring consumers; configure a fresh mail-only secret and
-   restrict its app to `service@fomo.energy`.
-2. Apply migration `0004_complete_kree.sql` to Preview Neon, switch the
-   branch-scoped Vercel email variables to `EMAIL_GRAPH_*`, deploy, and repeat
-   the controlled customer/operations delivery and replay tests.
-3. Remove the unused Preview Resend integration/resource and DNS only after
+1. Verify the new Graph customer confirmation in the controlled staging inbox
+   and the operations copy at `ops@fomo.energy`; then exercise one reschedule
+   notification and webhook replay.
+2. Rotate the remaining exposed Entra client secrets without interrupting the
+   existing calendar or monitoring consumers.
+3. Migrate the mail app from the legacy Application Access Policy to Exchange
+   App RBAC after Microsoft completes the tenant upgrade.
+4. Remove the unused Preview Resend integration/resource and DNS only after
    retained records are reconciled and Graph passes.
-4. Complete the bounded one-week team stress test on `staging`, including
+5. Complete the bounded one-week team stress test on `staging`, including
    booking, upload/download, rescheduling, and email observations.
-5. Verify reschedule-message delivery, Stripe replay idempotency, and
+6. Verify reschedule-message delivery, Stripe replay idempotency, and
    failed-email recovery in the isolated Preview stack.
+7. Merge and visually verify the staging-only operations guide; confirm it is
+   absent from Production and unrelated Preview deployments.
 
 ## Session entries
 
 ### 2026-09-03
 
+- Removed the public Testing selection and all new `TESTING` pricing/checkout
+  branches. Any request carrying the retired field now fails closed;
+  historical paid sessions remain compatible for delayed fulfilment and
+  display, but their upload and reschedule actions are denied in the UI, API,
+  and upload-completion authorization check.
+- Upgraded Next.js to 16.3.4 after the release security audit identified the
+  vulnerable PostCSS version pinned by Next.js 15.5.24. The full verification
+  suite, TypeScript check, Turbopack production build, and production-only npm
+  audit pass.
+- Added a fixed red stable-staging banner and placed the staging operations
+  guide after the public homepage content. Both use the same exact server-only
+  Preview/branch predicate. The banner links to the guide, its fixed offset is
+  coordinated with the site header, and the focused skip link clears it.
+- Changed the booking summary label from `final annual price` to `final visit
+  price` so the annual Essential and two-year Electrical Assurance
+  recommendations are consistent.
+- Added a stable-staging-only operations guide for the team stress test. It
+  warns that sandbox Stripe payments do not move money but still cause real
+  Microsoft calendar and email side effects, maps customer/operations/reply
+  routing, and documents retry and manual recovery boundaries without exposing
+  the controlled customer inbox or any deployment identifiers.
+- Kept the guide behind an exact server-only Vercel environment predicate and
+  added targeted checks for both the environment matrix and rendered content.
 - Began replacing Resend with Microsoft Graph `sendMail` from the existing
   `service@fomo.energy` shared mailbox. The dedicated email configuration is
   separate from the calendar app, and new delivery rows use
@@ -138,7 +182,8 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
   manage credentials are not stored.
 - Added later-appointment manage-link renewal and replacement of the requesting
   browser's secure cookie before reschedule notification.
-- Verified controlled customer confirmation delivery to `fomoenergysg@gmail.com`
+- Verified controlled customer confirmation delivery to the controlled staging
+  customer inbox
   and operations delivery to `ops@fomo.energy`. The later mailbox decision sets
   both `EMAIL_FROM` and `EMAIL_REPLY_TO` to the existing shared
   `service@fomo.energy` address.

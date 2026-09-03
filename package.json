@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database && npm run verify:portal && npm run verify:documents && npm run verify:rescheduling && npm run verify:email",
+    "verify": "npm run verify:pricing && npm run verify:slots && npm run verify:calendar && npm run verify:database && npm run verify:portal && npm run verify:documents && npm run verify:rescheduling && npm run verify:email && npm run verify:deployment-environment && npm run verify:staging-ui",
     "verify:pricing": "tsx scripts/verify-pricing.ts",
     "verify:slots": "tsx scripts/verify-slots.ts",
     "verify:calendar": "tsx scripts/verify-calendar.ts",
@@ -16,6 +16,8 @@
     "verify:documents": "tsx scripts/verify-documents.ts",
     "verify:rescheduling": "tsx scripts/verify-rescheduling.ts",
     "verify:email": "tsx scripts/verify-email.ts",
+    "verify:deployment-environment": "NODE_OPTIONS=--conditions=react-server tsx scripts/verify-deployment-environment.ts",
+    "verify:staging-ui": "tsx scripts/verify-staging-ui.tsx",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "dotenv -e .env.local -- drizzle-kit migrate"
   },
@@ -27,9 +29,10 @@
     "@neondatabase/serverless": "^1.1.0",
     "@vercel/blob": "^2.8.0",
     "drizzle-orm": "^0.45.2",
-    "next": "^15.5.24",
+    "next": "^16.3.4",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "server-only": "0.0.1",
     "stripe": "^22.6.0"
   },
   "devDependencies": {
