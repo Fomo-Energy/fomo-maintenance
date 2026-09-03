@@ -4,6 +4,12 @@ Status: Current
 
 ## 2026-09-03
 
+- Removed the public S$0.50 pre-GST Testing product from Production. New
+  requests carrying the retired field are rejected, while historical paid
+  records remain readable but cannot upload documents or change appointment
+  times.
+- Upgraded Next.js from 15.5.24 to 16.3.4 and cleared the deployed dependency
+  audit by replacing the vulnerable PostCSS version pinned by Next.js 15.
 - Attached `maintenance.fomo.energy` to the existing `main` Production
   deployment through a DNS-only Cloudflare CNAME, set the Production canonical
   site URL, redeployed, and verified Vercel ownership, HTTPS, metadata, and the

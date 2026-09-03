@@ -158,8 +158,8 @@ Roll out in this order:
 4. Verify simultaneous booking/reschedule contention.
 5. Verify customer and operations email delivery.
 6. Apply the reviewed migration to Production.
-7. Deploy behind a server-side feature flag and complete one controlled live
-   Testing checkout before enabling links for service bookings.
+7. Deploy behind server-side feature flags and complete a controlled sandbox
+   service booking on `staging` before enabling links in Production.
 
 ## Runtime topology
 

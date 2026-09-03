@@ -2,6 +2,14 @@
 
 Status: Current
 
+## Dependency audit
+
+The deployed dependency tree is clean after upgrading to Next.js 16.3.4 and
+its patched PostCSS dependency. `npm audit --omit=dev` is a required release
+check. The full development-tree audit still reports moderate findings through
+`drizzle-kit` and its older build-tool dependency; these do not ship in the
+Vercel runtime and remain tracked for a future Drizzle upgrade.
+
 ## Critical / High Priority
 
 ### Protect customer manage links as credentials
