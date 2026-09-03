@@ -9,6 +9,7 @@ import {
   isNull,
   lt,
   ne,
+  sql,
 } from "drizzle-orm";
 import {
   bookingAccessTokens,
@@ -59,23 +60,38 @@ export async function reserveDocumentUpload(input: {
   document: ValidatedDocumentUpload;
 }): Promise<void> {
   await releaseStaleUploadIntents(input.bookingId);
+  const database = getDatabase();
   for (let quotaSlot = 1; quotaSlot <= MAX_DOCUMENTS_PER_BOOKING; quotaSlot += 1) {
-    const inserted = await getDatabase()
-      .insert(documents)
-      .values({
-        bookingId: input.bookingId,
-        uploadedViaTokenId: input.accessTokenId,
-        quotaSlot,
-        category: input.document.category,
-        originalFilename: input.document.originalFilename,
-        contentType: input.document.contentType,
-        sizeBytes: input.document.sizeBytes,
-        blobPathname: input.document.pathname,
-        status: "pending",
-      })
-      .onConflictDoNothing()
-      .returning({ id: documents.id });
-    if (inserted.length === 1) {
+    const inserted = await database.execute<{ id: string }>(sql`
+      with active_access as (
+        select bookings.id
+        from bookings
+        inner join booking_access_tokens
+          on booking_access_tokens.booking_id = bookings.id
+        where bookings.id = ${input.bookingId}::uuid
+          and booking_access_tokens.id = ${input.accessTokenId}::uuid
+          and booking_access_tokens.revoked_at is null
+          and booking_access_tokens.expires_at > now()
+          and bookings.payment_status in (
+            'paid', 'partially_refunded', 'disputed'
+          )
+          and bookings.calendar_status = 'created'
+          and bookings.service_code <> 'TESTING'
+        for update of bookings
+      )
+      insert into documents (
+        booking_id, uploaded_via_token_id, quota_slot, category,
+        original_filename, content_type, size_bytes, blob_pathname, status
+      )
+      select id, ${input.accessTokenId}::uuid, ${quotaSlot},
+             ${input.document.category}, ${input.document.originalFilename},
+             ${input.document.contentType}, ${input.document.sizeBytes},
+             ${input.document.pathname}, 'pending'
+      from active_access
+      on conflict do nothing
+      returning id
+    `);
+    if (inserted.rows.length === 1) {
       return;
     }
   }
@@ -97,31 +113,40 @@ export async function completeDocumentUpload(input: {
     return null;
   }
   const now = new Date();
-  const [record] = await getDatabase()
-    .update(documents)
-    .set({
-      contentType: input.contentType,
-      sizeBytes: input.sizeBytes,
-      status: "available",
-      uploadedAt: now,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(documents.bookingId, input.bookingId),
-        eq(documents.uploadedViaTokenId, input.accessTokenId),
-        eq(documents.blobPathname, input.pathname),
-        eq(documents.contentType, input.contentType),
-        eq(documents.sizeBytes, input.sizeBytes),
-        inArray(documents.status, ["pending", "available"]),
-      ),
+  const completed = await getDatabase().execute<{ id: string }>(sql`
+    with active_access as (
+      select bookings.id
+      from bookings
+      inner join booking_access_tokens
+        on booking_access_tokens.booking_id = bookings.id
+      where bookings.id = ${input.bookingId}::uuid
+        and booking_access_tokens.id = ${input.accessTokenId}::uuid
+        and booking_access_tokens.revoked_at is null
+        and booking_access_tokens.expires_at > now()
+        and bookings.payment_status in (
+          'paid', 'partially_refunded', 'disputed'
+        )
+        and bookings.calendar_status = 'created'
+        and bookings.service_code <> 'TESTING'
+      for update of bookings
     )
-    .returning({ id: documents.id });
-  if (!record) {
+    update documents
+    set content_type = ${input.contentType}, size_bytes = ${input.sizeBytes},
+        status = 'available', uploaded_at = ${now}, updated_at = ${now}
+    where booking_id = ${input.bookingId}::uuid
+      and uploaded_via_token_id = ${input.accessTokenId}::uuid
+      and blob_pathname = ${input.pathname}
+      and content_type = ${input.contentType}
+      and size_bytes = ${input.sizeBytes}
+      and status in ('pending', 'available')
+      and exists (select 1 from active_access)
+    returning id
+  `);
+  if (!completed.rows[0]) {
     return null;
   }
 
-  return record.id;
+  return completed.rows[0].id;
 }
 
 export async function rejectDocumentUpload(pathname: string): Promise<void> {
@@ -187,6 +212,12 @@ export async function manageAccessRecordIsActive(
         eq(bookingAccessTokens.bookingId, bookingId),
         isNull(bookingAccessTokens.revokedAt),
         gt(bookingAccessTokens.expiresAt, new Date()),
+        inArray(bookings.paymentStatus, [
+          "paid",
+          "partially_refunded",
+          "disputed",
+        ]),
+        eq(bookings.calendarStatus, "created"),
         ne(bookings.serviceCode, "TESTING"),
       ),
     )

@@ -2,25 +2,105 @@
 
 Status: Current
 
+## 2026-09-04
+
+- Polished the calculator and portal without changing their overall flow:
+  quote selections and contact details restore from versioned browser storage,
+  visit times remain fresh, the Pay action waits for valid contact details and
+  a selected slot, validation is field-specific, and the mobile calendar shows
+  a usable five-day workweek grid.
+- Added database-first Checkout reservations and a stable request UUID shared
+  with Stripe idempotency, closing the simultaneous-selection window before a
+  Checkout Session is created. Added expiry and asynchronous-payment lifecycle
+  handling for reservation release or fulfilment.
+- Added server-side public API limits backed by environment-keyed HMAC address
+  digests in Postgres: 120 availability requests per minute and 12 Checkout
+  attempts per 10 minutes. Raw client IP addresses are not stored.
+- Added idempotent full-refund, partial-refund, and dispute handling. Full
+  refunds block customer access immediately, then safely remove the Microsoft
+  event before revoking the credential record and releasing the slot; partial
+  refunds and disputes preserve the appointment and access and notify
+  operations when email is enabled. A separate lifecycle flag and booking-state
+  guards fail closed and serialize these events against fulfilment and
+  rescheduling.
+- Added global Content Security Policy, frame denial, MIME-sniffing protection,
+  referrer policy, and permissions policy headers. Upload completion now treats
+  malformed and unknown callbacks as client errors.
+- Expanded GitHub CI to run the complete verification suite, TypeScript,
+  production dependency audit, and production build.
+- Provisioned a distinct Production Neon database plus independent manage-link
+  and rate-limit secrets. Production activates only the durable booking,
+  reservation, and payment-lifecycle foundation; uploads, rescheduling, and
+  transactional email remain independently disabled.
+- Refreshed the staging-only operations guide with the latest slot-hold,
+  request-limit, refund/dispute, calendar, and email-routing behavior.
+
 ## 2026-09-03
 
-- Removed the public S$0.50 pre-GST Testing product from Production. New
-  requests carrying the retired field are rejected, while historical paid
-  records remain readable but cannot upload documents or change appointment
-  times.
-- Upgraded Next.js from 15.5.24 to 16.3.4 and cleared the deployed dependency
-  audit by replacing the vulnerable PostCSS version pinned by Next.js 15.
+- Removed the public S$0.50 pre-GST Testing product from the calculator and
+  server quote model. Any request that still supplies the retired field is
+  rejected. Delayed historical paid `TESTING` sessions retain
+  success/webhook/email compatibility, but their portal is read-only and every
+  notification remains explicitly marked as testing with no service offered.
+- Upgraded Next.js from 15.5.24 to 16.3.4, including its patched PostCSS
+  dependency and required TypeScript configuration. The production dependency
+  audit is now clean.
+- Added a fixed red warning banner to the stable `staging` deployment. It uses
+  the same server-only exact environment gate as the operations guide and is
+  absent from Production, local development, and unrelated Previews. The
+  banner links directly to the guide, and the keyboard skip link clears the
+  fixed warning.
+- Added a responsive operations guide to the stable `staging` homepage. It
+  explains which sandbox actions still have real Microsoft calendar and email
+  side effects, maps customer/operations/reply email delivery, describes the
+  manage/upload/reschedule flow, and records current retry and recovery limits.
+  A server-only exact environment check keeps the guide out of Production,
+  local development, and unrelated pull-request Previews.
+- Replaced the ambiguous `final annual price` summary with `final visit price`
+  so the Essential annual and Electrical Assurance two-year recommendations
+  do not imply the same billing cadence.
+- Replaced the Resend application dependency with Microsoft Graph `sendMail`
+  from `service@fomo.energy`. New delivery rows identify
+  `microsoft_graph`; historical Resend rows remain valid, and the database
+  remains the authoritative duplicate-send guard because Graph returns HTTP
+  202 without a provider message ID.
+- Added dedicated `EMAIL_GRAPH_*` configuration, deterministic client request
+  references and `x-fomo-*` reconciliation headers, safe status-only provider
+  errors, payload tests, and migration `0004_complete_kree.sql`.
+- Deployed the Graph email transport to `staging` with a dedicated `Mail.Send`
+  app and a mailbox-restricting Exchange Application Access Policy for
+  `service@fomo.energy`. App RBAC migration remains pending while Microsoft
+  completes the tenant upgrade.
 - Attached `maintenance.fomo.energy` to the existing `main` Production
   deployment through a DNS-only Cloudflare CNAME, set the Production canonical
-  site URL, redeployed, and verified Vercel ownership, HTTPS, metadata, and the
-  disabled Production portal boundary.
-- Established the organisation-owned `staging` branch and stable Vercel Preview
-  alias for the team stress test. Live Stripe is Production-only; Preview Neon,
-  Blob, Resend, Microsoft client secret, sandbox Stripe, and feature variables
-  are scoped to `staging`.
-- Changed the staging transactional sender and reply-to mailbox to the existing
-  shared `service@fomo.energy` mailbox. Operations delivery remains
+  site URL, redeployed, and verified Vercel domain ownership, HTTPS, metadata,
+  and the disabled Production portal boundary.
+- Tightened environment isolation after an independent audit: live Stripe
+  variables are Production-only, and Preview Neon, Blob, Resend, Microsoft
+  client secret, sandbox Stripe, and feature settings are scoped to `staging`.
+  Generic Preview and Development live Stripe secrets were removed.
+- Changed the staging transactional sender and reply-to mailbox from the
+  provisional maintenance address to the existing shared
+  `service@fomo.energy` mailbox. Operations delivery remains
   `ops@fomo.energy`.
+- Renamed the long-lived test branch to the organisation-owned `staging`
+  branch and migrated all encrypted Vercel branch overrides in place. The
+  sandbox Stripe, Preview Neon, private Blob, Resend, and Microsoft test-calendar
+  configuration is preserved; `main` and Production are unchanged.
+- Implemented Part 6 transactional booking and reschedule confirmations behind
+  a disabled server flag. Customer messages contain the Singapore appointment,
+  subtotal, GST, total, booking reference, address, and private manage/upload
+  link; operations messages omit the bearer credential.
+- Added durable per-message delivery records and deterministic database/Resend
+  idempotency keys so webhook and customer retries do not duplicate mail.
+- Added manage-link renewal for appointments moved beyond the current link
+  expiry, including replacement of the authenticated browser cookie.
+- Provisioned a free Resend resource only for Vercel Preview in Tokyo. Sender
+  DNS is verified, and controlled customer delivery to Gmail plus operations
+  delivery at `ops@fomo.energy` passed on `staging`. Production email is
+  disabled and has no Resend resource.
+- Added transactional email rendering/idempotency and schema-constraint checks;
+  the full verification suite and production build pass locally.
 
 ## 2026-09-02
 

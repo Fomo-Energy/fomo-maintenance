@@ -21,6 +21,8 @@ initial setup; the ID setting is preferable if operators may rename calendars.
 ```bash
 npm ci
 npm run verify
+npx tsc --noEmit
+npm audit --omit=dev
 npm run build
 ```
 
@@ -33,17 +35,61 @@ The canonical repository is `Fomo-Energy/fomo-maintenance`. Pull requests and
 pushes should run the repository's `CI` workflow and create Vercel deployments
 in the `fomo-energy/fomo-maintenance` project. Production follows `main` and is
 served at https://maintenance.fomo.energy. The project-default
-`fomo-maintenance.vercel.app` address remains an additional Production alias;
-`staging` uses https://fomo-maintenance-git-staging-fomo-energy.vercel.app.
+`fomo-maintenance.vercel.app` address remains an additional Production alias.
+The `staging` branch is served from
+https://fomo-maintenance-git-staging-fomo-energy.vercel.app.
 
 ## Environment promotion model
 
-Keep live Stripe variables Production-only. Scope the Stripe sandbox, Preview
-database, private Blob, Resend, Microsoft Preview secret, site URL, and feature
-flags to `staging`; ordinary pull-request Previews must inherit none of those
-credentials. Promote reviewed code by pull request rather than retargeting
-secrets. Provision and migrate distinct Production resources before enabling
-the portal, uploads, rescheduling, or transactional email on `main`.
+Do not switch one shared set of credentials between modes. Keep two explicit
+deployment profiles in the same Vercel project:
+
+| Profile | Git ref and URL | External resources |
+| --- | --- | --- |
+| Production | `main`; `maintenance.fomo.energy` | Live Stripe, Production Microsoft configuration, and a separate Production Neon database. The durable booking/reservation/lifecycle foundation is enabled; uploads, rescheduling, and email remain disabled. |
+| Staging | `staging`; stable `git-staging` Vercel alias | Stripe sandbox, Preview Neon, private Blob, Microsoft test-calendar and Graph email configurations, and enabled portal features. |
+
+All live Stripe variables are Production-only. Preview database, Blob,
+Microsoft calendar/email secrets, sandbox Stripe variables, site URL, and feature flags
+are branch-scoped to `staging`; ordinary pull-request Previews inherit none of
+those credentials. Promote reviewed code by pull request rather than copying or
+retargeting secrets. Provision and migrate separate Production resources before
+enabling the portal flags on `main`. Preview and Production use distinct
+`MANAGE_LINK_SECRET` and `RATE_LIMIT_HASH_SECRET` values.
+
+### On-page staging operations guide
+
+The homepage renders an operations guide only when both Vercel-provided values
+identify the long-lived staging deployment: `VERCEL_ENV=preview` and
+`VERCEL_GIT_COMMIT_REF=staging`. Production, local development, and ordinary
+pull-request Previews must not display it.
+
+The same predicate controls a fixed red banner at the top of every staging
+page. The layout reserves a fixed-height offset and moves the sticky site header
+below it so the warning never obscures navigation on desktop or mobile. The
+banner's `View test flow` link returns to the homepage guide, and the focused
+keyboard skip link also clears the warning.
+
+The guide is deliberately explicit about the mixed staging boundary: Stripe
+payments are sandbox objects and move no real money, while a successful webhook
+still writes to the configured Microsoft calendar and sends real email. It
+shows the booking, confirmation, manage/upload, and reschedule sequence; routes
+operations mail to `ops@fomo.energy`; and identifies `service@fomo.energy` as
+the sender and reply-to mailbox. It describes the controlled staging customer
+inbox without publishing its address and warns that the booking email remains
+the Microsoft calendar attendee.
+
+The guide also reflects the database-first Checkout hold, public request
+limits, and refund/dispute behavior. It tells operators that full refunds
+remove the calendar event and customer access, while partial refunds and
+disputes preserve the visit and send an operations alert for manual review.
+
+Treat the guide as operational orientation, not a monitoring dashboard. Initial
+booking fulfilment can be retried by Stripe and delivery rows prevent duplicate
+email sends. A failed reschedule email remains pending after the calendar change
+and requires operational recovery. There is not yet an automatic escalation or
+staff-facing recovery control, so testers must review delivery state and Vercel
+logs and reconcile synthetic calendar events after each run.
 
 ## Required Stripe GST setup
 
@@ -68,6 +114,121 @@ server quote. The application uses the tax-rate ID directly so the restricted
 Stripe key does not need `tax_rate_read`; preserve that least-privilege setup.
 Do not deploy a pricing change before the matching tax-rate ID is configured.
 
+Each environment's webhook endpoint must subscribe to all six application
+events:
+
+- `checkout.session.completed`
+- `checkout.session.expired`
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.async_payment_failed`
+- `charge.refunded`
+- `charge.dispute.created`
+
+Do not subscribe the last two events until `BOOKING_PORTAL_ENABLED=1` and
+`PAYMENT_LIFECYCLE_ENABLED=1`: their safe calendar/access behavior requires the
+persisted booking row and an explicit fail-closed activation. The Stripe
+restricted key needs read access to Charges, Disputes, PaymentIntents, and
+Checkout Sessions in addition to its existing Checkout creation/update access.
+Keep sandbox and live endpoint signing secrets distinct.
+
+When inspecting Vercel Secret-backed Stripe variables locally, do not assume
+`vercel env run` replaced a same-named value from `.env.local`; unavailable
+Vercel Secret values can leave the local value in place. Use the signed-in
+Stripe Dashboard or the deployed environment for mode-sensitive inspection,
+and never print a secret to prove which mode is active.
+
+## Public API rate limits and slot holds
+
+Apply migration `0005_heavy_warhawk.sql`, configure an environment-specific
+`RATE_LIMIT_HASH_SECRET` of at least 32 bytes, and only then set
+`API_RATE_LIMITING_ENABLED=1`. The limits are 120 availability requests per
+minute and 12 Checkout attempts per 10 minutes for each keyed client-address
+digest. A limit response is HTTP 429 with `Retry-After`; a database or secret
+failure is HTTP 503 so the API never silently runs unprotected. Raw client IP
+addresses are not stored.
+
+Set `CHECKOUT_RESERVATIONS_ENABLED=1` only after the same migration is present.
+The portal flag implies this setting. A new Checkout first reserves the slot in
+Postgres under a stable request UUID, then creates Stripe Checkout using the
+same UUID as its idempotency key. Expired or failed sessions release the hold;
+paid sessions confirm it. If a rollout problem occurs, disable the new-Checkout
+flag and rate-limit flag and redeploy, but preserve the database and all
+existing paid/reserved rows for reconciliation.
+
+Stripe requires a Checkout Session to remain open for at least 30 minutes. A
+customer who returns through Cancel can still pay from another open Checkout
+tab, so the application does not trust the cancel page to release the slot.
+The abandoned hold therefore expires after Stripe's minimum window plus a
+five-minute webhook grace period (roughly 36 minutes from creation). Immediate
+safe release would require a signed cancellation credential and server-side
+Stripe Session expiration before the database hold is released.
+
+Set `PAYMENT_LIFECYCLE_ENABLED=1` only together with
+`BOOKING_PORTAL_ENABLED=1`, after the expanded webhook subscription and Stripe
+read permissions have been verified. If either flag is absent, refund/dispute
+events return a retryable 503 rather than silently skipping calendar and access
+cleanup.
+
+## Refund and dispute operations
+
+Refunds must be initiated and reviewed in Stripe. The signed webhook applies
+the operational consequences:
+
+- A full refund immediately marks the booking refunded, which denies all
+  customer manage access. It then deletes the Microsoft event. Only after
+  deletion is confirmed does it revoke the stored credential, release the
+  slot, cancel active reschedules, and mark the calendar cancelled. A Graph
+  uncertainty returns a retryable error and deliberately preserves the slot
+  and credential row for recovery, but the refunded booking cannot use it.
+- A partial refund marks the booking for attention but keeps the appointment,
+  slot, and manage access. If transactional email is enabled, operations gets
+  an internal alert at the configured operations recipient.
+- A dispute uses the same retain-and-alert policy while operations reviews it
+  in Stripe. The application does not decide whether to cancel a disputed
+  service automatically.
+
+These events are idempotent. Account-wide Stripe events not owned by this app
+are acknowledged and ignored; an app-owned event arriving before its booking
+row remains retryable. There is not yet an automatic customer email for a full
+or partial refund, so operations must follow the approved customer-communication
+and tax-document process outside this application.
+
+## Required Microsoft Graph email setup
+
+1. Create or select a dedicated Entra app registration and grant only Microsoft
+   Graph `Mail.Send` application permission. Obtain administrator consent.
+2. Restrict the app to `service@fomo.energy` using Exchange Online Application
+   RBAC or an application access policy. Verify that sending as an unrelated
+   mailbox is denied before enabling the app.
+3. Create a fresh secret for the intended deployment profile. Configure
+   `EMAIL_GRAPH_TENANT_ID`, `EMAIL_GRAPH_CLIENT_ID`,
+   `EMAIL_GRAPH_CLIENT_SECRET`, and
+   `EMAIL_GRAPH_SENDER_USER=service@fomo.energy` as server-only Vercel values.
+   Never reuse an exposed or expired value.
+4. On `staging`, set
+   `EMAIL_OPERATIONS_TO=ops@fomo.energy`, set the controlled customer inbox
+   through `EMAIL_CUSTOMER_OVERRIDE_TO`, and only then set
+   `TRANSACTIONAL_EMAIL_ENABLED=1`.
+5. Never set `EMAIL_CUSTOMER_OVERRIDE_TO` in Production. The application rejects
+   it there, but the environment must still be clean before rollout.
+
+Apply migration `0004_complete_kree.sql` before enabling the flag. Verify one paid
+sandbox booking produces exactly one `booking_customer` and one
+`booking_operations` delivery, with provider `microsoft_graph`, opaque client
+references, and `sent` status. Replay the
+Stripe event and confirm neither message is duplicated. Complete one supervised
+reschedule and verify exactly one customer and one operations change message.
+The customer email must contain the working private manage/upload link; the
+operations email must not contain it.
+
+Email rollback is to remove `TRANSACTIONAL_EMAIL_ENABLED` and redeploy. This
+stops new mail but preserves payment, calendar, portal, and existing delivery
+audit state. Revoke the Graph app secret or mailbox assignment only after
+retained delivery records and other known consumers have been reconciled. A
+booking email failure remains retryable through the signed Stripe webhook; a
+failed reschedule notification is recorded for operational recovery and must
+not reverse the confirmed calendar change.
+
 Before production use, perform a paid Stripe test-mode booking and confirm:
 
 1. A primary-calendar conflict is unavailable on the booking page.
@@ -89,20 +250,21 @@ Before production use, perform a paid Stripe test-mode booking and confirm:
 ## Retired live Testing checkout
 
 The former public S$0.50 pre-GST Testing option is removed from both staging and
-Production. The checkout parser rejects any request that still carries the
-retired field. Use the Stripe sandbox on the stable `staging` deployment for
+Production. The checkout parser rejects attempts to restore it through a
+crafted request. Use the Stripe sandbox on the stable `staging` deployment for
 payment-flow testing; do not make low-value live charges for routine tests.
 
 Historical paid `TESTING` sessions remain supported by the success page,
-webhook, and calendar compatibility paths so a delayed replay is not stranded.
-Their manage page is explicitly warned and read-only; upload-token issuance,
-upload completion, and rescheduling are denied server-side. Remove those
-compatibility branches only after all such sessions are outside the agreed
-fulfilment and replay window.
+webhook, calendar, and email compatibility paths so a delayed replay is not
+stranded. Their manage page is explicitly warned and read-only; upload-token
+issuance, upload completion, and rescheduling are denied server-side. Remove
+those compatibility branches only after all such sessions are outside the
+agreed fulfilment and replay window.
 
 ## Stripe sandbox end-to-end environment
 
-Use the existing Vercel project with the long-lived `staging` branch and its stable
+Use the existing Vercel project with the organisation-owned long-lived
+`staging` branch and its stable
 Preview alias. This is not a second Vercel app: it is an isolated Preview
 environment for the same codebase. Do not replace Production Stripe variables
 or point a sandbox webhook at the Production domain.
@@ -117,14 +279,16 @@ Prepare the environment in this order:
 2. In the sandbox, create an active, exclusive Singapore `GST` tax rate at 9%.
    Record its sandbox-only `txr_...` ID.
 3. Add a sandbox webhook endpoint at the stable `staging` Preview alias plus
-   `/api/stripe/webhook`, subscribe to `checkout.session.completed`, and record
-   that endpoint's sandbox-only `whsec_...` signing secret.
+   `/api/stripe/webhook`, subscribe to the six events in the required Stripe
+   setup section above, and record that endpoint's sandbox-only `whsec_...`
+   signing secret.
 4. Configure branch-scoped Preview variables for `staging`: sandbox
    `STRIPE_SECRET_KEY`, matching `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, sandbox
    `STRIPE_WEBHOOK_SECRET`, sandbox `STRIPE_GST_TAX_RATE_ID`, and the stable
    Preview origin as `NEXT_PUBLIC_SITE_URL`. Mark every server secret as
    sensitive. Production values must remain unchanged.
-5. Use a separate Preview `DATABASE_URL`, `MANAGE_LINK_SECRET`, private
+5. Use a separate Preview `DATABASE_URL`, `MANAGE_LINK_SECRET`,
+   `RATE_LIMIT_HASH_SECRET`, private
    `BLOB_READ_WRITE_TOKEN`, and a dedicated Microsoft test-calendar ID. Apply
    all reviewed migrations only to the Preview database.
 6. Enable `BOOKING_PORTAL_ENABLED=1` on `staging`. Enable
@@ -162,27 +326,31 @@ Verify the complete chain, not only Stripe's success page:
 
 ## Booking portal rollout
 
-The Drizzle schema and Parts 2–5 code are additive and dormant while
-`BOOKING_PORTAL_ENABLED` is not `1`. Do not apply the migration to Production or
-enable the flag merely because the code exists. The live flow remains the
-original Stripe-to-Microsoft path until Preview has passed the controlled
-rollout below.
+The Drizzle schema is additive. Production uses a distinct Neon database and
+enables `BOOKING_PORTAL_ENABLED=1` for durable payment, calendar, refund, and
+slot state. Customer-facing capabilities remain separately controlled:
+`DOCUMENT_UPLOADS_ENABLED`, `RESCHEDULING_ENABLED`, and
+`TRANSACTIONAL_EMAIL_ENABLED` stay disabled until their own production
+resources and controls are approved.
 
 The isolated `staging` Preview has completed the basic provisioning, payment,
 credential, private-JPEG, and supervised-reschedule path. The full boundary,
 content-type, concurrency, failure-recovery, notification, and Production
 checklist still applies:
 
-1. Provision a separate Neon Preview database through the Vercel Marketplace.
+1. Provision separate Neon Preview and Production databases through the Vercel Marketplace.
 2. Pull its environment variables into `.env.local` without committing them.
 3. Review every file in `db/migrations/`, including the Part 4 document-quota
    migration and Part 5 Checkout/reschedule reservation migration.
 4. Run `npm run verify:database` locally.
 5. Generate a random `MANAGE_LINK_SECRET` of at least 32 bytes and configure it
    only in Preview.
-6. Run `npm run db:migrate` with the intended Preview `DATABASE_URL`.
-7. Verify all seven tables and the `__drizzle_migrations` journal exist.
-8. Set `BOOKING_PORTAL_ENABLED=1` in Preview and redeploy.
+6. Run `npm run db:migrate` separately with each intended environment's
+   `DATABASE_URL`; verify `NEON_PROJECT_ID` before every migration.
+7. Verify all current tables, including `api_rate_limits`, and the
+   `__drizzle_migrations` journal exist.
+8. Set `BOOKING_PORTAL_ENABLED=1` only after that environment is migrated, then
+   redeploy. Configure the production portal secret before enabling it.
 9. Exercise signed Stripe webhook replay, one simulated recovery, the Graph
    event, credential exchange, cookie flags, and `/manage` booking values.
 10. Connect a private Vercel Blob store to Preview. Confirm
@@ -197,10 +365,10 @@ checklist still applies:
     reconciliation. Confirm a Checkout hold expires and a paid hold confirms.
 13. Verify customer and operations reschedule notifications and manage-link
     renewal before enabling rescheduling outside Preview.
-14. Disable the upload and rescheduling flags before their dependent-service
-    rollback, and the portal flag before any
-    database rollback. Consider Production only
-    after the complete checklist passes.
+14. Disable upload, rescheduling, and email flags before rolling back their
+    dependent services. Do not drop or detach a populated database as an
+    application rollback; disable the portal only after reconciling paid
+    bookings, calendar events, reservations, and lifecycle events.
 
 The manage link uses `/manage#access=…`, not a path or query credential. Do not
 paste a real link into logs, tickets, analytics, screenshots, or staff email.

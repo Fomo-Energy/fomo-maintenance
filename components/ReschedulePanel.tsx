@@ -182,7 +182,11 @@ export default function ReschedulePanel({
           slotEnd: selected.end,
         }),
       });
-      const data = (await response.json()) as { changed?: boolean; error?: string };
+      const data = (await response.json()) as {
+        changed?: boolean;
+        notificationStatus?: "disabled" | "sent" | "pending";
+        error?: string;
+      };
       if (!response.ok || !data.changed) {
         if (response.status === 409) {
           clearPendingReschedule(requestStorageKey);
@@ -203,7 +207,11 @@ export default function ReschedulePanel({
       requestKey.current = null;
       clearPendingReschedule(requestStorageKey);
       setRetryRequired(false);
-      setMessage("Your new appointment time is confirmed.");
+      setMessage(
+        data.notificationStatus === "pending"
+          ? "Your new appointment time is confirmed. The confirmation email is pending; contact the FOMO team if it does not arrive."
+          : "Your new appointment time is confirmed.",
+      );
       setOpen(false);
       router.refresh();
     } catch (submitError) {
@@ -334,8 +342,14 @@ export default function ReschedulePanel({
             </>
           ) : (
             <p className="text-sm text-slate-600">
-              No replacement times are currently available. Contact the FOMO
-              team if the booking needs attention.
+              No replacement times are currently available. Email{" "}
+              <a
+                className="font-semibold text-ink underline underline-offset-2"
+                href="mailto:service@fomo.energy"
+              >
+                service@fomo.energy
+              </a>{" "}
+              if the booking needs attention.
             </p>
           )}
         </form>

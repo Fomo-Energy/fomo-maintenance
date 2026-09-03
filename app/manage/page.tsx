@@ -98,6 +98,34 @@ export default async function ManageBookingPage() {
                 />
               </div>
             </dl>
+            {!historicalTestingBooking &&
+            reschedulingEnabled() &&
+            (reschedulePolicy?.allowed || activeReschedule) ? (
+              <ReschedulePanel
+                bookingReference={booking.reference}
+                currentSlotStart={booking.slotStart.toISOString()}
+                currentSlotEnd={booking.slotEnd.toISOString()}
+                changesRemaining={reschedulePolicy?.changesRemaining ?? 0}
+              />
+            ) : (
+              <div className="mt-10 rounded-2xl bg-peach px-5 py-4 text-sm leading-6 text-slate-600">
+                {historicalTestingBooking
+                  ? "Online date/time changes are disabled for this historical test payment."
+                  : reschedulingEnabled() &&
+                      reschedulePolicy &&
+                      !reschedulePolicy.allowed
+                    ? reschedulePolicy.reason
+                    : "Online date/time changes are not available yet."}{" "}
+                Email{" "}
+                <a
+                  className="font-semibold text-ink underline underline-offset-2"
+                  href="mailto:service@fomo.energy"
+                >
+                  service@fomo.energy
+                </a>{" "}
+                if this booking needs attention.
+              </div>
+            )}
             <section className="mt-10 border-t border-slate-200 pt-8 text-left">
               <h2 className="text-xl font-bold text-ink">PV documents</h2>
               <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -152,27 +180,6 @@ export default async function ManageBookingPage() {
                 </ul>
               ) : null}
             </section>
-            {!historicalTestingBooking &&
-            reschedulingEnabled() &&
-            (reschedulePolicy?.allowed || activeReschedule) ? (
-              <ReschedulePanel
-                bookingReference={booking.reference}
-                currentSlotStart={booking.slotStart.toISOString()}
-                currentSlotEnd={booking.slotEnd.toISOString()}
-                changesRemaining={reschedulePolicy?.changesRemaining ?? 0}
-              />
-            ) : (
-              <div className="mt-10 rounded-2xl bg-peach px-5 py-4 text-sm leading-6 text-slate-600">
-                {historicalTestingBooking
-                  ? "Online date/time changes are disabled for this historical test payment."
-                  : reschedulingEnabled() &&
-                reschedulePolicy &&
-                !reschedulePolicy.allowed
-                  ? reschedulePolicy.reason
-                  : "Online date/time changes are not available yet."}{" "}
-                Contact the FOMO team if this booking needs attention.
-              </div>
-            )}
           </>
         ) : (
           <div className="mt-6 rounded-2xl bg-peach px-5 py-4 text-slate-600">
