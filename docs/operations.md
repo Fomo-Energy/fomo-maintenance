@@ -32,7 +32,27 @@ connect to any configured Neon database, Stripe account, or Microsoft calendar.
 The canonical repository is `Fomo-Energy/fomo-maintenance`. Pull requests and
 pushes should run the repository's `CI` workflow and create Vercel deployments
 in the `fomo-energy/fomo-maintenance` project. Production follows `main` and is
-served at https://fomo-maintenance.vercel.app.
+served at https://maintenance.fomo.energy. The project-default
+`fomo-maintenance.vercel.app` address remains an additional Production alias.
+The `staging` branch is served from
+https://fomo-maintenance-git-staging-fomo-energy.vercel.app.
+
+## Environment promotion model
+
+Do not switch one shared set of credentials between modes. Keep two explicit
+deployment profiles in the same Vercel project:
+
+| Profile | Git ref and URL | External resources |
+| --- | --- | --- |
+| Production | `main`; `maintenance.fomo.energy` | Live Stripe and Production Microsoft configuration. Portal, uploads, rescheduling, and email remain disabled until distinct Production resources are approved. |
+| Staging | `staging`; stable `git-staging` Vercel alias | Stripe sandbox, Preview Neon, private Blob, Preview Resend, Microsoft test-calendar configuration, and enabled portal features. |
+
+All live Stripe variables are Production-only. Preview database, Blob, Resend,
+Microsoft client secret, sandbox Stripe variables, site URL, and feature flags
+are branch-scoped to `staging`; ordinary pull-request Previews inherit none of
+those credentials. Promote reviewed code by pull request rather than copying or
+retargeting secrets. Provision and migrate separate Production resources before
+enabling the portal flags on `main`.
 
 ## Required Stripe GST setup
 
@@ -66,8 +86,7 @@ Do not deploy a pricing change before the matching tax-rate ID is configured.
    generated for `fomo.energy` to its authoritative Cloudflare DNS zone. Do not
    replace nameservers or modify the existing inbound-mail MX records.
 3. Wait until Resend reports the domain verified before using
-   `maintenance@fomo.energy` as `EMAIL_FROM`. Until that mailbox exists, use
-   `ops@fomo.energy` as `EMAIL_REPLY_TO` so customer replies are received.
+   `service@fomo.energy` as `EMAIL_FROM` and `EMAIL_REPLY_TO`.
 4. Scope `RESEND_API_KEY` to Preview. On `staging`, set
    `EMAIL_OPERATIONS_TO=ops@fomo.energy`, set the controlled customer inbox
    through `EMAIL_CUSTOMER_OVERRIDE_TO`, and only then set

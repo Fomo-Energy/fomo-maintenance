@@ -13,7 +13,8 @@ live copy, and API checks passed at that deployment.
 
 Pull request #13 was merged as `64001b8`, and production displays the approved
 9% GST-inclusive prices. The live Stripe rate exists and
-`STRIPE_GST_TAX_RATE_ID` is configured in all Vercel environments. Pull request
+`STRIPE_GST_TAX_RATE_ID` is configured separately for Production and the
+`staging` Stripe sandbox. Pull request
 #14 was merged as `acdfb63`, allowing the restricted Stripe key to apply the
 configured rate without broader tax-rate read permission. Production Checkout
 was verified without payment: a 10 kWp Essential booking shows S$199.00
@@ -63,9 +64,18 @@ renewal pass the full local verification and build. A free Preview-only Resend
 resource exists in Tokyo. Migration `0003` is applied to Preview Neon and the
 email variables are scoped to `staging`. Cloudflare sender DNS is verified;
 customer delivery to the approved Gmail inbox and operations delivery to
-`ops@fomo.energy` passed. Reply-to is `ops@fomo.energy` until the
-`maintenance@fomo.energy` mailbox exists. Production has no Resend resource or
-email flag.
+`ops@fomo.energy` passed. Staging now sends from and replies to the existing
+shared `service@fomo.energy` mailbox, while operations delivery remains
+`ops@fomo.energy`.
+Production has no Resend resource or email flag.
+
+Production is now served at `https://maintenance.fomo.energy`, with a DNS-only
+Cloudflare CNAME to Vercel and `NEXT_PUBLIC_SITE_URL` set to the custom origin.
+The default Vercel project URL remains an additional Production alias; the
+stable `git-staging` Preview alias is the development/test URL. An independent
+audit verified the runtime portal boundary and led to tighter environment
+scoping: live Stripe is Production-only, while Preview state, email, Microsoft
+secret, sandbox Stripe, and feature settings are confined to `staging`.
 
 ## Next up
 
@@ -78,8 +88,8 @@ email flag.
 5. Add Part 7 rate limits, Microsoft Entra staff access, upload scanning,
    retention/deletion jobs, and Graph/database reconciliation tooling.
 6. Provision a distinct Production database, Blob store, mail configuration,
-   and dedicated Microsoft production calendar only after approval and complete
-   a controlled rollout without reusing Preview secrets.
+   and dedicated Microsoft production calendar ID only after approval and
+   complete a controlled rollout without reusing Preview secrets.
 7. Decide whether customer receipts remain Stripe receipts or whether the paid
    Checkout webhook should create formal invoices through Xero; first confirm
    the target organisation, GST details, existing Stripe feed, and OAuth storage.
@@ -92,8 +102,8 @@ email flag.
   organisation-owned `staging` branch. Migrated all 14 encrypted Vercel
   branch-scoped overrides in place without reading or rotating their values,
   including the sandbox Stripe, Preview feature, and email configuration.
-  `main` and Production remain unchanged. The old remote branch is retained
-  only until the replacement `staging` Preview passes deployment checks.
+  `main` and Production remained unchanged. The old remote branch was removed
+  after the replacement `staging` Preview passed deployment checks.
 - Confirmed Cloudflare is authoritative for `fomo.energy` and verified the
   exact Resend sender records without altering inbound-mail MX records.
 - Accepted the owner-completed Resend Marketplace terms and provisioned the
@@ -108,8 +118,17 @@ email flag.
 - Added later-appointment manage-link renewal and replacement of the requesting
   browser's secure cookie before reschedule notification.
 - Verified controlled customer confirmation delivery to `fomoenergysg@gmail.com`
-  and operations delivery to `ops@fomo.energy`. `EMAIL_REPLY_TO` is also
-  `ops@fomo.energy` until the `maintenance@fomo.energy` mailbox exists.
+  and operations delivery to `ops@fomo.energy`. The later mailbox decision sets
+  both `EMAIL_FROM` and `EMAIL_REPLY_TO` to the existing shared
+  `service@fomo.energy` address.
+- Completed an independent environment audit. Removed generic Preview and
+  Development live Stripe secrets, restricted the live publishable key and GST
+  rate to Production, and branch-scoped Preview Neon, Blob, Resend, Microsoft
+  client secret, sandbox Stripe, and portal flags to `staging`.
+- Added and verified `maintenance.fomo.energy` in Vercel, created its DNS-only
+  Cloudflare CNAME, set the Production canonical site URL, and redeployed
+  `main`. HTTPS, page metadata, and the Production-disabled/staging-enabled
+  portal API boundary passed.
 - Transactional email, schema, portal, pricing, slots, calendar, documents,
   rescheduling, TypeScript, and production-build checks pass locally. Preview
   migration, deployment, customer/operations delivery, and paid booking have
