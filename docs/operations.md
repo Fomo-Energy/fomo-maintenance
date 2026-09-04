@@ -4,6 +4,11 @@ Status: Current
 
 ## Required calendar setup
 
+The deployed staging and Production profiles use the shared
+`service@fomo.energy` mailbox. Its `Fomo Maintenance` secondary calendar is
+bound by exact Graph ID in both environments. The procedure below remains the
+required setup for a replacement mailbox or calendar.
+
 1. Under the mailbox in `MICROSOFT_CALENDAR_USER`, create a secondary calendar
    named exactly `Fomo Maintenance`.
 2. Keep `MICROSOFT_MAINTENANCE_CALENDAR_NAME=Fomo Maintenance`, or set

@@ -21,6 +21,10 @@ sandbox, Preview Neon/Blob resources, Microsoft Graph email, and branch-scoped
 feature flags. That exact branch Preview also displays a fixed red environment
 banner and a public-safe operations flow guide; neither renders in Production
 or unrelated feature Previews.
+Both deployed profiles use the dedicated `Fomo Maintenance` secondary calendar
+owned by the shared `service@fomo.energy` mailbox. Vercel binds to its exact
+Microsoft Graph calendar ID so ordinary appointments in the mailbox remain
+separate from paid maintenance visits.
 The default `fomo-maintenance.vercel.app` address remains an additional
 Production alias because both environments share one Vercel project.
 
@@ -275,7 +279,7 @@ state credentials are scoped to the `staging` branch.
 | `MICROSOFT_TENANT_ID` | Azure AD tenant for client-credentials |
 | `MICROSOFT_CLIENT_ID` | App registration id |
 | `MICROSOFT_CLIENT_SECRET` | App registration secret |
-| `MICROSOFT_CALENDAR_USER` | Mailbox UPN/email whose primary calendar is checked for conflicts |
+| `MICROSOFT_CALENDAR_USER` | Mailbox UPN/email whose primary calendar is checked for conflicts. Deployed profiles use `service@fomo.energy`. |
 | `MICROSOFT_MAINTENANCE_CALENDAR_NAME` | Exact secondary-calendar name. Defaults to `Fomo Maintenance`; Graph resolves and caches its ID. |
 | `MICROSOFT_MAINTENANCE_CALENDAR_ID` | Optional Graph calendar ID. When set, skips name lookup and remains stable if the calendar is renamed. |
 | `DATABASE_URL` | Neon Postgres connection string for booking, event, reservation, lifecycle, and rate-limit state. Required when the portal, Checkout reservation, or API rate-limit flag is enabled. |

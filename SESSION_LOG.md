@@ -4,146 +4,49 @@ Status: Current
 
 ## Current state
 
-As of 2026-09-04, the QA-approved 3rd-party installer release is ready for
-database-first promotion. It adds a public `3rd party` choice, a conditional
-required installer-name field, server-authoritative normalization/validation,
-and consistent installer context in Stripe, durable bookings, Microsoft
-calendar, portal pages, and email. Migration `0006_smiling_devos.sql` still
-needs to be applied to each isolated Neon database before deploying the matching
-`staging` and `main` code. Package pricing and the deferred onboarding policy do
-not change.
+As of 2026-09-04, the 3rd-party installer release, database migrations, and
+hardening/polish work are deployed to both `staging` and Production. Staging
+uses sandbox Stripe plus its isolated Neon and Blob resources, with customer
+portal, uploads, rescheduling, and Microsoft Graph transactional email enabled.
+Its fresh end-to-end booking, email, private document, download, and reschedule
+cycle passed. Production uses live Stripe and its isolated database; uploads,
+rescheduling, and transactional email remain disabled while the team stress
+tests staging.
 
-The previously deployed hardening and polish release adds database-first
-Checkout holds, public API limits, full Checkout/refund/dispute lifecycle
-handling, baseline security headers, mobile and validation polish, and the
-refreshed staging-only operations guide. Migration `0005` is applied to the
-isolated staging and Production Neon projects. Both Stripe modes have six-event
-webhook endpoints, and the live restricted key's `Payment Disputes: Read`
-permission is verified by an authenticated nonexistent-object probe returning
-HTTP 404. Production enables the booking portal, Checkout reservation, API
-rate-limit, and payment-lifecycle foundations. Customer uploads, rescheduling,
-and transactional email remain disabled there.
-
-Production includes the approved Essential Health Check scope wording,
-Electrical Assurance, and independent cleaning. This release retires the
-temporary public S$0.50 Testing checkout from both deployment tracks while
-retaining historical paid-session compatibility in a read-only, explicitly
-labelled state. The current branch also upgrades Next.js to 16.3.4; its
-production dependency audit is clean.
-Pull request #10 was merged as `9d70665`: customer-facing onboarding notices
-and the Continuous monitoring offer are removed, and crafted monitoring
-checkout requests are rejected. Main CI, the Vercel production deployment, the
-live copy, and API checks passed at that deployment.
-
-Pull request #13 was merged as `64001b8`, and production displays the approved
-9% GST-inclusive prices. The live Stripe rate exists and
-`STRIPE_GST_TAX_RATE_ID` is configured separately for Production and the
-`staging` Stripe sandbox. Pull request
-#14 was merged as `acdfb63`, allowing the restricted Stripe key to apply the
-configured rate without broader tax-rate read permission. Production Checkout
-was verified without payment: a 10 kWp Essential booking shows S$199.00
-subtotal, S$17.91 GST, and S$216.91 total.
-
-Pull request #16 was merged as `c427db0`. Production selector cards show pre-GST
-prices marked `subject to GST`, while the final booking summary and Stripe
-payment remain GST-inclusive and server-authoritative. Name, phone, email, and
-site address persist in the same browser until `Clear saved details` is used.
-Pull request #18 was merged as `aab5324`. Production now contains the shorter
-payment note, consistent shared no-roof-access presentation, service cadence
-recommendations, expanded Electrical Assurance safety copy, and simplified
-cleaning copy. Main CI and the Vercel production deployment passed, and the live
-page was verified without creating a Checkout session, payment, or calendar
-event.
-
-The canonical repository is now `Fomo-Energy/fomo-maintenance`. The transfer
-preserved repository ID `1350261809`, history, issues, pull requests, and the
-active CI workflow. The local `origin` and Vercel project's Git link both point
-to the organisation-owned repository; production still follows `main`.
-Organisation-owned pull requests now trigger both GitHub CI and Vercel preview
-deployments after refreshing the Vercel Git connection.
-Pull request #21 was merged as `9e17e1b`; `main` now removes the redundant
-public `Other installer` choice and clarifies partial roof access and excluded
-third-party access costs.
-
-Pull requests #22 through #25 are merged as `9120067`, `6419bc3`, `3802119`,
-and `1ffb4a8`, completing Parts 1–5 of the phased customer Manage Booking
-portal. The organisation-owned `staging` branch uses a Stripe sandbox,
-migrated Preview Neon database, and private Singapore-region Blob store. Its
-S$0.55 paid sandbox checkout, signed webhook and replay, durable fulfilment,
-portal, authenticated upload/download, and one supervised reschedule passed.
-Portal, uploads, rescheduling, and transactional email are enabled there for a
-bounded team stress test. Production resources, credentials, and feature flags
-remain unchanged.
-
-Preview testing exposed a cookie-delivery defect: two same-name path-scoped
-cookies collapsed to the API-scoped cookie, so `/manage` could not authenticate.
-Pull request #27 is merged as `949a0a0`; it replaces them with one secure
-HttpOnly cookie at `Path=/`. Main CI, Production deployment, and the real
-Preview browser flow pass while all Production portal flags remain disabled.
-
-Part 6 is implemented behind `TRANSACTIONAL_EMAIL_ENABLED=1`. Durable
-customer/operations booking and reschedule messages, provider/database
-idempotency, Preview recipient override, and later-appointment manage-link
-renewal pass the full local verification and build. A free Preview-only Resend
-resource exists in Tokyo. Migration `0003` is applied to Preview Neon and the
-email variables are scoped to `staging`. Cloudflare sender DNS is verified;
-customer delivery to the approved Gmail inbox and operations delivery to
-`ops@fomo.energy` passed. Staging now sends from and replies to the existing
-shared `service@fomo.energy` mailbox, while operations delivery remains
+Both environments now use the dedicated `Fomo Maintenance` secondary calendar
+owned by the shared `service@fomo.energy` mailbox rather than a personal
+`jtan@fomo.energy` calendar. The mailbox and exact Graph calendar ID are set in
+Vercel, both deployments were rebuilt, and both live availability endpoints
+returned HTTP 200 through the new calendar. Staging booking/customer email is
+sent from and replies to `service@fomo.energy`; operations notices go to
 `ops@fomo.energy`.
-Production has no Resend resource or email flag.
 
-Pull request #32 migrated staging transactional email from Resend to a
-dedicated Microsoft Graph `Mail.Send` transport. Migration `0004` is applied to
-Preview Neon, the fresh mail-only credential is branch-scoped in Vercel, and an
-Exchange Application Access Policy grants the app access to
-`service@fomo.energy` while denying an unrelated mailbox. A paid sandbox
-Essential booking completed through Stripe, the signed webhook, Preview Neon,
-and the real Microsoft maintenance calendar. Its operations copy arrived at
-`ops@fomo.energy` with the correct data and no manage link, but the stored
-provider reference proves that particular run still used the preceding Resend
-deployment. A fresh post-Graph-deployment customer and operations delivery test
-is therefore still required.
-
-Microsoft's newer Exchange App RBAC setup is temporarily unavailable while the
-tenant upgrade blocks organisation customization. The supported legacy access
-policy is the current mailbox boundary; migrate it to App RBAC after the
-upgrade. The previously exposed calendar and earlier mail-app secrets still
-require coordinated rotation without interrupting their consumers.
-
-The stable `staging` Preview now includes the server-gated operations guide. It
-explains the sandbox-payment versus real calendar/email boundary, recipient
-routing, manage/upload/reschedule flow, current request limits, and the latest
-refund/dispute recovery behavior. It also removes the public Testing product
-and displays the fixed red staging warning banner. Production renders neither
-the guide nor the warning.
-
-Production is now served at `https://maintenance.fomo.energy`, with a DNS-only
-Cloudflare CNAME to Vercel and `NEXT_PUBLIC_SITE_URL` set to the custom origin.
-The default Vercel project URL remains an additional Production alias; the
-stable `git-staging` Preview alias is the development/test URL. An independent
-audit verified the runtime portal boundary and led to tighter environment
-scoping: live Stripe is Production-only, while Preview state, email, Microsoft
-secret, sandbox Stripe, and feature settings are confined to `staging`.
+Production is served at `https://maintenance.fomo.energy`; the stable staging
+alias remains the development/test URL. The repository is owned by
+`Fomo-Energy/fomo-maintenance`, Production follows `main`, and the long-lived
+test deployment follows `staging`.
 
 ## Next up
 
-1. Apply migration `0006_smiling_devos.sql` to staging, deploy the feature, and
-   complete its UI/data-flow smoke checks before Production promotion.
-2. Apply migration `0006_smiling_devos.sql` to Production before deploying the
-   same code to `main`.
-3. Complete the bounded team stress test on `staging`, including Graph email
-   delivery, upload/download, rescheduling, replay, abandoned holds, and
-   recovery.
-4. Run a fresh post-Graph-deployment customer and operations delivery test and
-   reconcile its Preview booking, calendar event, and delivery rows.
-5. Monitor the Production foundation without enabling uploads, rescheduling,
-   or transactional email and without creating a live test charge.
+1. Continue the bounded team stress test on `staging`, including abandoned
+   Checkout holds, webhook replay, refund/dispute paths, and recovery drills.
+2. Reconcile and remove synthetic staging bookings, uploaded documents, and
+   calendar events under the approved retention process after testing.
+3. Decide when Production may enable transactional email, uploads, and
+   rescheduling; provision and verify each flag independently.
+4. Migrate the transactional-email mailbox restriction from the legacy
+   Exchange access policy to App RBAC after the Microsoft tenant upgrade.
 
 ## Session entries
 
 ### 2026-09-04
 
+- Created a dedicated `Fomo Maintenance` secondary calendar under the shared
+  `service@fomo.energy` mailbox and resolved its exact Graph ID.
+- Updated the Vercel Microsoft calendar mailbox for all deployment profiles,
+  bound the exact new calendar ID in staging and Production, and rebuilt both
+  deployments. The availability API returned HTTP 200 with live slots in both
+  environments; no payment or calendar event was created for this smoke test.
 - Added and QA-approved the `3rd party` installer choice and conditional
   installer-name field. The existing versioned contact cache restores and
   clears the name; server validation remains authoritative and discards the

@@ -96,7 +96,9 @@ reliably identify a first visit. These temporary boundaries are tracked in
 
 ## Calendar ownership and data flow
 
-The mailbox is selected by `MICROSOFT_CALENDAR_USER`. The application reads
+The mailbox is selected by `MICROSOFT_CALENDAR_USER`. Staging and Production
+currently use the shared `service@fomo.energy` mailbox and its dedicated
+`Fomo Maintenance` secondary calendar. The application reads
 busy periods from two calendar sources:
 
 1. The mailbox's primary calendar, so ordinary work commitments block booking.

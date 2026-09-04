@@ -4,6 +4,11 @@ Status: Current
 
 ## 2026-09-04
 
+- Moved the maintenance booking calendar from `jtan@fomo.energy` to a dedicated
+  `Fomo Maintenance` secondary calendar owned by the shared
+  `service@fomo.energy` mailbox. Staging and Production now bind to its exact
+  Graph ID; live availability checks passed in both environments after
+  redeployment.
 - Added `3rd party` to the installer choices. Selecting it reveals a required,
   locally cached installer-name field in Contact details; the server normalizes
   and validates the name without changing package pricing or adding an
