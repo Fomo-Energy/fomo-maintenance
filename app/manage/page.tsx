@@ -20,6 +20,7 @@ import {
 import { rescheduleEligibility } from "@/lib/portal/reschedule-policy";
 import { findActiveCustomerReschedule } from "@/lib/portal/rescheduling";
 import { formatSlotRange } from "@/lib/slots";
+import { formatInstaller } from "@/lib/installer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,6 +77,13 @@ export default async function ManageBookingPage() {
               <BookingDetail label="Booking reference" value={booking.reference} />
               <BookingDetail label="Customer" value={booking.customerName} />
               <BookingDetail label="Service" value={booking.packageName} />
+              <BookingDetail
+                label="Installer"
+                value={formatInstaller(
+                  booking.installerType,
+                  booking.installerName,
+                )}
+              />
               <BookingDetail
                 label="System size"
                 value={booking.kwp ? `${Number(booking.kwp)} kWp` : "—"}

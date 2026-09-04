@@ -4,10 +4,12 @@ import {
   type QuoteResult,
   type ServiceLevel,
 } from "@/lib/pricing";
+import { installerNameForSelection } from "@/lib/installer";
 
 export type CheckoutRequest = {
   kwp: number;
   installer: InstallerId;
+  installerName: string | null;
   serviceLevel: ServiceLevel;
   cleaning: boolean;
   name: string;
@@ -19,7 +21,7 @@ export type CheckoutRequest = {
   checkoutRequestKey?: string;
 };
 
-const INSTALLERS: InstallerId[] = ["fomo", "rto"];
+const INSTALLERS: InstallerId[] = ["fomo", "other", "rto"];
 const SERVICE_LEVELS: ServiceLevel[] = ["essential", "electrical_assurance"];
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_RE = /^\+?[0-9][0-9\s().-]*$/;
@@ -113,6 +115,10 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   if (!INSTALLERS.includes(installer)) {
     throw new Error("Choose who installed the system.");
   }
+  const installerName = installerNameForSelection(
+    installer,
+    raw.installerName,
+  );
   const serviceLevel = asString(raw.serviceLevel) as ServiceLevel;
   if (!SERVICE_LEVELS.includes(serviceLevel)) {
     throw new Error("Choose a service level.");
@@ -170,6 +176,7 @@ export function parseCheckoutRequest(body: unknown): CheckoutRequest {
   return {
     kwp,
     installer,
+    installerName,
     serviceLevel,
     cleaning,
     name,

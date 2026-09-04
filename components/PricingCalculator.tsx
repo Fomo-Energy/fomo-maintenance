@@ -33,7 +33,9 @@ function parseSavedQuote(value: string | null): SavedQuote | null {
     const parsed = JSON.parse(value) as Partial<SavedQuote>;
     const parsedKwp = Number.parseFloat(parsed.kwpInput ?? "");
     const installer =
-      parsed.installer === "fomo" || parsed.installer === "rto"
+      parsed.installer === "fomo" ||
+      parsed.installer === "other" ||
+      parsed.installer === "rto"
         ? parsed.installer
         : null;
     const serviceLevel =

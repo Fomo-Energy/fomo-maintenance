@@ -5,6 +5,7 @@ import {
 } from "@/lib/calendar";
 import { TIMEZONE } from "@/lib/site";
 import type { BusyPeriod } from "@/lib/slots";
+import { formatInstaller } from "@/lib/installer";
 
 const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
 const STRIPE_SESSION_PROPERTY =
@@ -78,6 +79,7 @@ export type MaintenanceVisitInput = {
   slotEnd: string;
   kwp: string;
   installer: string;
+  installerName: string;
   serviceCode: string;
   packageName: string;
   breakdown: string;
@@ -608,7 +610,7 @@ function visitBody(input: MaintenanceVisitInput): string {
     visitType,
     "",
     `kWp: ${input.kwp}`,
-    `Installer: ${input.installer}`,
+    `Installer: ${formatInstaller(input.installer, input.installerName)}`,
     ...(input.serviceCode ? [`Service code: ${input.serviceCode}`] : []),
     ...(input.breakdown ? [`Price breakdown: ${input.breakdown}`] : []),
     `Scope: ${input.scope || "—"}`,

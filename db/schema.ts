@@ -35,6 +35,8 @@ export const bookings = pgTable(
     customerEmail: text("customer_email").notNull(),
     customerPhone: text("customer_phone").notNull(),
     siteAddress: text("site_address").notNull(),
+    installerType: text("installer_type").default("fomo").notNull(),
+    installerName: text("installer_name"),
     serviceCode: text("service_code").notNull(),
     packageName: text("package_name").notNull(),
     kwp: numeric("kwp", { precision: 10, scale: 3 }),
@@ -90,6 +92,10 @@ export const bookings = pgTable(
     check(
       "bookings_operations_email_status_check",
       sql`${table.operationsEmailStatus} in ('pending', 'processing', 'sent', 'failed', 'suppressed')`,
+    ),
+    check(
+      "bookings_installer_type_check",
+      sql`${table.installerType} in ('fomo', 'other', 'rto')`,
     ),
     check("bookings_currency_check", sql`${table.currency} = 'sgd'`),
     check("bookings_subtotal_nonnegative", sql`${table.subtotalCents} >= 0`),
