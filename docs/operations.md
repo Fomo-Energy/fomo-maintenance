@@ -481,8 +481,8 @@ applicable and has a separate approved collection process.
   `https://vercel.com/api/blob`; allowing only the final
   `*.blob.vercel-storage.com` object host blocks the transfer before Blob can
   receive it. The client also has a three-minute abort timeout. Pending
-  placeholders from an interrupted attempt remain inactive and release their
-  quota after one hour when the next upload is reserved.
+  placeholders from an interrupted attempt remain inactive; after one hour,
+  the next manage-page load marks them deleted and releases their quota.
 
 ## Rollback
 

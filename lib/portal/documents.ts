@@ -160,6 +160,7 @@ export async function rejectDocumentUpload(pathname: string): Promise<void> {
 export async function listManageDocuments(
   bookingId: string,
 ): Promise<ManageDocument[]> {
+  await releaseStaleUploadIntents(bookingId);
   return getDatabase()
     .select({
       id: documents.id,

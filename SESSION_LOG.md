@@ -10,7 +10,8 @@ adds a three-minute client timeout. The deployed staging upload now advances,
 completes its signed callback and file-signature checks, and persists the file
 as available behind the authenticated download route. Production remains
 unchanged while uploads are disabled there. Existing abandoned staging upload
-intents remain pending until the documented one-hour quota-release path runs.
+intents are automatically hidden and have their quota released when the manage
+page is loaded after the documented one-hour safety window.
 
 As of 2026-09-04, the QA-approved 3rd-party installer release is ready for
 database-first promotion. It adds a public `3rd party` choice, a conditional
@@ -166,6 +167,10 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
   signature check, and appeared as `Received` with its scoped application
   download route. The live security header is correct and Vercel reported no
   runtime, 4xx, or 5xx errors during the verification.
+- Updated the manage-page document query to expire interrupted pending uploads
+  after the existing one-hour safety window, so abandoned `Processing`
+  placeholders no longer remain visible indefinitely when no later upload is
+  attempted.
 - Added and QA-approved the `3rd party` installer choice and conditional
   installer-name field. The existing versioned contact cache restores and
   clears the name; server validation remains authoritative and discards the

@@ -8,7 +8,8 @@ Status: Current
   the Blob SDK's `https://vercel.com/api/blob` upload endpoint in the site's
   `connect-src` policy. Progress reporting remains available, and the client
   now aborts with a customer-visible error after three minutes instead of
-  waiting indefinitely.
+  waiting indefinitely. Abandoned pending placeholders are also expired during
+  later manage-page loads after the existing one-hour safety window.
 - Added `3rd party` to the installer choices. Selecting it reveals a required,
   locally cached installer-name field in Contact details; the server normalizes
   and validates the name without changing package pricing or adding an
