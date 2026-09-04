@@ -97,6 +97,14 @@ export const bookings = pgTable(
       "bookings_installer_type_check",
       sql`${table.installerType} in ('fomo', 'other', 'rto')`,
     ),
+    check(
+      "bookings_installer_name_type_check",
+      sql`${table.installerType} = 'other' or ${table.installerName} is null`,
+    ),
+    check(
+      "bookings_installer_name_format_check",
+      sql`${table.installerName} is null or (${table.installerName} = btrim(${table.installerName}) and char_length(${table.installerName}) between 1 and 120)`,
+    ),
     check("bookings_currency_check", sql`${table.currency} = 'sgd'`),
     check("bookings_subtotal_nonnegative", sql`${table.subtotalCents} >= 0`),
     check("bookings_gst_nonnegative", sql`${table.gstCents} >= 0`),

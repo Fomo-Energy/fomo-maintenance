@@ -92,10 +92,17 @@ export function paidBookingFromSession(
       "Checkout Session currency is not SGD.",
     );
   }
-  if (metadata(session, "installer") === "rto") {
+  const installerType = requiredMetadata(session, "installer");
+  if (installerType === "rto") {
     throw new PermanentFulfillmentError(
       "rto_not_sellable",
       "A paid rent-to-own Checkout Session requires manual review.",
+    );
+  }
+  if (installerType !== "fomo" && installerType !== "other") {
+    throw new PermanentFulfillmentError(
+      "invalid_installer",
+      "Checkout Session has an unsupported installer.",
     );
   }
 
@@ -127,11 +134,6 @@ export function paidBookingFromSession(
   }
 
   const amounts = money(session);
-  const installerMetadata = metadata(session, "installer");
-  const installerType =
-    installerMetadata === "other" || installerMetadata === "rto"
-      ? installerMetadata
-      : "fomo";
   const candidateInstallerName = normalizeInstallerName(
     metadata(session, "installerName"),
   );

@@ -1,5 +1,5 @@
 {
-  "id": "fc4fb077-2529-49d5-8790-75cca868416f",
+  "id": "fa7fafea-3b91-4b5c-97d8-5fae08f3435b",
   "prevId": "f49eb93c-d590-4761-96a2-123d0bc2897e",
   "version": "7",
   "dialect": "postgresql",
@@ -565,6 +565,14 @@
         "bookings_installer_type_check": {
           "name": "bookings_installer_type_check",
           "value": "\"bookings\".\"installer_type\" in ('fomo', 'other', 'rto')"
+        },
+        "bookings_installer_name_type_check": {
+          "name": "bookings_installer_name_type_check",
+          "value": "\"bookings\".\"installer_type\" = 'other' or \"bookings\".\"installer_name\" is null"
+        },
+        "bookings_installer_name_format_check": {
+          "name": "bookings_installer_name_format_check",
+          "value": "\"bookings\".\"installer_name\" is null or (\"bookings\".\"installer_name\" = btrim(\"bookings\".\"installer_name\") and char_length(\"bookings\".\"installer_name\") between 1 and 120)"
         },
         "bookings_currency_check": {
           "name": "bookings_currency_check",
