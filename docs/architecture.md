@@ -21,8 +21,11 @@ Status: Current
 ## Pricing and package model
 
 Customers provide kWp, installer, service level, optional cleaning,
-contact/site details, and a visit slot. The application
-does not ask about PV strings or equipment models.
+contact/site details, and a visit slot. Public installer choices are
+`FOMO-installed`, `3rd party`, and `FOMO rent-to-own`; `3rd party` retains the
+internal identifier `other` for compatibility. Selecting it reveals a required
+installer-name field in Contact details. The application does not ask about PV
+strings or equipment models.
 
 The two service levels are Essential Health Check and Electrical Assurance.
 Cleaning is independent. Four service codes describe the service/cleaning
@@ -55,6 +58,13 @@ Stripe metadata is versioned (`packages-v3-gst`) and carries bounded package,
 pre-GST subtotal, GST, final amount, breakdown, scope, and manual-confirmation
 statuses. The webhook accepts both the new metadata and legacy sessions created
 before the package migration so an already-paid booking is not stranded.
+
+The browser sends `installerName` with the Checkout request, but the server is
+authoritative: it collapses control characters and whitespace, requires 1–120
+characters with at least one Unicode letter or number for `other`, and stores
+`null` for the name when another installer is selected. The normalized value is
+added to Stripe Checkout Session metadata only for `other`. There is no price
+or onboarding difference between `fomo` and `other`.
 
 Calendar creation uses the Stripe Checkout Session ID as the Microsoft Graph
 transaction ID and as an extended property. The webhook performs an existing
@@ -112,8 +122,10 @@ The portal is being delivered in the reviewed parts described in
 `docs/booking-portal-plan.md`. Parts 1–3 now provide a dormant, feature-gated
 relational and read-only portal foundation:
 
-- `bookings` stores the paid service, customer/site details, money in integer
-  cents, current slot, and external identifiers.
+- `bookings` stores the paid service, customer/site details, normalized
+  installer type/name, money in integer cents, current slot, and external
+  identifiers. Database constraints permit a name only for `other` and require
+  a stored name to be trimmed and 1–120 characters.
 - `booking_access_tokens` stores only fixed-length token digests plus expiry and
   revocation state.
 - `documents` stores private object metadata, never file content or a public
@@ -209,11 +221,19 @@ remains the payment source of truth, Microsoft Calendar the operating schedule,
 and separate Preview and Production Neon databases hold each environment's
 durable application state. Production enables only the booking, reservation,
 and payment-lifecycle foundation; document upload, rescheduling, and
-transactional email retain independent disabled flags. Name, phone, email, and site
-address are cached in versioned `localStorage` in the customer's browser, with
-a form control to clear them; that cache is not an authoritative customer
-record. Database credentials, secrets, token material, and environment-specific
-resource IDs belong only in Vercel or `.env.local` and must not be committed.
+transactional email retain independent disabled flags. Name, phone, email, site
+address, and a 3rd-party installer name are cached in versioned `localStorage`
+in the customer's browser, with a form control to clear them; that cache is not
+an authoritative customer record. The server discards a cached installer name
+unless `other` is the submitted installer. Database credentials, secrets, token
+material, and environment-specific resource IDs belong only in Vercel or
+`.env.local` and must not be committed.
+
+The normalized installer fields flow from Stripe metadata into the durable
+booking and then to the Microsoft calendar body, success and manage pages, and
+booking, reschedule, refund, and dispute email templates. Legacy paid `other`
+sessions can lack `installerName`; customer and operations surfaces explicitly
+show `3rd party (name not recorded)` instead of inventing a company.
 
 ## Deployment
 

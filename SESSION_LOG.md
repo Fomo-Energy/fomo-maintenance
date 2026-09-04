@@ -4,17 +4,25 @@ Status: Current
 
 ## Current state
 
-As of 2026-09-04, the hardening and polish release is merged through `staging`
-and `main` and deployed to both environments. It adds database-first Checkout
-holds, public API limits, full Checkout/refund/dispute lifecycle handling,
-baseline security headers, mobile and validation polish, and the refreshed
-staging-only operations guide. Migration `0005` is applied to the isolated
-staging and Production Neon projects. Both Stripe modes have six-event webhook
-endpoints, and the live restricted key's `Payment Disputes: Read` permission is
-verified by an authenticated nonexistent-object probe returning HTTP 404.
-Production enables the booking portal, Checkout reservation, API rate-limit,
-and payment-lifecycle foundations. Customer uploads, rescheduling, and
-transactional email remain disabled there.
+As of 2026-09-04, the QA-approved 3rd-party installer release is ready for
+database-first promotion. It adds a public `3rd party` choice, a conditional
+required installer-name field, server-authoritative normalization/validation,
+and consistent installer context in Stripe, durable bookings, Microsoft
+calendar, portal pages, and email. Migration `0006_smiling_devos.sql` still
+needs to be applied to each isolated Neon database before deploying the matching
+`staging` and `main` code. Package pricing and the deferred onboarding policy do
+not change.
+
+The previously deployed hardening and polish release adds database-first
+Checkout holds, public API limits, full Checkout/refund/dispute lifecycle
+handling, baseline security headers, mobile and validation polish, and the
+refreshed staging-only operations guide. Migration `0005` is applied to the
+isolated staging and Production Neon projects. Both Stripe modes have six-event
+webhook endpoints, and the live restricted key's `Payment Disputes: Read`
+permission is verified by an authenticated nonexistent-object probe returning
+HTTP 404. Production enables the booking portal, Checkout reservation, API
+rate-limit, and payment-lifecycle foundations. Customer uploads, rescheduling,
+and transactional email remain disabled there.
 
 Production includes the approved Essential Health Check scope wording,
 Electrical Assurance, and independent cleaning. This release retires the
@@ -120,21 +128,32 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
 
 ## Next up
 
-1. Complete the bounded team stress test on `staging`, including Graph email
+1. Apply migration `0006_smiling_devos.sql` to staging, deploy the feature, and
+   complete its UI/data-flow smoke checks before Production promotion.
+2. Apply migration `0006_smiling_devos.sql` to Production before deploying the
+   same code to `main`.
+3. Complete the bounded team stress test on `staging`, including Graph email
    delivery, upload/download, rescheduling, replay, abandoned holds, and
    recovery.
-2. Run a fresh post-Graph-deployment customer and operations delivery test and
+4. Run a fresh post-Graph-deployment customer and operations delivery test and
    reconcile its Preview booking, calendar event, and delivery rows.
-3. Monitor the Production foundation after deployment without enabling uploads,
-   rescheduling, or transactional email and without creating a live test charge.
-4. Rotate the remaining exposed Entra secrets and migrate the mail app to
-   Exchange App RBAC when the tenant upgrade permits it.
-5. Define document malware scanning, retention, deletion, and staff recovery
-   before considering Production activation of customer-facing portal actions.
+5. Monitor the Production foundation without enabling uploads, rescheduling,
+   or transactional email and without creating a live test charge.
 
 ## Session entries
 
 ### 2026-09-04
+
+- Added and QA-approved the `3rd party` installer choice and conditional
+  installer-name field. The existing versioned contact cache restores and
+  clears the name; server validation remains authoritative and discards the
+  value for other installer choices.
+- Propagated the normalized installer through Stripe metadata, durable booking
+  state, calendar context, success/manage pages, and all relevant emails.
+  Historical `other` sessions without a name show an explicit not-recorded
+  label.
+- Added constrained migration `0006_smiling_devos.sql`. Staging and Production
+  migration/deployment are still pending and must run database-first.
 
 - Merged the audited hardening/polish release to `staging` and `main`; the
   stable staging deployment passed banner, guide, calculator, availability,

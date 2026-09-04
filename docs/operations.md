@@ -169,6 +169,38 @@ read permissions have been verified. If either flag is absent, refund/dispute
 events return a retryable 503 rather than silently skipping calendar and access
 cleanup.
 
+## Third-party installer rollout
+
+Migration `0006_smiling_devos.sql` adds `installer_type` and `installer_name`
+to durable bookings. Apply it to each environment before deploying code that
+writes or reads those fields. Verify `NEON_PROJECT_ID` before migration: migrate
+the isolated staging database before the `staging` deployment, and the isolated
+Production database before the `main` deployment. Do not point both environments
+at one database.
+
+The public value `3rd party` is represented internally as `other`. Its installer
+name is required, normalized, and limited to 120 characters before Checkout.
+The name has no price or onboarding effect. Stripe stores it in Checkout Session
+metadata, then fulfilment persists it and includes it in calendar, portal, and
+email context. Names submitted with `fomo` or `rto` are discarded server-side.
+Legacy `other` payments can lack a name and should display `3rd party (name not
+recorded)`; do not edit or infer one during replay.
+
+After each deploy, smoke-test without payment first:
+
+1. Confirm the installer order is FOMO-installed, 3rd party, FOMO rent-to-own.
+2. Confirm `Installer name` appears only for 3rd party and blocks Checkout when
+   empty, whitespace-only, or punctuation-only. Confirm the field limits input
+   to 120 characters; use the automated/API check for a crafted longer value.
+3. Enter a valid installer name, reload, and confirm the existing browser cache
+   restores it; then use `Clear saved details` and confirm it stays empty.
+4. Switch to FOMO-installed and confirm the hidden cached name is not sent or
+   shown as booking context.
+5. In staging, complete one supervised sandbox booking and confirm the same
+   normalized installer appears in Stripe metadata, the durable booking,
+   Microsoft event body, customer/operations email, success page, and manage
+   page. Reconcile the synthetic event and records afterward.
+
 ## Refund and dispute operations
 
 Refunds must be initiated and reviewed in Stripe. The signed webhook applies
@@ -411,9 +443,10 @@ or specialist access equipment. If access cannot be confirmed after payment,
 contact the customer and resolve the cleaning line item manually under the
 current operations policy.
 
-Other-installer first-visit onboarding is not part of online checkout. Do not
-add it manually unless operations can establish that it is applicable and has a
-separate approved collection process.
+Third-party-installer first-visit onboarding is not part of online checkout and
+the installer selection does not change package pricing. Do not add an
+onboarding charge manually unless operations can establish that it is
+applicable and has a separate approved collection process.
 
 ## Troubleshooting
 
