@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import type Stripe from "stripe";
 import type { PaidBookingInput } from "@/lib/portal/bookings";
 import type { MaintenanceVisitInput } from "@/lib/microsoft";
+import {
+  normalizeInstallerName,
+  validInstallerName,
+} from "@/lib/installer";
 
 export class PermanentFulfillmentError extends Error {
   constructor(
@@ -88,10 +92,17 @@ export function paidBookingFromSession(
       "Checkout Session currency is not SGD.",
     );
   }
-  if (metadata(session, "installer") === "rto") {
+  const installerType = requiredMetadata(session, "installer");
+  if (installerType === "rto") {
     throw new PermanentFulfillmentError(
       "rto_not_sellable",
       "A paid rent-to-own Checkout Session requires manual review.",
+    );
+  }
+  if (installerType !== "fomo" && installerType !== "other") {
+    throw new PermanentFulfillmentError(
+      "invalid_installer",
+      "Checkout Session has an unsupported installer.",
     );
   }
 
@@ -123,6 +134,13 @@ export function paidBookingFromSession(
   }
 
   const amounts = money(session);
+  const candidateInstallerName = normalizeInstallerName(
+    metadata(session, "installerName"),
+  );
+  const installerName =
+    installerType === "other" && validInstallerName(candidateInstallerName)
+      ? candidateInstallerName
+      : null;
   return {
     reference: referenceFor(session.id, paidAt),
     stripeCheckoutSessionId: session.id,
@@ -131,6 +149,8 @@ export function paidBookingFromSession(
     customerEmail,
     customerPhone: requiredMetadata(session, "phone"),
     siteAddress: requiredMetadata(session, "address"),
+    installerType,
+    installerName,
     serviceCode: metadata(session, "serviceCode") || "LEGACY",
     packageName:
       metadata(session, "package") ||
@@ -167,6 +187,7 @@ export function maintenanceVisitFromSession(
     slotEnd: requiredMetadata(session, "slotEnd"),
     kwp: metadata(session, "kwp"),
     installer: metadata(session, "installer"),
+    installerName: metadata(session, "installerName"),
     serviceCode: metadata(session, "serviceCode"),
     packageName: metadata(session, "package"),
     breakdown: metadata(session, "breakdown"),

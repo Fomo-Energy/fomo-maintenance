@@ -1,4 +1,5 @@
 import type { Booking } from "@/db/schema";
+import { formatInstaller } from "@/lib/installer";
 import { formatSlotRange } from "@/lib/slots";
 
 export type RenderedEmail = {
@@ -14,6 +15,8 @@ type BookingEmailData = Pick<
   | "customerEmail"
   | "customerPhone"
   | "siteAddress"
+  | "installerType"
+  | "installerName"
   | "serviceCode"
   | "packageName"
   | "kwp"
@@ -50,6 +53,10 @@ function bookingRows(booking: BookingEmailData): EmailRow[] {
   const rows: EmailRow[] = [
     ["Booking reference", booking.reference],
     ["Service", booking.packageName],
+    [
+      "Installer",
+      formatInstaller(booking.installerType, booking.installerName),
+    ],
   ];
   const size = systemSize(booking);
   if (size) rows.push(["System size", size]);
@@ -185,6 +192,10 @@ export function rescheduleCustomerEmail(input: {
   const rows: EmailRow[] = [
     ["Booking reference", booking.reference],
     ["Service", booking.packageName],
+    [
+      "Installer",
+      formatInstaller(booking.installerType, booking.installerName),
+    ],
     ["Previous visit", formatSlotRange(input.previousSlotStart.toISOString(), input.previousSlotEnd.toISOString())],
     ["New visit", formatSlotRange(input.newSlotStart.toISOString(), input.newSlotEnd.toISOString())],
     ["Site address", booking.siteAddress],
@@ -223,6 +234,10 @@ export function rescheduleOperationsEmail(input: {
     ["Customer email", booking.customerEmail],
     ["Customer phone", booking.customerPhone],
     ["Service", booking.packageName],
+    [
+      "Installer",
+      formatInstaller(booking.installerType, booking.installerName),
+    ],
     ["Previous visit", formatSlotRange(input.previousSlotStart.toISOString(), input.previousSlotEnd.toISOString())],
     ["New visit", formatSlotRange(input.newSlotStart.toISOString(), input.newSlotEnd.toISOString())],
     ["Site address", booking.siteAddress],
@@ -261,6 +276,13 @@ export function paymentLifecycleOperationsEmail(input: {
     ["Customer", input.booking.customerName],
     ["Customer email", input.booking.customerEmail],
     ["Service", input.booking.packageName],
+    [
+      "Installer",
+      formatInstaller(
+        input.booking.installerType,
+        input.booking.installerName,
+      ),
+    ],
     ["Visit time", formatSlotRange(input.booking.slotStart.toISOString(), input.booking.slotEnd.toISOString())],
     ["Site address", input.booking.siteAddress],
     [isDispute ? "Disputed amount" : "Refunded amount", money(input.amountCents)],

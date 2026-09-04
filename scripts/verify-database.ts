@@ -14,6 +14,15 @@ async function migrationSql(filename: string): Promise<string> {
   return readFile(path.join(process.cwd(), "db/migrations", filename), "utf8");
 }
 
+const FOUNDATION_MIGRATIONS = [
+  "0000_booking_portal_foundation.sql",
+  "0001_rare_hammerhead.sql",
+  "0002_ancient_chronomancer.sql",
+  "0003_jazzy_firelord.sql",
+  "0004_complete_kree.sql",
+  "0005_heavy_warhawk.sql",
+] as const;
+
 async function verifyDocumentQuotaUpgrade(): Promise<void> {
   const database = new PGlite();
   await database.exec(await migrationSql("0000_booking_portal_foundation.sql"));
@@ -50,16 +59,42 @@ async function verifyDocumentQuotaUpgrade(): Promise<void> {
   await database.close();
 }
 
+async function verifyInstallerUpgrade(): Promise<void> {
+  const database = new PGlite();
+  for (const filename of FOUNDATION_MIGRATIONS) {
+    await database.exec(await migrationSql(filename));
+  }
+  await database.exec(`insert into bookings (
+    reference, stripe_checkout_session_id, customer_name, customer_email,
+    customer_phone, site_address, service_code, package_name,
+    subtotal_cents, gst_cents, total_cents, slot_start, slot_end, paid_at
+  ) values (
+    'FM-INSTALLER-UPGRADE', 'cs_installer_upgrade', 'Historical Booking',
+    'historical@example.com', '+6500000000', 'Historical site', 'ESSENTIAL',
+    'Essential Health Check', 19900, 1791, 21691,
+    '2026-10-05T01:00:00.000Z', '2026-10-05T05:00:00.000Z', now()
+  )`);
+  await database.exec(await migrationSql("0006_smiling_devos.sql"));
+  const migrated = await database.query<{
+    installer_type: string;
+    installer_name: string | null;
+  }>(`select installer_type, installer_name from bookings
+      where stripe_checkout_session_id = 'cs_installer_upgrade'`);
+  assert.deepEqual(
+    migrated.rows[0],
+    { installer_type: "fomo", installer_name: null },
+    "durable historical rows predate the third-party option and must migrate as FOMO-installed without inventing a name",
+  );
+  await database.close();
+}
+
 async function main() {
   await verifyDocumentQuotaUpgrade();
+  await verifyInstallerUpgrade();
   const database = new PGlite();
   for (const filename of [
-    "0000_booking_portal_foundation.sql",
-    "0001_rare_hammerhead.sql",
-    "0002_ancient_chronomancer.sql",
-    "0003_jazzy_firelord.sql",
-    "0004_complete_kree.sql",
-    "0005_heavy_warhawk.sql",
+    ...FOUNDATION_MIGRATIONS,
+    "0006_smiling_devos.sql",
   ]) {
     await database.exec(await migrationSql(filename));
   }
@@ -107,6 +142,87 @@ async function main() {
   );
   const bookingId = inserted.rows[0]?.id;
   assert.ok(bookingId, "valid paid booking should be inserted");
+
+  const installerDefaults = await database.query<{
+    installer_type: string;
+    installer_name: string | null;
+  }>(
+    `select installer_type, installer_name from bookings where id = $1`,
+    [bookingId],
+  );
+  assert.deepEqual(installerDefaults.rows[0], {
+    installer_type: "fomo",
+    installer_name: null,
+  });
+
+  const cloneBookingWithInstaller = (
+    reference: string,
+    checkoutSessionId: string,
+    installerType: string,
+    installerName: string | null,
+  ) =>
+    database.query(
+      `insert into bookings (
+        reference, stripe_checkout_session_id, customer_name, customer_email,
+        customer_phone, site_address, installer_type, installer_name,
+        service_code, package_name, kwp, subtotal_cents, gst_cents,
+        total_cents, slot_start, slot_end, paid_at
+      )
+      select $2, $3, customer_name, customer_email, customer_phone,
+        site_address, $4, $5, service_code, package_name, kwp,
+        subtotal_cents, gst_cents, total_cents, slot_start, slot_end, paid_at
+      from bookings where id = $1`,
+      [bookingId, reference, checkoutSessionId, installerType, installerName],
+    );
+
+  await cloneBookingWithInstaller(
+    "FM-INSTALLER-VALID",
+    "cs_installer_valid",
+    "other",
+    "Solar Partners Pte. Ltd.",
+  );
+  await cloneBookingWithInstaller(
+    "FM-INSTALLER-LEGACY",
+    "cs_installer_legacy",
+    "other",
+    null,
+  );
+  await expectConstraintFailure(
+    () =>
+      cloneBookingWithInstaller(
+        "FM-INSTALLER-INVALID-TYPE",
+        "cs_installer_invalid_type",
+        "unknown",
+        null,
+      ),
+    "installer type must be one of the supported internal values",
+  );
+  await expectConstraintFailure(
+    () =>
+      cloneBookingWithInstaller(
+        "FM-INSTALLER-FORGED-NAME",
+        "cs_installer_forged_name",
+        "fomo",
+        "Not applicable",
+      ),
+    "only third-party bookings may store an installer name",
+  );
+  for (const [suffix, invalidName] of [
+    ["BLANK", ""],
+    ["PADDED", " Solar Partners "],
+    ["OVERLONG", "A".repeat(121)],
+  ] as const) {
+    await expectConstraintFailure(
+      () =>
+        cloneBookingWithInstaller(
+          `FM-INSTALLER-${suffix}`,
+          `cs_installer_${suffix.toLowerCase()}`,
+          "other",
+          invalidName,
+        ),
+      "stored installer names must be normalized and between 1 and 120 characters",
+    );
+  }
 
   await expectConstraintFailure(
     () =>

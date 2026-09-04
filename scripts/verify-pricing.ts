@@ -5,6 +5,12 @@ import {
   quoteForCheckout,
 } from "../lib/booking";
 import {
+  formatInstaller,
+  installerNameForSelection,
+  normalizeInstallerName,
+  validInstallerName,
+} from "../lib/installer";
+import {
   INSTALLERS,
   cleaningPriceSgd,
   electricalUpgradePriceSgd,
@@ -18,8 +24,13 @@ import {
 
 assert.deepEqual(
   INSTALLERS.map((installer) => installer.id),
-  ["fomo", "rto"],
-  "The public calculator must not offer a redundant other-installer option",
+  ["fomo", "other", "rto"],
+  "The public calculator must offer FOMO, third-party and rent-to-own choices",
+);
+assert.equal(
+  INSTALLERS.find((installer) => installer.id === "other")?.label,
+  "3rd party",
+  "the customer-facing option must use the approved 3rd party label while the API uses other",
 );
 
 const matrix = [
@@ -142,6 +153,11 @@ const validCheckout = {
   slotEnd: "2026-09-02T05:00:00.000Z",
 };
 assert.equal(parseCheckoutRequest(validCheckout).serviceLevel, "essential");
+assert.equal(
+  parseCheckoutRequest(validCheckout).installerName,
+  null,
+  "FOMO bookings must not persist an unrelated installer name",
+);
 assert.deepEqual(
   quoteForCheckout(parseCheckoutRequest(validCheckout)).scope,
   [
@@ -193,11 +209,76 @@ assert.throws(
   () => parseCheckoutRequest({ ...validCheckout, serviceLevel: "invalid" }),
   /Choose a service level/,
 );
-assert.throws(
-  () => parseCheckoutRequest({ ...validCheckout, installer: "other" }),
-  /Choose who installed/,
-  "the removed other-installer option must also be rejected by the API parser",
+
+const normalizedThirdPartyCheckout = parseCheckoutRequest({
+  ...validCheckout,
+  installer: "other",
+  installerName: "  ACME\tSolar\r\nPte. Ltd.  ",
+});
+assert.equal(normalizedThirdPartyCheckout.installer, "other");
+assert.equal(normalizedThirdPartyCheckout.installerName, "ACME Solar Pte. Ltd.");
+assert.equal(
+  quoteForCheckout(normalizedThirdPartyCheckout).totalSgd,
+  quoteForCheckout(parseCheckoutRequest(validCheckout)).totalSgd,
+  "installer ownership must not change the maintenance price",
 );
+assert.equal(
+  quoteForCheckout(normalizedThirdPartyCheckout).sellable,
+  true,
+  "third-party systems remain eligible for online booking",
+);
+assert.equal(normalizeInstallerName(null), "");
+assert.equal(normalizeInstallerName(" A\u0000B\n C "), "A B C");
+assert.equal(validInstallerName("光"), true, "one useful character is valid");
+assert.equal(validInstallerName("A".repeat(120)), true);
+assert.equal(validInstallerName("A".repeat(121)), false);
+assert.equal(installerNameForSelection("fomo", "Should be discarded"), null);
+assert.equal(installerNameForSelection("rto", "Should be discarded"), null);
+
+for (const invalidInstallerName of [
+  undefined,
+  null,
+  "",
+  "   \t\r\n ",
+  "--- / () & ...",
+  "A".repeat(121),
+]) {
+  assert.throws(
+    () =>
+      parseCheckoutRequest({
+        ...validCheckout,
+        installer: "other",
+        installerName: invalidInstallerName,
+      }),
+    /Enter the name of the third-party installer/,
+    "third-party installer names must contain a letter or number and fit within 120 characters",
+  );
+}
+
+for (const installer of ["fomo", "rto"] as const) {
+  assert.equal(
+    parseCheckoutRequest({
+      ...validCheckout,
+      installer,
+      installerName: "Untrusted Other Installer",
+    }).installerName,
+    null,
+    "a submitted installer name must be discarded unless 3rd party is selected",
+  );
+}
+
+assert.equal(formatInstaller("fomo", "Ignored"), "FOMO-installed");
+assert.equal(formatInstaller("rto", "Ignored"), "FOMO rent-to-own");
+assert.equal(
+  formatInstaller("other", " ACME\nSolar "),
+  "3rd party — ACME Solar",
+);
+assert.equal(
+  formatInstaller("other", null),
+  "3rd party (name not recorded)",
+  "legacy third-party bookings without a captured name need a truthful fallback",
+);
+assert.equal(formatInstaller(undefined, null), "Not recorded");
 assert.throws(
   () => parseCheckoutRequest({ ...validCheckout, phone: "!!!!!!!!" }),
   /Enter a phone number/,
@@ -251,6 +332,24 @@ assert.equal(
     cleaning: false,
   }).sellable,
   false,
+);
+assert.deepEqual(
+  quote({
+    kwp: 10,
+    installer: "other",
+    serviceLevel: "electrical_assurance",
+    cleaning: true,
+  }),
+  {
+    ...quote({
+      kwp: 10,
+      installer: "fomo",
+      serviceLevel: "electrical_assurance",
+      cleaning: true,
+    }),
+    installer: "other",
+  },
+  "third-party ownership must not alter package, GST, cleaning, scope or service-code behavior",
 );
 
 console.log("verify:pricing passed");

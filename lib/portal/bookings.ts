@@ -38,6 +38,7 @@ import type {
 import { confirmPaidCheckoutSlot } from "@/lib/portal/rescheduling";
 import type { PaymentLifecycleStore } from "@/lib/portal/payment-lifecycle";
 import { PermanentFulfillmentError } from "@/lib/portal/stripe-booking";
+import type { InstallerId } from "@/lib/pricing";
 
 export type PaidBookingInput = {
   reference: string;
@@ -47,6 +48,8 @@ export type PaidBookingInput = {
   customerEmail: string;
   customerPhone: string;
   siteAddress: string;
+  installerType: InstallerId;
+  installerName: string | null;
   serviceCode: string;
   packageName: string;
   kwp: string | null;
@@ -359,6 +362,8 @@ export type ManageBookingView = Pick<
   | "reference"
   | "customerName"
   | "siteAddress"
+  | "installerType"
+  | "installerName"
   | "serviceCode"
   | "packageName"
   | "kwp"
@@ -698,6 +703,8 @@ export async function findManageAccess(token: string): Promise<ManageAccess | nu
         reference: bookings.reference,
         customerName: bookings.customerName,
         siteAddress: bookings.siteAddress,
+        installerType: bookings.installerType,
+        installerName: bookings.installerName,
         serviceCode: bookings.serviceCode,
         packageName: bookings.packageName,
         kwp: bookings.kwp,

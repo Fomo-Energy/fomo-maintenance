@@ -29,6 +29,8 @@ const booking: Booking = {
   customerEmail: "customer@example.com",
   customerPhone: "+65 8000 0000",
   siteAddress: "1 Test Road & Annex, Singapore",
+  installerType: "fomo",
+  installerName: null,
   serviceCode: "ESSENTIAL",
   packageName: "Essential Health Check",
   kwp: "10.000",
@@ -217,6 +219,7 @@ function verifyTemplates() {
   assert.match(customer.text, /S\$17\.91/);
   assert.match(customer.text, /S\$216\.91/);
   assert.match(customer.text, /Monday, 5 October 2026, 09:00–13:00 SGT/);
+  assert.match(customer.text, /Installer: FOMO-installed/);
   assert.match(customer.text, /fake-token-for-rendering-only/);
   assert.doesNotMatch(customer.html, /Customer <Test>/);
   assert.match(customer.html, /Customer &lt;Test&gt;/);
@@ -224,6 +227,7 @@ function verifyTemplates() {
 
   const operations = bookingOperationsEmail(booking);
   assert.match(operations.text, /customer@example\.com/);
+  assert.match(operations.text, /Installer: FOMO-installed/);
   assert.doesNotMatch(
     operations.text + operations.html,
     /fake-token-for-rendering-only/,
@@ -275,6 +279,52 @@ function verifyTemplates() {
   assert.match(dispute.subject, /Payment dispute/);
   assert.match(dispute.text, /Disputed amount: S\$216\.91/);
   assert.match(dispute.text, /dp_test_dispute/);
+
+  const unsafeInstallerName = `<Solar & "Sons" 'Pte'>`;
+  const thirdPartyBooking: Booking = {
+    ...booking,
+    installerType: "other",
+    installerName: unsafeInstallerName,
+  };
+  const thirdPartyCustomer = bookingCustomerEmail(
+    thirdPartyBooking,
+    manageUrl,
+  );
+  const thirdPartyOperations = bookingOperationsEmail(thirdPartyBooking);
+  const thirdPartyReschedule = rescheduleOperationsEmail({
+    booking: thirdPartyBooking,
+    previousSlotStart,
+    previousSlotEnd,
+    newSlotStart,
+    newSlotEnd,
+  });
+  for (const rendered of [
+    thirdPartyCustomer,
+    thirdPartyOperations,
+    thirdPartyReschedule,
+  ]) {
+    assert.match(rendered.text, /Installer: 3rd party — <Solar & "Sons" 'Pte'>/);
+    assert.doesNotMatch(
+      rendered.html,
+      /<Solar & "Sons" 'Pte'>/,
+      "customer-provided installer names must never become raw email HTML",
+    );
+    assert.match(
+      rendered.html,
+      /3rd party — &lt;Solar &amp; &quot;Sons&quot; &#039;Pte&#039;&gt;/,
+    );
+  }
+
+  const legacyThirdPartyBooking: Booking = {
+    ...booking,
+    installerType: "other",
+    installerName: null,
+  };
+  assert.match(
+    bookingCustomerEmail(legacyThirdPartyBooking, manageUrl).text,
+    /Installer: 3rd party \(name not recorded\)/,
+    "legacy third-party bookings without a name need a truthful generic label",
+  );
 
   const historicalTestingBooking = {
     ...booking,

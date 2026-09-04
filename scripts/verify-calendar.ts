@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { calendarIdMatchingName } from "../lib/calendar";
+import { formatInstaller } from "../lib/installer";
 import {
   graphDeletionWasAlreadyComplete,
   splitScheduleRange,
@@ -70,5 +71,17 @@ assert.equal(
 );
 assert.equal(graphDeletionWasAlreadyComplete({ statusCode: "404" }), true);
 assert.equal(graphDeletionWasAlreadyComplete({ statusCode: 503 }), false);
+
+assert.equal(
+  formatInstaller("other", "  Solar\tPartners\r\nPte. Ltd.  "),
+  "3rd party — Solar Partners Pte. Ltd.",
+  "calendar-bound installer text must be normalized to one safe line",
+);
+assert.equal(
+  formatInstaller("other", "---"),
+  "3rd party (name not recorded)",
+  "invalid legacy names must not be echoed into calendar records",
+);
+assert.equal(formatInstaller("fomo", "Forged installer"), "FOMO-installed");
 
 console.log("verify:calendar passed");

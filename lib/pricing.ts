@@ -2,6 +2,7 @@ export type InstallerId = "fomo" | "other" | "rto";
 
 export const INSTALLERS = [
   { id: "fomo", label: "FOMO-installed" },
+  { id: "other", label: "3rd party" },
   { id: "rto", label: "FOMO rent-to-own" },
 ] as const satisfies ReadonlyArray<{ id: InstallerId; label: string }>;
 

@@ -7,6 +7,7 @@ import { bookingPortalEnabled } from "@/lib/portal/config";
 import { QUOTE_EMAIL } from "@/lib/site";
 import { formatSlotRange } from "@/lib/slots";
 import { getStripe } from "@/lib/stripe";
+import { formatInstaller } from "@/lib/installer";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,6 +47,10 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
     const metadata = session.metadata ?? {};
     const address = metadata.address || "—";
     const packageName = metadata.package;
+    const installerLabel = formatInstaller(
+      metadata.installer,
+      metadata.installerName,
+    );
     const calendarStatus =
       portalBooking?.calendarStatus || metadata.calendarStatus || "pending";
     const testing = metadata.testing === "1";
@@ -105,6 +110,12 @@ export default async function BookSuccessPage({ searchParams }: SuccessPageProps
               <dd className="mt-1 font-semibold text-ink">{packageName}</dd>
             </div>
           ) : null}
+          <div>
+            <dt className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+              Installer
+            </dt>
+            <dd className="mt-1 font-semibold text-ink">{installerLabel}</dd>
+          </div>
           <div>
             <dt className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
               Visit time

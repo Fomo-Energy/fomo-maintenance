@@ -89,8 +89,9 @@ npm run verify
 - Electrical Assurance upgrade: `150 + 5 × kWp`
 - Cleaning: `max(450, 390 + 6 × kWp)`
 - Rent-to-own: do not sell; no checkout; no calendar. Point to FOMO Energy support.
-- Other-installer first-visit onboarding is not charged automatically because
-  the app has no durable customer/site visit history. See the rollback register.
+- A 3rd-party installer selection has the same online price as a FOMO-installed
+  system. First-visit onboarding is not charged automatically because the app
+  has no durable customer/site visit history. See the rollback register.
 
 Essential includes checking the inverter area's physical integrity, switching
 and safety mechanisms; electrical checks in the inverter and DB areas; a
@@ -117,16 +118,20 @@ and S$216.91 in total.
 
 Payment success is the only moment a Microsoft calendar event is created. The browser never writes the calendar.
 
-1. Calculator: system kWp, installer, service level, and optional cleaning
-2. Name, phone, email, site address
+1. Calculator: system kWp, installer (`FOMO-installed`, `3rd party`, or `FOMO
+   rent-to-own`), service level, and optional cleaning
+2. Name, phone, email, site address, and—only for `3rd party`—the required
+   installer name
 3. Slot picker: month calendar, next three months of weekdays, 09:00–17:00 Asia/Singapore, four-hour visits (09:00–13:00 and 13:00–17:00), skipping busy times on both the mailbox's primary calendar and the dedicated maintenance calendar
 4. Pay → Stripe Checkout (hosted, pre-GST SGD line items plus 9% GST)
 5. Return URLs on this site: `/book/success?session_id=…` and `/book/cancel`
 
-Contact and site details are saved in versioned browser-local storage as they
-are entered and restored on the next visit in the same browser. The form
-provides a `Clear saved details` control. These saved details are not sent to
-the server until the customer starts Checkout.
+Contact and site details, including a 3rd-party installer name when entered,
+are saved in versioned browser-local storage and restored on the next visit in
+the same browser. The form provides a `Clear saved details` control. These
+saved details are not sent to the server until the customer starts Checkout.
+The saved installer name is not authoritative when another installer option is
+selected.
 
 The most recent system size, installer, service level, and cleaning selection
 are also restored from versioned browser-local storage. Visit times are never
@@ -168,9 +173,10 @@ three-month calendar stays below Graph's 62-day request limit.
 
 When the portal and transactional-email flags are enabled, successful paid
 fulfilment sends the customer a confirmation with the booking reference,
-service, Singapore appointment time, address, pre-GST subtotal, 9% GST, total
-paid, and private manage/upload link. Operations receives the booking and
-customer contact details without the bearer-style manage credential.
+service, installer, Singapore appointment time, address, pre-GST subtotal, 9%
+GST, total paid, and private manage/upload link. Operations receives the
+booking, installer, and customer contact details without the bearer-style
+manage credential.
 
 Completed customer reschedules send old/new appointment times to both parties.
 The database claim is the authoritative duplicate-send guard. Each accepted
@@ -184,7 +190,7 @@ Production. These confirmations are not IRAS tax invoices.
 | Method | Route | Role |
 | --- | --- | --- |
 | `POST` | `/api/availability` | Rate-limits by a keyed digest of the client address, then asks Microsoft Graph for conflicts across the primary and maintenance calendars. Returns free slots. |
-| `POST` | `/api/checkout` | Rate-limits, recomputes the quote/GST, and atomically reserves the chosen slot before Stripe creation. A stable browser request key becomes the database and Stripe idempotency key. The server applies GST and verifies Stripe's returned subtotal, tax, and total. |
+| `POST` | `/api/checkout` | Rate-limits, validates the installer selection and conditional installer name, recomputes the quote/GST, and atomically reserves the chosen slot before Stripe creation. A stable browser request key becomes the database and Stripe idempotency key. The server applies GST and verifies Stripe's returned subtotal, tax, and total. |
 | `POST` | `/api/stripe/webhook` | Verifies `Stripe-Signature`, advances Checkout reservation/payment events, and fulfils paid bookings durably when the portal foundation is enabled. Full refunds cancel the Graph event, revoke access, and release the slot; partial refunds and disputes retain the visit and create an operations alert when email is enabled. |
 | `POST` | `/api/manage/session` | Same-origin exchange of the manage-link fragment credential for a secure HttpOnly cookie. |
 | `GET` | `/manage` | Private, non-indexed read-only view of the current paid booking. Requires the valid manage cookie. |
@@ -193,11 +199,31 @@ Production. These confirmations are not IRAS tax invoices.
 | `GET` | `/api/manage/reschedule/availability` | Returns authenticated replacement slots after combining bounded Microsoft availability with active database reservations. |
 | `POST` | `/api/manage/reschedule` | Enforces the cutoff/count policy, holds the new slot, idempotently updates the existing Graph event, and commits the booking change. |
 
+Installer fields in the `POST /api/checkout` JSON body are:
+
+```json
+{
+  "installer": "other",
+  "installerName": "Example Solar Pte Ltd"
+}
+```
+
+`installer` is `fomo`, `other`, or `rto`. `installerName` is required only when
+`installer` is `other`; after normalization it must be 1–120 characters and
+contain a letter or number. It is discarded for the other selections. A
+successful request returns
+`{ "url": string | null, "id": string }`; validation errors return
+`{ "error": string }` with HTTP 400, while slot contention returns HTTP 409.
+
 Helpers: `lib/stripe.ts`, `lib/microsoft.ts` (client-credentials token + `@microsoft/microsoft-graph-client`).
 
 Checkout metadata includes pricing version, service code, service level, kWp,
-installer, cleaning status, bounded pricing/GST breakdown and scope,
-customer/site details, slot, and final GST-inclusive amount in SGD cents.
+installer, a conditional `installerName`, cleaning status, bounded pricing/GST
+breakdown and scope, customer/site details, slot, and final GST-inclusive amount
+in SGD cents. The server normalizes and validates a 3rd-party name to 1–120
+characters containing a letter or number; it discards the name for every other
+installer selection. A legacy paid session can identify an `other` installer
+without a recorded name and is displayed as such rather than guessed.
 Legacy monitoring and Testing compatibility fields remain fixed to not
 requested so older webhook records stay compatible. New requests that attempt
 to select the retired Testing checkout are rejected server-side.
@@ -208,9 +234,10 @@ Calendar event (webhook only, written to the dedicated maintenance calendar):
   sessions retain the previous Fomo Maintenance visit label
 - Location: site address
 - Attendees: customer email
-- Body: service package, kWp, pricing breakdown, operational scope and
-  exclusions, cleaning/monitoring confirmation statuses, customer/site details,
-  amount paid, and Stripe session id
+- Body: service package, installer and any recorded 3rd-party installer name,
+  kWp, pricing breakdown, operational scope and exclusions,
+  cleaning/monitoring confirmation statuses, customer/site details, amount
+  paid, and Stripe session id
 
 If Graph fails, the webhook retries once, records
 `calendarStatus=failed`, and returns a retryable error to Stripe. The Graph event
