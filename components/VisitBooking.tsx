@@ -14,6 +14,10 @@ import {
   yearMonthFromDateKey,
   type VisitSlot,
 } from "@/lib/slots";
+import {
+  normalizeInstallerName,
+  validInstallerName,
+} from "@/lib/installer";
 
 type VisitBookingProps = {
   kwp: number;
@@ -28,6 +32,7 @@ type FieldState = {
   phone: string;
   email: string;
   address: string;
+  installerName: string;
 };
 
 type TouchedFields = Partial<Record<keyof FieldState, boolean>>;
@@ -37,12 +42,16 @@ const EMPTY_FIELDS: FieldState = {
   phone: "",
   email: "",
   address: "",
+  installerName: "",
 };
 
 const SAVED_DETAILS_STORAGE_KEY = "fomo-maintenance:booking-details:v1";
 const PHONE_PATTERN = /^\+?[\d\s()-]+$/;
 
-function validateFields(fields: FieldState): Partial<Record<keyof FieldState, string>> {
+function validateFields(
+  fields: FieldState,
+  installer: InstallerId,
+): Partial<Record<keyof FieldState, string>> {
   const errors: Partial<Record<keyof FieldState, string>> = {};
   if (!fields.name.trim()) {
     errors.name = "Enter your name.";
@@ -56,6 +65,12 @@ function validateFields(fields: FieldState): Partial<Record<keyof FieldState, st
   }
   if (fields.address.trim().length < 5) {
     errors.address = "Enter the address where the visit will happen.";
+  }
+  if (
+    installer === "other" &&
+    !validInstallerName(normalizeInstallerName(fields.installerName))
+  ) {
+    errors.installerName = "Enter the name of the third-party installer.";
   }
   return errors;
 }
@@ -81,8 +96,12 @@ function parseSavedFields(value: string | null): FieldState | null {
       typeof parsed.email === "string" ? parsed.email.slice(0, 254) : "";
     const address =
       typeof parsed.address === "string" ? parsed.address.slice(0, 500) : "";
+    const installerName =
+      typeof parsed.installerName === "string"
+        ? parsed.installerName.slice(0, 120)
+        : "";
 
-    return { name, phone, email, address };
+    return { name, phone, email, address, installerName };
   } catch {
     return null;
   }
@@ -194,7 +213,7 @@ export function VisitBooking({
   );
 
   const selected = slots.find((slot) => slot.start === selectedStart) ?? null;
-  const fieldErrors = validateFields(fields);
+  const fieldErrors = validateFields(fields, installer);
 
   function chooseDate(dateKey: string) {
     setSelectedDateKey(dateKey);
@@ -236,7 +255,13 @@ export function VisitBooking({
       return;
     }
     if (!contactComplete) {
-      setTouchedFields({ name: true, phone: true, email: true, address: true });
+      setTouchedFields({
+        name: true,
+        phone: true,
+        email: true,
+        address: true,
+        ...(installer === "other" ? { installerName: true } : {}),
+      });
       setPayError("Complete all required contact and site fields.");
       return;
     }
@@ -258,6 +283,7 @@ export function VisitBooking({
         body: JSON.stringify({
           kwp,
           installer,
+          installerName: fields.installerName,
           serviceLevel,
           cleaning,
           monitoring: false,
@@ -409,6 +435,44 @@ export function VisitBooking({
             </span>
           ) : null}
         </label>
+        {installer === "other" ? (
+          <label className="text-sm font-semibold">
+            Installer name
+            <input
+              required
+              name="installerName"
+              autoComplete="organization"
+              maxLength={120}
+              aria-invalid={Boolean(
+                touchedFields.installerName && fieldErrors.installerName,
+              )}
+              aria-describedby={`booking-completion${
+                touchedFields.installerName && fieldErrors.installerName
+                  ? " booking-installer-name-error"
+                  : ""
+              }`}
+              value={fields.installerName}
+              onChange={(event) =>
+                update("installerName", event.target.value)
+              }
+              onBlur={() => touch("installerName")}
+              className={`mt-1 w-full rounded-xl border px-4 py-3 font-normal outline-none ring-brand focus:ring-2 ${
+                touchedFields.installerName && fieldErrors.installerName
+                  ? "border-red-500"
+                  : "border-slate-200"
+              }`}
+            />
+            {touchedFields.installerName && fieldErrors.installerName ? (
+              <span
+                id="booking-installer-name-error"
+                className="mt-1 block text-xs font-normal text-red-700"
+                role="alert"
+              >
+                {fieldErrors.installerName}
+              </span>
+            ) : null}
+          </label>
+        ) : null}
         <label className="text-sm font-semibold">
           Site address
           <textarea

@@ -4,6 +4,28 @@ Status: Current
 
 ## 2026-09-04
 
+- Added `3rd party` to the installer choices. Selecting it reveals a required,
+  locally cached installer-name field in Contact details; the server normalizes
+  and validates the name without changing package pricing or adding an
+  onboarding fee.
+- Added the normalized installer type/name to Stripe metadata, durable booking
+  records, Microsoft calendar context, success/manage pages, and customer and
+  operations email. Legacy 3rd-party payments without a name remain replayable
+  and display an explicit not-recorded label.
+- Added migration `0006_smiling_devos.sql` with installer type/name constraints;
+  it must be applied separately to staging and Production before their code
+  deployments.
+
+- Merged and deployed the audited hardening/polish release to both the stable
+  `staging` branch and Production. Applied migration `0005` to both isolated
+  Neon databases and configured six-event Stripe webhook endpoints in sandbox
+  and live modes.
+- Verified the live restricted Stripe key's dispute-read permission, then
+  enabled only the Production booking portal, Checkout reservation, public API
+  rate-limit, and payment-lifecycle foundations. Customer uploads,
+  rescheduling, and transactional email remain disabled in Production; the
+  rollout created no live Checkout or payment.
+
 - Polished the calculator and portal without changing their overall flow:
   quote selections and contact details restore from versioned browser storage,
   visit times remain fresh, the Pay action waits for valid contact details and

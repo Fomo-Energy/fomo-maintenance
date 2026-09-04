@@ -125,6 +125,7 @@ async function handlePaidCheckout(session: Stripe.Checkout.Session) {
       slotEnd,
       kwp: meta(session, "kwp"),
       installer,
+      installerName: meta(session, "installerName"),
       serviceCode: meta(session, "serviceCode"),
       packageName: meta(session, "package"),
       breakdown: meta(session, "breakdown"),

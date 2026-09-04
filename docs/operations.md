@@ -169,6 +169,38 @@ read permissions have been verified. If either flag is absent, refund/dispute
 events return a retryable 503 rather than silently skipping calendar and access
 cleanup.
 
+## Third-party installer rollout
+
+Migration `0006_smiling_devos.sql` adds `installer_type` and `installer_name`
+to durable bookings. Apply it to each environment before deploying code that
+writes or reads those fields. Verify `NEON_PROJECT_ID` before migration: migrate
+the isolated staging database before the `staging` deployment, and the isolated
+Production database before the `main` deployment. Do not point both environments
+at one database.
+
+The public value `3rd party` is represented internally as `other`. Its installer
+name is required, normalized, and limited to 120 characters before Checkout.
+The name has no price or onboarding effect. Stripe stores it in Checkout Session
+metadata, then fulfilment persists it and includes it in calendar, portal, and
+email context. Names submitted with `fomo` or `rto` are discarded server-side.
+Legacy `other` payments can lack a name and should display `3rd party (name not
+recorded)`; do not edit or infer one during replay.
+
+After each deploy, smoke-test without payment first:
+
+1. Confirm the installer order is FOMO-installed, 3rd party, FOMO rent-to-own.
+2. Confirm `Installer name` appears only for 3rd party and blocks Checkout when
+   empty, whitespace-only, or punctuation-only. Confirm the field limits input
+   to 120 characters; use the automated/API check for a crafted longer value.
+3. Enter a valid installer name, reload, and confirm the existing browser cache
+   restores it; then use `Clear saved details` and confirm it stays empty.
+4. Switch to FOMO-installed and confirm the hidden cached name is not sent or
+   shown as booking context.
+5. In staging, complete one supervised sandbox booking and confirm the same
+   normalized installer appears in Stripe metadata, the durable booking,
+   Microsoft event body, customer/operations email, success page, and manage
+   page. Reconcile the synthetic event and records afterward.
+
 ## Refund and dispute operations
 
 Refunds must be initiated and reviewed in Stripe. The signed webhook applies
@@ -338,6 +370,17 @@ credential, private-JPEG, and supervised-reschedule path. The full boundary,
 content-type, concurrency, failure-recovery, notification, and Production
 checklist still applies:
 
+Execution record (2026-09-04): migration `0005` is applied to both isolated
+Neon projects. The sandbox and live Stripe webhook endpoints subscribe to the
+required six events, and the live restricted key's dispute-read permission was
+confirmed by an authenticated nonexistent-object request returning HTTP 404.
+Production enables `BOOKING_PORTAL_ENABLED`,
+`CHECKOUT_RESERVATIONS_ENABLED`, `API_RATE_LIMITING_ENABLED`, and
+`PAYMENT_LIFECYCLE_ENABLED`. Production continues to omit
+`DOCUMENT_UPLOADS_ENABLED`, `RESCHEDULING_ENABLED`, and
+`TRANSACTIONAL_EMAIL_ENABLED`. No live Checkout or payment was created during
+the rollout.
+
 1. Provision separate Neon Preview and Production databases through the Vercel Marketplace.
 2. Pull its environment variables into `.env.local` without committing them.
 3. Review every file in `db/migrations/`, including the Part 4 document-quota
@@ -400,9 +443,10 @@ or specialist access equipment. If access cannot be confirmed after payment,
 contact the customer and resolve the cleaning line item manually under the
 current operations policy.
 
-Other-installer first-visit onboarding is not part of online checkout. Do not
-add it manually unless operations can establish that it is applicable and has a
-separate approved collection process.
+Third-party-installer first-visit onboarding is not part of online checkout and
+the installer selection does not change package pricing. Do not add an
+onboarding charge manually unless operations can establish that it is
+applicable and has a separate approved collection process.
 
 ## Troubleshooting
 

@@ -4,17 +4,25 @@ Status: Current
 
 ## Current state
 
-As of 2026-09-04, the hardening and polish release is QA-approved on
-`juliustanch/hardening-polish-staging`. It adds database-first Checkout holds,
-public API limits, full Checkout/refund/dispute lifecycle handling, baseline
-security headers, mobile and validation polish, and the refreshed staging-only
-operations guide. Preview migration `0005` is applied to the isolated staging
-Neon project and the three new staging activation flags are configured. The
-code is not yet merged or deployed. Matching six-event Stripe webhook edits and
-the live restricted-key dispute permission are prepared but deliberately not
-saved pending action-time owner confirmation. Production has a distinct,
-unmigrated Neon database and customer uploads, rescheduling, and transactional
-email remain disabled there.
+As of 2026-09-04, the QA-approved 3rd-party installer release is ready for
+database-first promotion. It adds a public `3rd party` choice, a conditional
+required installer-name field, server-authoritative normalization/validation,
+and consistent installer context in Stripe, durable bookings, Microsoft
+calendar, portal pages, and email. Migration `0006_smiling_devos.sql` still
+needs to be applied to each isolated Neon database before deploying the matching
+`staging` and `main` code. Package pricing and the deferred onboarding policy do
+not change.
+
+The previously deployed hardening and polish release adds database-first
+Checkout holds, public API limits, full Checkout/refund/dispute lifecycle
+handling, baseline security headers, mobile and validation polish, and the
+refreshed staging-only operations guide. Migration `0005` is applied to the
+isolated staging and Production Neon projects. Both Stripe modes have six-event
+webhook endpoints, and the live restricted key's `Payment Disputes: Read`
+permission is verified by an authenticated nonexistent-object probe returning
+HTTP 404. Production enables the booking portal, Checkout reservation, API
+rate-limit, and payment-lifecycle foundations. Customer uploads, rescheduling,
+and transactional email remain disabled there.
 
 Production includes the approved Essential Health Check scope wording,
 Electrical Assurance, and independent cleaning. This release retires the
@@ -103,12 +111,12 @@ policy is the current mailbox boundary; migrate it to App RBAC after the
 upgrade. The previously exposed calendar and earlier mail-app secrets still
 require coordinated rotation without interrupting their consumers.
 
-The current shared feature branch also includes a server-gated operations guide
-for the stable `staging` Preview. It explains the sandbox-payment versus real
-calendar/email boundary, recipient routing, manage/upload/reschedule flow, and
-manual recovery limits. Targeted environment, rendered-content, and TypeScript
-checks pass locally. It also removes the public Testing product and adds a fixed
-red staging warning banner; it is not yet merged or deployed.
+The stable `staging` Preview now includes the server-gated operations guide. It
+explains the sandbox-payment versus real calendar/email boundary, recipient
+routing, manage/upload/reschedule flow, current request limits, and the latest
+refund/dispute recovery behavior. It also removes the public Testing product
+and displays the fixed red staging warning banner. Production renders neither
+the guide nor the warning.
 
 Production is now served at `https://maintenance.fomo.energy`, with a DNS-only
 Cloudflare CNAME to Vercel and `NEXT_PUBLIC_SITE_URL` set to the custom origin.
@@ -120,21 +128,45 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
 
 ## Next up
 
-1. Merge the approved release to `staging`, wait for CI/Vercel, and smoke-test
-   its banner, guide, calculator, API headers, and portal boundary.
-2. With action-time owner confirmation, save the six-event sandbox webhook and
-   then run a controlled sandbox lifecycle check.
-3. Migrate the distinct Production database, merge `staging` to `main`, save
-   the live Stripe webhook/key changes, enable only the production foundation
-   flags, and verify `maintenance.fomo.energy`.
-4. Continue the bounded team stress test, including Graph email delivery,
-   upload/download, rescheduling, replay, abandoned holds, and recovery.
-5. Rotate the remaining exposed Entra secrets and migrate the mail app to
-   Exchange App RBAC when the tenant upgrade permits it.
+1. Apply migration `0006_smiling_devos.sql` to staging, deploy the feature, and
+   complete its UI/data-flow smoke checks before Production promotion.
+2. Apply migration `0006_smiling_devos.sql` to Production before deploying the
+   same code to `main`.
+3. Complete the bounded team stress test on `staging`, including Graph email
+   delivery, upload/download, rescheduling, replay, abandoned holds, and
+   recovery.
+4. Run a fresh post-Graph-deployment customer and operations delivery test and
+   reconcile its Preview booking, calendar event, and delivery rows.
+5. Monitor the Production foundation without enabling uploads, rescheduling,
+   or transactional email and without creating a live test charge.
 
 ## Session entries
 
 ### 2026-09-04
+
+- Added and QA-approved the `3rd party` installer choice and conditional
+  installer-name field. The existing versioned contact cache restores and
+  clears the name; server validation remains authoritative and discards the
+  value for other installer choices.
+- Propagated the normalized installer through Stripe metadata, durable booking
+  state, calendar context, success/manage pages, and all relevant emails.
+  Historical `other` sessions without a name show an explicit not-recorded
+  label.
+- Added constrained migration `0006_smiling_devos.sql`. Staging and Production
+  migration/deployment are still pending and must run database-first.
+
+- Merged the audited hardening/polish release to `staging` and `main`; the
+  stable staging deployment passed banner, guide, calculator, availability,
+  security-header, and portal-boundary smoke checks.
+- Applied migration `0005` to both isolated Neon environments after verifying
+  each project identity. Saved six-event Stripe webhook endpoints for sandbox
+  and live modes.
+- Granted the live restricted Stripe key `Payment Disputes: Read` and verified
+  the permission through the API without reading or recording the key value.
+- Enabled only the Production booking portal, Checkout reservation, public API
+  rate-limit, and payment-lifecycle flags. Uploads, rescheduling, and
+  transactional email remain disabled in Production; no live Checkout or
+  payment was created during rollout.
 
 - Completed independent QA/QC and UI/UX audits of the customer journey,
   server-authoritative pricing, Stripe lifecycle, Microsoft calendar flow,

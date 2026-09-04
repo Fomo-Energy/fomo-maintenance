@@ -211,6 +211,9 @@ export async function POST(request: Request) {
         pricingVersion: "packages-v3-gst",
         kwp: String(quoted.kwp),
         installer: quoted.installer,
+        ...(parsed.installerName
+          ? { installerName: parsed.installerName }
+          : {}),
         serviceCode: quoted.serviceCode,
         serviceLevel: quoted.serviceLevel,
         package: quoted.packageName,
