@@ -53,7 +53,7 @@ export function formatInstaller(
     const normalizedName = normalizeInstallerName(installerName);
     return validInstallerName(normalizedName)
       ? `3rd party — ${normalizedName}`
-      : "3rd party";
+      : "3rd party (name not recorded)";
   }
   return "Not recorded";
 }

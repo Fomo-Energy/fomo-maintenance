@@ -9,7 +9,7 @@ const flowSteps = [
   {
     title: "The signed webhook fulfils the booking",
     detail:
-      "After Stripe reports a paid session, the app saves the booking in the staging database, confirms the slot, creates the manage link, and writes a real event to the currently configured Microsoft maintenance calendar.",
+      "After Stripe reports a paid session, the app saves the booking in the staging database, confirms the slot, creates the manage link, and writes a real event to the currently configured Microsoft maintenance calendar. For a 3rd-party system, the installer name is carried from Stripe metadata into the booking, calendar event, confirmation emails, success page, and Manage Booking view.",
   },
   {
     title: "Microsoft Graph sends both confirmations",
