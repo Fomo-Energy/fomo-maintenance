@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   DocumentPolicyError,
   MAX_DOCUMENT_SIZE_BYTES,
@@ -17,6 +18,21 @@ function expectPolicyCode(operation: () => unknown, code: string) {
 }
 
 function main() {
+  const uploadPanelSource = readFileSync(
+    new URL("../components/DocumentUploadPanel.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.equal(
+    /onUploadProgress\s*[:(]/.test(uploadPanelSource),
+    false,
+    "private client uploads must use the Blob SDK fetch transport, not its stalled XHR progress transport",
+  );
+  assert.match(
+    uploadPanelSource,
+    /abortSignal:\s*uploadController\.signal/,
+    "private client uploads must have a bounded abort signal",
+  );
+
   const valid = validateDocumentUpload({
     pathname,
     category: "sld",

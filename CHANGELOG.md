@@ -4,6 +4,10 @@ Status: Current
 
 ## 2026-09-04
 
+- Fixed private customer document uploads hanging at 0% in Chrome. The upload
+  client no longer enables the Blob SDK 2.8 progress callback that selects its
+  stalled XHR transport; it uses the fetch transport and now aborts with a
+  customer-visible error after three minutes instead of waiting indefinitely.
 - Added `3rd party` to the installer choices. Selecting it reveals a required,
   locally cached installer-name field in Contact details; the server normalizes
   and validates the name without changing package pricing or adding an
