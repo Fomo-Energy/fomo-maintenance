@@ -8,7 +8,7 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.stripe.com https://*.link.com https://*.blob.vercel-storage.com",
+  "connect-src 'self' https://*.stripe.com https://*.link.com https://vercel.com https://*.blob.vercel-storage.com",
   "frame-src https://*.stripe.com https://*.link.com",
   "form-action 'self' https://*.stripe.com",
   "object-src 'none'",

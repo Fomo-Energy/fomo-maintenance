@@ -22,11 +22,6 @@ function main() {
     new URL("../components/DocumentUploadPanel.tsx", import.meta.url),
     "utf8",
   );
-  assert.equal(
-    /onUploadProgress\s*[:(]/.test(uploadPanelSource),
-    false,
-    "private client uploads must use the Blob SDK fetch transport, not its stalled XHR progress transport",
-  );
   assert.match(
     uploadPanelSource,
     /abortSignal:\s*uploadController\.signal/,

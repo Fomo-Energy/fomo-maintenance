@@ -4,11 +4,12 @@ Status: Current
 
 ## Current state
 
-The staging private-document client no longer uses Blob SDK 2.8's stalled XHR
-progress transport. It now uses the fetch transport with a three-minute timeout;
-the deployed upload and authenticated-download path is being reverified before
-this fix is promoted to Production. Existing abandoned staging upload intents
-remain pending until the documented one-hour quota-release path runs.
+The staging private-document fix allows Blob SDK 2.8's
+`https://vercel.com/api/blob` endpoint in the site's `connect-src` policy and
+adds a three-minute client timeout. The deployed upload and
+authenticated-download path is being reverified before this fix is promoted to
+Production. Existing abandoned staging upload intents remain pending until the
+documented one-hour quota-release path runs.
 
 As of 2026-09-04, the QA-approved 3rd-party installer release is ready for
 database-first promotion. It adds a public `3rd party` choice, a conditional
@@ -154,9 +155,11 @@ secret, sandbox Stripe, and feature settings are confined to `staging`.
   ordinary Chrome session. Token issuance succeeded and created pending
   placeholders, but Blob received no completion callback and Vercel reported
   no 4xx/5xx runtime error.
-- Traced the 0% stall to `onUploadProgress`, which makes Blob SDK 2.8 use its
-  XHR upload path. Removed that option so the SDK uses fetch, and added a
-  three-minute abort timeout plus customer-visible failure copy.
+- Traced the 0% stall to the Content Security Policy: Blob SDK 2.8 uploads
+  through `https://vercel.com/api/blob`, while `connect-src` allowed only the
+  final object-storage host. Added the missing API origin, retained progress
+  reporting, and added a three-minute timeout plus customer-visible failure
+  copy.
 - Added and QA-approved the `3rd party` installer choice and conditional
   installer-name field. The existing versioned contact cache restores and
   clears the name; server validation remains authoritative and discards the

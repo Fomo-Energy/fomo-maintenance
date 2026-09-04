@@ -476,13 +476,13 @@ applicable and has a separate approved collection process.
 - A `TESTING` event is present: validate its Stripe session and webhook result,
   then delete the calendar event. No customer service should be dispatched.
 - A document stays at `Uploading 0%` and its placeholder remains `Processing`:
-  confirm the deployed client does not pass `onUploadProgress` to
-  `@vercel/blob/client`. With Blob SDK 2.8 that option selects the XHR transport,
-  which stalled before sending bytes to the private cross-origin store during
-  the 2026-09-04 staging incident. The supported implementation uses the SDK's
-  fetch transport and a three-minute abort timeout. Pending placeholders from
-  an interrupted attempt remain inactive and release their quota after one
-  hour when the next upload is reserved.
+  confirm the Content Security Policy includes `https://vercel.com` in
+  `connect-src`. Blob SDK 2.8 sends client-upload requests to
+  `https://vercel.com/api/blob`; allowing only the final
+  `*.blob.vercel-storage.com` object host blocks the transfer before Blob can
+  receive it. The client also has a three-minute abort timeout. Pending
+  placeholders from an interrupted attempt remain inactive and release their
+  quota after one hour when the next upload is reserved.
 
 ## Rollback
 

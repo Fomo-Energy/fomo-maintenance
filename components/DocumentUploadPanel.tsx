@@ -19,6 +19,7 @@ export default function DocumentUploadPanel({
   const router = useRouter();
   const [category, setCategory] = useState<DocumentCategory>("sld");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
 
   const limitReached = currentCount >= MAX_DOCUMENTS_PER_BOOKING;
@@ -44,6 +45,7 @@ export default function DocumentUploadPanel({
     }
 
     setBusy(true);
+    setProgress(0);
     setMessage("Preparing secure upload…");
     const uploadController = new AbortController();
     const uploadTimeout = window.setTimeout(
@@ -65,9 +67,10 @@ export default function DocumentUploadPanel({
           contentType,
           sizeBytes: file.size,
         }),
-        // Do not add onUploadProgress here. In @vercel/blob 2.8 it selects the
-        // XHR transport, which stalls on this private cross-origin Blob upload.
-        // Without it, the SDK uses the working fetch transport.
+        onUploadProgress({ percentage }) {
+          setProgress(Math.round(percentage));
+          setMessage(`Uploading securely… ${Math.round(percentage)}%`);
+        },
       });
       form.reset();
       setCategory("sld");
@@ -126,7 +129,7 @@ export default function DocumentUploadPanel({
         disabled={busy || limitReached}
         className="cta-pill px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? "Uploading securely…" : "Upload document"}
+        {busy ? `Uploading ${progress}%` : "Upload document"}
       </button>
       <p className="text-sm leading-6 text-slate-500">
         PDF, PNG, or JPEG; maximum 20 MB each and 10 documents per booking.

@@ -16,6 +16,11 @@ async function main() {
   assert.match(csp, /frame-ancestors 'none'/);
   assert.match(csp, /https:\/\/\*\.stripe\.com/);
   assert.match(csp, /https:\/\/\*\.blob\.vercel-storage\.com/);
+  assert.match(
+    csp,
+    /https:\/\/vercel\.com/,
+    "client Blob uploads require the Vercel Blob API origin in connect-src",
+  );
   assert.equal(headers.get("x-content-type-options"), "nosniff");
   assert.equal(headers.get("x-frame-options"), "DENY");
   assert.equal(
