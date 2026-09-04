@@ -8,10 +8,12 @@ As of 2026-09-04, the 3rd-party installer release, database migrations, and
 hardening/polish work are deployed to both `staging` and Production. Staging
 uses sandbox Stripe plus its isolated Neon and Blob resources, with customer
 portal, uploads, rescheduling, and Microsoft Graph transactional email enabled.
-Its fresh end-to-end booking, email, private document, download, and reschedule
-cycle passed. Production uses live Stripe and its isolated database; uploads,
-rescheduling, and transactional email remain disabled while the team stress
-tests staging.
+Its fresh end-to-end booking, email, calendar, and reschedule cycle passed. A
+subsequent manual reproduction confirmed that the private document client
+stalled at 0% because Blob SDK 2.8 selected its XHR transport when progress was
+enabled. The client-side fetch-transport fix is being verified on staging.
+Production uses live Stripe and its isolated database; uploads, rescheduling,
+and transactional email remain disabled while the team stress tests staging.
 
 Both environments now use the dedicated `Fomo Maintenance` secondary calendar
 owned by the shared `service@fomo.energy` mailbox rather than a personal
@@ -41,6 +43,13 @@ test deployment follows `staging`.
 
 ### 2026-09-04
 
+- Reproduced the customer document-upload hang in both Computer Use and an
+  ordinary Chrome session. Token issuance succeeded and created pending
+  placeholders, but Blob received no completed upload callback and Vercel had
+  no 4xx/5xx runtime error.
+- Traced the 0% stall to `onUploadProgress`, which makes Blob SDK 2.8 use its
+  XHR upload path. Removed that option so the SDK uses fetch, and added a
+  three-minute abort timeout plus customer-visible failure copy.
 - Created a dedicated `Fomo Maintenance` secondary calendar under the shared
   `service@fomo.energy` mailbox and resolved its exact Graph ID.
 - Updated the Vercel Microsoft calendar mailbox for all deployment profiles,

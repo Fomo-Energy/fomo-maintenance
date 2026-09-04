@@ -19,7 +19,6 @@ export default function DocumentUploadPanel({
   const router = useRouter();
   const [category, setCategory] = useState<DocumentCategory>("sld");
   const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState("");
 
   const limitReached = currentCount >= MAX_DOCUMENTS_PER_BOOKING;
@@ -45,35 +44,47 @@ export default function DocumentUploadPanel({
     }
 
     setBusy(true);
-    setProgress(0);
     setMessage("Preparing secure upload…");
+    const uploadController = new AbortController();
+    const uploadTimeout = window.setTimeout(
+      () => uploadController.abort(),
+      3 * 60 * 1_000,
+    );
     try {
       const contentType = file.type as DocumentContentType;
       const pathname = `booking-documents/${crypto.randomUUID()}.${extensionForContentType(contentType)}`;
+      setMessage("Uploading securely…");
       await upload(pathname, file, {
         access: "private",
         handleUploadUrl: "/api/manage/documents/upload",
         contentType,
+        abortSignal: uploadController.signal,
         clientPayload: JSON.stringify({
           category,
           originalFilename: file.name,
           contentType,
           sizeBytes: file.size,
         }),
-        onUploadProgress({ percentage }) {
-          setProgress(Math.round(percentage));
-          setMessage(`Uploading securely… ${Math.round(percentage)}%`);
-        },
+        // Do not add onUploadProgress here. In @vercel/blob 2.8 it selects the
+        // XHR transport, which stalls on this private cross-origin Blob upload.
+        // Without it, the SDK uses the working fetch transport.
       });
       form.reset();
       setCategory("sld");
       setMessage("Upload received. Refreshing your document list…");
       window.setTimeout(() => router.refresh(), 750);
-    } catch {
+    } catch (error) {
+      console.error("[fomo-maintenance] document upload failed", {
+        name: error instanceof Error ? error.name : "unknown_error",
+        message: error instanceof Error ? error.message : "Unknown upload error",
+      });
       setMessage(
-        "The upload did not complete. Confirm the file type and size, then try again.",
+        uploadController.signal.aborted
+          ? "The upload timed out and was not completed. Check your connection, then try again."
+          : "The upload did not complete. Confirm the file type and size, then try again.",
       );
     } finally {
+      window.clearTimeout(uploadTimeout);
       setBusy(false);
     }
   }
@@ -115,7 +126,7 @@ export default function DocumentUploadPanel({
         disabled={busy || limitReached}
         className="cta-pill px-6 py-3 text-sm disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? `Uploading ${progress}%` : "Upload document"}
+        {busy ? "Uploading securely…" : "Upload document"}
       </button>
       <p className="text-sm leading-6 text-slate-500">
         PDF, PNG, or JPEG; maximum 20 MB each and 10 documents per booking.

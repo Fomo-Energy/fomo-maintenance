@@ -4,6 +4,10 @@ Status: Current
 
 ## 2026-09-04
 
+- Fixed private customer document uploads hanging at 0% in Chrome. The upload
+  client no longer enables the Blob SDK 2.8 progress callback that selects its
+  stalled XHR transport; it uses the fetch transport and now aborts with a
+  customer-visible error after three minutes instead of waiting indefinitely.
 - Moved the maintenance booking calendar from `jtan@fomo.energy` to a dedicated
   `Fomo Maintenance` secondary calendar owned by the shared
   `service@fomo.energy` mailbox. Staging and Production now bind to its exact
