@@ -19,6 +19,11 @@ import {
   type LifecyclePaymentStatus,
   type PaymentLifecycleStore,
 } from "@/lib/portal/payment-lifecycle";
+import {
+  maintenanceVisitFromSession,
+  paidBookingFromSession,
+  PermanentFulfillmentError,
+} from "@/lib/portal/stripe-booking";
 
 const paidAt = new Date("2026-09-02T03:32:00.000Z");
 
@@ -82,6 +87,17 @@ function checkoutSession(
     },
     ...overrides,
   } as Stripe.Checkout.Session;
+}
+
+function checkoutSessionWithMetadata(
+  metadata: Record<string, string>,
+  overrides: Partial<Stripe.Checkout.Session> = {},
+): Stripe.Checkout.Session {
+  const base = checkoutSession();
+  return checkoutSession({
+    ...overrides,
+    metadata: { ...base.metadata, ...metadata },
+  });
 }
 
 class MemoryStore implements FulfillmentStore {
@@ -254,6 +270,95 @@ async function verifyIdempotentFulfillment() {
   assert.equal(store.booking?.fulfillmentStatus, "complete");
 }
 
+function verifyInstallerSessionMapping() {
+  const thirdParty = checkoutSessionWithMetadata({
+    installer: "other",
+    installerName: "  Solar\tPartners\r\nPte. Ltd.  ",
+  });
+  const paidBooking = paidBookingFromSession(thirdParty, paidAt);
+  assert.equal(paidBooking.installerType, "other");
+  assert.equal(
+    paidBooking.installerName,
+    "Solar Partners Pte. Ltd.",
+    "Stripe metadata must be normalized before persistence",
+  );
+  const calendarVisit = maintenanceVisitFromSession(thirdParty);
+  assert.equal(calendarVisit.installer, "other");
+  assert.equal(
+    calendarVisit.installerName,
+    "Solar\tPartners\r\nPte. Ltd.",
+    "the calendar formatter owns the final customer-safe normalization",
+  );
+
+  const legacyMissingName = checkoutSessionWithMetadata({
+    installer: "other",
+    installerName: "",
+  });
+  const legacyBooking = paidBookingFromSession(legacyMissingName, paidAt);
+  assert.equal(legacyBooking.installerType, "other");
+  assert.equal(
+    legacyBooking.installerName,
+    null,
+    "a paid legacy third-party session without a name must remain replayable",
+  );
+  for (const legacyInvalidName of ["--- / ...", "A".repeat(121)]) {
+    assert.equal(
+      paidBookingFromSession(
+        checkoutSessionWithMetadata({
+          installer: "other",
+          installerName: legacyInvalidName,
+        }),
+        paidAt,
+      ).installerName,
+      null,
+      "invalid legacy installer-name metadata must not be persisted",
+    );
+  }
+
+  const forgedFomoName = paidBookingFromSession(
+    checkoutSessionWithMetadata({
+      installer: "fomo",
+      installerName: "Must Not Persist",
+    }),
+    paidAt,
+  );
+  assert.equal(forgedFomoName.installerType, "fomo");
+  assert.equal(
+    forgedFomoName.installerName,
+    null,
+    "names must be discarded from non-third-party sessions",
+  );
+
+  assert.throws(
+    () =>
+      paidBookingFromSession(
+        checkoutSessionWithMetadata({ installer: "rto" }),
+        paidAt,
+      ),
+    (error: unknown) =>
+      error instanceof PermanentFulfillmentError &&
+      error.code === "rto_not_sellable",
+    "RTO payments must remain permanently rejected",
+  );
+
+  for (const [installer, expectedCode] of [
+    ["", "missing_booking_metadata"],
+    ["unknown", "invalid_installer"],
+  ] as const) {
+    assert.throws(
+      () =>
+        paidBookingFromSession(
+          checkoutSessionWithMetadata({ installer }),
+          paidAt,
+        ),
+      (error: unknown) =>
+        error instanceof PermanentFulfillmentError &&
+        error.code === expectedCode,
+      "missing or unsupported installer metadata must never be relabelled as FOMO-installed",
+    );
+  }
+}
+
 async function verifyRetryRecovery() {
   const store = new MemoryStore();
   const session = checkoutSession({ id: "cs_test_retry" });
@@ -382,6 +487,8 @@ function lifecycleBooking(): Booking {
     customerEmail: "lifecycle@example.com",
     customerPhone: "+65 8000 0000",
     siteAddress: "1 Lifecycle Road, Singapore",
+    installerType: "fomo",
+    installerName: null,
     serviceCode: "ESSENTIAL",
     packageName: "Essential Health Check",
     kwp: "10.000",
@@ -679,6 +786,7 @@ async function verifyPaymentLifecycle() {
 
 async function main() {
   await verifyTokens();
+  verifyInstallerSessionMapping();
   await verifyIdempotentFulfillment();
   await verifyRetryRecovery();
   await verifyPermanentRejection();
